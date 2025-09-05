@@ -52,11 +52,7 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
   }
 
   return (
-    <HeadlessListbox
-      value={value}
-      onChange={onChange as any}
-      multiple={multiple}
-    >
+    <HeadlessListbox value={value} onChange={onChange} multiple={multiple}>
       <div className={cn("relative", className)}>
         <ListboxButton className="relative w-full cursor-default rounded-md border border-input bg-input py-2 pl-3 pr-10 text-left text-primary focus:outline-none focus:ring-2 focus:ring-accent">
           <span className="block truncate">{getButtonText()}</span>

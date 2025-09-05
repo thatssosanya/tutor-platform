@@ -1,5 +1,5 @@
 import { useSession } from "next-auth/react"
-import React from "react"
+import React, { useEffect } from "react"
 
 import { Header } from "@/components/Header"
 import { cn } from "@/styles"
@@ -15,9 +15,11 @@ const DefaultLayout: React.FC<DefaultLayoutProps> = ({ children }) => {
 
   // TODO remove
   const router = useRouter()
-  if (!isAuthenticated && !["/", "/sign-in"].includes(router.pathname)) {
-    router.push("/")
-  }
+  useEffect(() => {
+    if (!isAuthenticated && !["/", "/sign-in"].includes(router.pathname)) {
+      router.push("/")
+    }
+  }, [isAuthenticated, router])
 
   return (
     <div className={cn("relative flex min-h-screen flex-col bg-primary")}>

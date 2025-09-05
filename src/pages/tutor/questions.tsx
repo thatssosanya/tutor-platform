@@ -9,6 +9,7 @@ import { TestsList } from "@/components/TestsList"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import { Button, Checkbox, Container, Dialog, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
+import { skipToken } from "@tanstack/react-query"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 type Test = RouterOutputs["test"]["getAllBySubject"][number]
@@ -74,11 +75,12 @@ export default function TutorQuestionsPage() {
     { enabled: !!selectedSubjectId }
   )
   const testsWithQuestionQuery = api.test.getTestsContainingQuestion.useQuery(
-    {
-      questionId: managingQuestion?.id!,
-      subjectId: selectedSubjectId!,
-    },
-    { enabled: !!managingQuestion && !!selectedSubjectId }
+    !!managingQuestion && !!selectedSubjectId
+      ? {
+          questionId: managingQuestion.id,
+          subjectId: selectedSubjectId,
+        }
+      : skipToken
   )
 
   // Mutations

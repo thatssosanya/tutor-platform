@@ -1,3 +1,4 @@
+import { cn } from "@/styles"
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react"
 import React from "react"
 
@@ -15,7 +16,7 @@ type TabsProps = {
 export function Tabs({ items, className }: TabsProps) {
   return (
     <TabGroup as={React.Fragment}>
-      <TabList className="flex gap-4 border-b border-primary">
+      <TabList className={cn("flex gap-4 border-b border-primary", className)}>
         {items.map((item) => (
           <Tab
             key={item.id}

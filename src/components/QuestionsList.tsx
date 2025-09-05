@@ -9,7 +9,7 @@ import { QuestionCard } from "./QuestionCard"
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
 type QuestionsListProps = {
-  pages: InfiniteData<any>["pages"] | undefined
+  pages: InfiniteData<{ items: Question[] }>["pages"] | undefined
   isLoading: boolean
   hasNextPage: boolean
   isFetchingNextPage: boolean

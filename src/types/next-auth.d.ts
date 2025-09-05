@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { type Session, type User } from "next-auth"
 import { type JWT } from "next-auth/jwt"
 import { type User as UserRecord } from "@prisma/client"

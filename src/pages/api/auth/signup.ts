@@ -49,6 +49,6 @@ export default async function handler(
 
     res.status(201).json({ message: "Аккаунт успешно создан." })
   } catch (error) {
-    res.status(500).json({ message: "Не удалось создать аккаунт." })
+    res.status(500).json({ message: "Не удалось создать аккаунт.", error })
   }
 }

@@ -1,10 +1,8 @@
-import { FilePen, Plus, Trash2, UserPlus, X } from "lucide-react"
+import { FilePen, Trash2, UserPlus } from "lucide-react"
 import Head from "next/head"
 import React, { useEffect, useState } from "react"
 
-import { QuestionsViewFilters } from "@/components/QuestionsViewFilters"
 import { QuestionsView } from "@/components/QuestionsView"
-import { StudentCard } from "@/components/StudentCard"
 import { TestsView } from "@/components/TestsView"
 import { TestsViewFilters } from "@/components/TestsViewFilters"
 import DefaultLayout from "@/layouts/DefaultLayout"

@@ -1,4 +1,3 @@
-import { FilePen, Trash2, UserPlus } from "lucide-react"
 import React from "react"
 
 import { Paper, Row, Stack } from "@/ui"

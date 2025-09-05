@@ -185,7 +185,7 @@ export const scraperRouter = createTRPCRouter({
                   currentPart += $node.text()
                 } else if (node.type === "tag" && $node.is("math")) {
                   console.log($node.html())
-                  let mathML = "<math>" + ($node.html() ?? "") + "</math"
+                  const mathML = "<math>" + ($node.html() ?? "") + "</math"
                   const latex = MathMLToLaTeX.convert(mathML)
                   currentPart += `$${latex}$`
                 }
