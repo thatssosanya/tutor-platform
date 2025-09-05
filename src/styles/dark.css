@@ -1,0 +1,38 @@
+@layer base {
+  [data-theme="dark"] {
+    --color-*: initial;
+
+    /* Background Colors */
+    --background-color-primary: oklch(0.208 0.042 265.755); /* slate-900 */
+    --background-color-paper: oklch(0.279 0.041 260.031); /* slate-800 */
+    --background-color-input: oklch(0.279 0.041 260.031); /* slate-800 */
+    --background-color-accent: oklch(0.585 0.233 277.117); /* indigo-500 */
+    --background-color-accent-highlight: oklch(0.673 0.182 276.935); /* indigo-400 */
+    --background-color-danger: oklch(0.637 0.237 25.331); /* red-500 */
+    --background-color-danger-highlight: oklch(0.704 0.191 22.216); /* red-400 */
+    --background-color-muted: oklch(0.372 0.044 257.287); /* slate-700 */
+    --background-color-muted-highlight: oklch(0.446 0.043 257.281); /* slate-600 */
+
+    /* Text Colors */
+    --text-color-primary: oklch(0.929 0.013 255.508); /* slate-200 */
+    --text-color-secondary: oklch(0.704 0.04 256.788); /* slate-400 */
+    --text-color-on-accent: #fff; /* white */
+    --text-color-danger: oklch(0.936 0.032 17.717); /* red-100 */
+    --text-color-muted: oklch(0.554 0.046 257.417); /* slate-500 */
+
+    /* Border & Ring Colors */
+    --border-color-primary: oklch(0.372 0.044 257.287); /* slate-700 */
+    --border-color-input: oklch(0.446 0.043 257.281); /* slate-600 */
+    --ring-color-accent: oklch(0.585 0.233 277.117 / 0.5); /* indigo-500 with opacity */
+
+    /* Shadow Colors */
+    --shadow-color: 0 0 0; /* black RGB */
+  }
+
+  body {
+    background-color: var(--background-color-primary);
+    color: var(--text-color-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

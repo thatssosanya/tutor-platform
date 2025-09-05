@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "sqlite"
+    url      = env("DATABASE_URL")
+}
+
+enum QuestionSource {
+    FIPI
+    AI
+    USER
+}
+
+enum SolutionType {
+    SHORT
+    LONG
+    MULTICHOICE
+    MULTIRESPONSE
+    MULTICHOICEGROUP
+}
+
+model User {
+    id String @id @unique @default(cuid())
+
+    name        String @unique
+    displayName String
+    password    String
+    permissions Int
+
+    creatorId String?
+    creator   User?   @relation("CreatedBy", fields: [creatorId], references: [id])
+    students  User[]  @relation("CreatedBy")
+
+    createdQuestions Question[]
+    createdTests     Test[]
+
+    assignmentsGiven    Assignment[] @relation("AssignedBy")
+    assignmentsReceived Assignment[] @relation("AssignedTo")
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model Subject {
+    id String @id @unique @default(cuid())
+
+    name String
+
+    topics Question[]
+    Topic  Topic[]
+    Test   Test[]
+}
+
+model Topic {
+    id String @id @default(cuid())
+
+    name String
+
+    subjectId String
+    subject   Subject @relation(fields: [subjectId], references: [id])
+
+    parentId String?
+    parent   Topic?  @relation("TopicHierarchy", fields: [parentId], references: [id])
+    children Topic[] @relation("TopicHierarchy")
+
+    questions Question[]
+
+    @@unique([id, subjectId])
+}
+
+model Question {
+    id String @id @unique @default(cuid())
+
+    name            String
+    prompt          String
+    body            String?
+    solutionPostfix String?
+    work            String?
+    solution        String?
+    solutionType    SolutionType
+    source          QuestionSource @default(FIPI)
+
+    creatorId String?
+    creator   User?   @relation(fields: [creatorId], references: [id])
+
+    subjectId String
+    subject   Subject @relation(fields: [subjectId], references: [id])
+
+    topics Topic[]
+
+    attachments Attachment[]
+    options     Option[]
+
+    testEntries    TestQuestion[]
+    studentAnswers StudentAnswer[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model Attachment {
+    id String @id @unique @default(cuid())
+
+    url String
+
+    questionId String
+    question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model Option {
+    id String @id @unique @default(cuid())
+
+    body String
+
+    questionId String
+    question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model Test {
+    id String @id @default(cuid())
+
+    name String
+
+    creatorId String
+    creator   User   @relation(fields: [creatorId], references: [id])
+
+    subjectId String
+    subject   Subject @relation(fields: [subjectId], references: [id])
+
+    questions TestQuestion[]
+
+    assignments Assignment[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model TestQuestion {
+    id String @id @default(cuid())
+
+    order Float
+
+    testId     String
+    test       Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+    questionId String
+    question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+    @@unique([testId, questionId])
+    @@unique([testId, order])
+}
+
+model Assignment {
+    id String @id @default(cuid())
+
+    dueAt       DateTime?
+    completedAt DateTime?
+
+    testId String
+    test   Test   @relation(fields: [testId], references: [id])
+
+    assignedById String
+    assignedBy   User   @relation("AssignedBy", fields: [assignedById], references: [id])
+    assignedToId String
+    assignedTo   User   @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+    answers StudentAnswer[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model StudentAnswer {
+    id String @id @default(cuid())
+
+    answer String
+
+    assignmentId String
+    assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+    questionId   String
+    question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([assignmentId, questionId])
+}
