@@ -10,11 +10,6 @@ jiti.import("./src/env")
 /** @type {import("next").NextConfig} */
 const config = {
   reactStrictMode: true,
-
-  i18n: {
-    locales: ["ru"],
-    defaultLocale: "ru",
-  },
   transpilePackages: ["next-auth"],
 }
 
