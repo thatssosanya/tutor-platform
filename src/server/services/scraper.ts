@@ -1,0 +1,395 @@
+import * as cheerio from "cheerio"
+import { MathMLToLaTeX } from "mathml-to-latex"
+import { QuestionSource, SolutionType } from "@prisma/client"
+import type { PrismaClient } from "@prisma/client"
+
+import {
+  fetchFipi,
+  FIPI_ID_CLEANUP_REGEX,
+  FIPI_SHOW_PICTURE_Q_REGEX,
+  FIPI_URL,
+} from "@/server/lib/fipi"
+import type { AnyNode, Element } from "domhandler"
+
+export type ParsedQBlock = {
+  id: string
+  prompt: string
+  body: string
+  attachments: string[]
+}
+
+export type ParsedIBlock = {
+  name: string
+  solutionType: SolutionType
+}
+
+export type ParsedQuestion = ParsedQBlock & ParsedIBlock
+
+export function parseIBlockFromHtml(iblockHtml: string): ParsedIBlock | null {
+  const $ = cheerio.load(iblockHtml)
+  const iblock = $(".iblock").first()
+
+  if (iblock.length === 0) {
+    return null
+  }
+
+  const name = iblock
+    .find(".id-text .canselect")
+    .first()
+    .text()
+    .trim() as string
+
+  const solutionTypeText = iblock
+    .find('td.param-name:contains("Тип ответа:")')
+    .first()
+    .next("td")
+    .text()
+    .trim()
+
+  let solutionType: SolutionType
+  if (solutionTypeText === "Краткий ответ") {
+    solutionType = SolutionType.SHORT
+  } else if (solutionTypeText === "Развернутый ответ") {
+    solutionType = SolutionType.LONG
+  } else {
+    return null
+  }
+
+  if (!name) return null
+
+  return { name, solutionType }
+}
+
+function parseNode(node: AnyNode, isMath = false): string {
+  if (!node) {
+    return ""
+  }
+
+  if (node.type === "tag" || node.type === "script") {
+    const element = node as Element
+    if (
+      // skip presentation-related mathjax tags
+      element.attribs["class"]?.includes("MathJax") ||
+      element.attribs["class"]?.includes("MathJax_Preview")
+    ) {
+      return ""
+    }
+
+    const tagName = element.tagName.toLowerCase()
+
+    if (tagName === "table") {
+      const tbody = element.childNodes.find(
+        (n) => n.type === "tag" && n.tagName === "tbody"
+      )
+      if (!tbody || tbody.type !== "tag" || tbody.tagName !== "tbody") {
+        return ""
+      }
+      console.log(element.previousSibling, element.nextSibling)
+      // top level tables are not semantically valuable; just parse their tds
+      const rows = tbody.children
+      if (
+        element.parentNode?.type === "tag" &&
+        element.parentNode.tagName === "td" &&
+        element.parentNode.attribs["class"]?.includes("cell_0") &&
+        element.previousSibling?.previousSibling?.type !== "tag" &&
+        element.nextSibling?.nextSibling?.type !== "tag"
+      ) {
+        const tds = rows.flatMap((r) =>
+          r.type === "tag" && r.tagName === "tr" ? r.children : []
+        )
+        const content = tds
+          .map((childNode) => parseNode(childNode))
+          .join("")
+          .trim()
+        return content
+      }
+
+      const parsedRows = rows
+        .map((row) => {
+          if (row.type !== "tag" || row.tagName !== "tr") {
+            return null
+          }
+          const tds = row.children.filter(
+            (child) => child.type === "tag" && child.tagName === "td"
+          )
+          if (tds.length === 0) {
+            return null
+          }
+          const parsedTds = tds.map((td) => parseNode(td)).join(" | ")
+          return `| ${parsedTds} |`
+        })
+        .filter((row) => row !== null)
+
+      if (!parsedRows[0]) {
+        return ""
+      }
+
+      const header = "|   ".repeat(parsedRows[0].split("|").length - 1) + "|"
+      const separator = "|---".repeat(parsedRows[0].split("|").length - 1) + "|"
+
+      return `\n${header}\n${separator}\n${parsedRows.join("\n")}\n`
+    } else if (tagName === "math") {
+      const contentHtml = element.childNodes
+        .map((childNode) => parseNode(childNode, true))
+        .join("")
+      const latex = MathMLToLaTeX.convert("<math>" + contentHtml + "</math>")
+      return `$${latex}$`
+    } else if (
+      isMath ||
+      tagName === "span" ||
+      tagName === "p" ||
+      tagName === "td" ||
+      tagName === "i" ||
+      tagName === "b"
+    ) {
+      const content = element.childNodes
+        .map((childNode) => parseNode(childNode, isMath))
+        .join("")
+      // math elements with no text are still semantically valuable
+      if (!content && !isMath) {
+        return ""
+      }
+      const [prefix, suffix] = isMath
+        ? [`<${tagName}>`, `</${tagName}>`]
+        : content.startsWith("$")
+          ? ["", ""]
+          : tagName === "i"
+            ? ["*", "*"]
+            : tagName === "b"
+              ? ["**", "**"]
+              : ["", ""]
+      return prefix + content + suffix
+    }
+  } else if (node.type === "text") {
+    //console.log(node)
+    return isMath
+      ? node.data.trim()
+      : // escape characters that are used in markdown
+        node.data.replaceAll(
+          /[\\\`\*\_\{\}\[\]\(\)\#\+\-\.\!]/g,
+          (c) => "\\" + c
+        ) || ""
+  }
+
+  console.log(node.type === "tag" && node.tagName)
+
+  return ""
+}
+
+export function parseQBlockFromHtml(qblockHtml: string): ParsedQBlock | null {
+  const $ = cheerio.load(
+    qblockHtml.replaceAll("<m:", "<").replaceAll("</m:", "</"),
+    undefined,
+    false
+  )
+
+  const qblock = $(".qblock").first()
+
+  if (qblock.length === 0) {
+    return null
+  }
+
+  const guid = qblock.find('input[name="guid"]').first().val() as string
+  const prompt = qblock.find(".hint").first().text().trim()
+
+  if (!guid) return null
+
+  const bodyParts: string[] = []
+  qblock
+    .find("td.cell_0")
+    .contents()
+    .each((_, element) => {
+      const text = parseNode(element)
+      bodyParts.push(text)
+    })
+  const body = bodyParts
+    .map((p) => p.trim())
+    .filter((p) => p)
+    .join("\n\n")
+
+  const attachments: string[] = []
+  qblock.find("script").each((_, scriptEl) => {
+    const scriptContent = $(scriptEl).html() ?? ""
+    const matches = scriptContent.matchAll(FIPI_SHOW_PICTURE_Q_REGEX)
+    for (const match of matches) {
+      attachments.push(`${FIPI_URL}/${match[1]}`)
+    }
+  })
+
+  return { id: guid, prompt, body, attachments }
+}
+
+export async function scrapeSubjects(db: PrismaClient) {
+  const html = await fetchFipi("/bank/index.php")
+
+  const $ = cheerio.load(html)
+
+  const subjects = $(".projects.active li")
+    .map((_, el) => {
+      const element = $(el)
+      const id = element.attr("id")?.replace("p_", "")
+      const name = element.text().trim()
+      if (!id || !name) return null
+      return { id, name }
+    })
+    .get()
+    .filter(Boolean)
+
+  await db.subject.createMany({
+    data: subjects,
+  })
+
+  return { createdCount: subjects.length }
+}
+
+export async function scrapeTopics(db: PrismaClient, subjectId: string) {
+  const html = await fetchFipi(`/bank/index.php?proj=${subjectId}`)
+
+  const $ = cheerio.load(html)
+
+  const scrapedRootTopicNames: string[] = []
+  const scrapedSubTopics: {
+    id: string
+    name: string
+    parentName: string
+  }[] = []
+
+  let currentParentName: string | null = null
+  $('.filter-title:contains("Темы КЭС")')
+    .first()
+    .next(".dropdown")
+    .find(".dropdown-item")
+    .each((_, el) => {
+      const element = $(el)
+      if (element.hasClass("dropdown-header")) {
+        currentParentName = element
+          .text()
+          .trim()
+          .replace(FIPI_ID_CLEANUP_REGEX, "")
+        scrapedRootTopicNames.push(currentParentName)
+      } else {
+        const label = element.find("label")
+        const id = label.find("input").val() as string
+        const name = label.text().trim().replace(FIPI_ID_CLEANUP_REGEX, "")
+
+        if (id && name && currentParentName) {
+          scrapedSubTopics.push({ id, name, parentName: currentParentName })
+        }
+      }
+    })
+
+  const existingRootTopics = await db.topic.findMany({
+    where: { subjectId: subjectId, parentId: null },
+    select: { name: true },
+  })
+  const existingRootTopicNames = new Set(existingRootTopics.map((t) => t.name))
+
+  const newRootTopicsData = scrapedRootTopicNames
+    .filter((name) => !existingRootTopicNames.has(name))
+    .map((name) => ({ name, subjectId: subjectId }))
+
+  if (newRootTopicsData.length > 0) {
+    await db.topic.createMany({ data: newRootTopicsData })
+  }
+
+  const allRootTopics = await db.topic.findMany({
+    where: { subjectId: subjectId, parentId: null },
+  })
+
+  const parentNameToIdMap = new Map<string, string>()
+  allRootTopics.forEach((topic) => {
+    parentNameToIdMap.set(topic.name, topic.id)
+  })
+
+  const subTopicsData = scrapedSubTopics
+    .map(({ id, name, parentName }) => {
+      const parentId = parentNameToIdMap.get(parentName)
+      if (!parentId) return null
+      return {
+        id,
+        name,
+        parentId,
+        subjectId: subjectId,
+      }
+    })
+    .filter((t): t is NonNullable<typeof t> => t !== null)
+
+  let createdSubTopicsCount = 0
+  if (subTopicsData.length > 0) {
+    const result = await db.topic.createMany({
+      data: subTopicsData,
+    })
+    createdSubTopicsCount = result.count
+  }
+
+  return {
+    createdCount: newRootTopicsData.length + createdSubTopicsCount,
+  }
+}
+
+export async function scrapePage(
+  db: PrismaClient,
+  subjectId: string,
+  page: number,
+  user?: { id: string }
+) {
+  const path = `/bank/questions.php?proj=${subjectId}&page=${
+    page - 1
+  }&pagesize=10&rfsh=${encodeURIComponent(new Date().toString())}`
+
+  const html = await fetchFipi(path)
+
+  const $ = cheerio.load(html)
+
+  const parsedQuestions = $(".qblock")
+    .map((_, el) => {
+      console.log("parsing question")
+      const qblock = $(el)
+      const iblock = qblock.next()
+      if (iblock.length > 0) {
+        const qblockData = parseQBlockFromHtml(
+          '<div class="qblock">' + qblock.html() + "</div>"
+        )
+        console.log("parsed qblock", qblockData)
+        const iblockData = parseIBlockFromHtml(
+          '<div class="iblock">' + iblock.html() + "</div>"
+        )
+        console.log("parsed iblock", iblockData)
+
+        if (qblockData && iblockData) {
+          return { ...qblockData, ...iblockData }
+        }
+      }
+      return null
+    })
+    .get()
+    .filter((q): q is ParsedQuestion => q !== null)
+
+  const parsedGuids = parsedQuestions.map((q) => q.id)
+  const existingQuestions = await db.question.findMany({
+    where: { id: { in: parsedGuids } },
+    select: { id: true },
+  })
+  const existingIds = new Set(existingQuestions.map((q) => q.id))
+
+  const newQuestions = parsedQuestions.filter((q) => !existingIds.has(q.id))
+
+  for (const question of newQuestions) {
+    await db.question.create({
+      data: {
+        id: question.id,
+        name: question.name,
+        prompt: question.prompt,
+        body: question.body,
+        solutionType: question.solutionType,
+        source: QuestionSource.FIPI,
+        subjectId,
+        creatorId: user?.id,
+        attachments: {
+          create: question.attachments.map((url) => ({ url })),
+        },
+      },
+    })
+  }
+  return { createdCount: newQuestions.length }
+}

@@ -161,7 +161,9 @@ export const assignmentRouter = createTRPCRouter({
               questions: {
                 orderBy: { order: "asc" },
                 include: {
-                  question: true,
+                  question: {
+                    include: { attachments: true },
+                  },
                 },
               },
             },

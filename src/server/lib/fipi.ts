@@ -4,7 +4,7 @@ import tls from "node:tls"
 
 const FIPI_BASE_URL = "https://ege.fipi.ru"
 
-export const fetchFipi = async (path: string, referer?: string) => {
+export const fetchFipi = async (path: string) => {
   const fipiAgent = new Agent({
     connect: {
       ca: [...tls.rootCertificates, env.FIPI_INTERMEDIATE_CERT],
@@ -26,9 +26,6 @@ export const fetchFipi = async (path: string, referer?: string) => {
       "sec-fetch-site": "same-origin",
       "sec-fetch-user": "?1",
       "upgrade-insecure-requests": "1",
-      cookie:
-        "PHPSESSID=v0ogeg7m0j195tgtv1aht55f30; md_auto=qprint; session-cookie=1861c2420857576bcb198c4fd00b084571a6aec2cad1efe576ea9ee289778a292b0835dd0a03e651ff38f9dafaa0b0ad; md_auto=qprint",
-      Referer: referer ? `${FIPI_BASE_URL}${referer}` : "",
     },
     method: "GET",
     dispatcher: fipiAgent,

@@ -47,6 +47,56 @@ export const questionRouter = createTRPCRouter({
       })
     }),
 
+  getWithOffset: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+        page: z.number().min(1).default(1),
+        subjectId: z.string().optional(),
+        topicIds: z.array(z.string()).optional(),
+        source: z.nativeEnum(QuestionSource).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page, subjectId, topicIds, source } = input
+      const skip = (page - 1) * limit
+
+      const whereClause = {
+        subjectId: subjectId,
+        source: source,
+        topics:
+          topicIds && topicIds.length > 0
+            ? { some: { id: { in: topicIds } } }
+            : undefined,
+      }
+
+      // Fetch items for the current page and total count in a single transaction
+      const [items, totalCount] = await ctx.db.$transaction([
+        ctx.db.question.findMany({
+          take: limit,
+          skip,
+          where: whereClause,
+          include: {
+            attachments: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
+        ctx.db.question.count({
+          where: whereClause,
+        }),
+      ])
+
+      const totalPages = Math.ceil(totalCount / limit)
+
+      return {
+        items,
+        totalPages,
+        currentPage: page,
+      }
+    }),
+
   getPaginated: publicProcedure
     .input(
       z.object({
@@ -70,6 +120,9 @@ export const questionRouter = createTRPCRouter({
             input.topicIds && input.topicIds.length > 0
               ? { some: { id: { in: input.topicIds } } }
               : undefined,
+        },
+        include: {
+          attachments: true,
         },
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: {

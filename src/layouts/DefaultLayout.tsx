@@ -11,19 +11,21 @@ interface DefaultLayoutProps {
 
 const DefaultLayout: React.FC<DefaultLayoutProps> = ({ children }) => {
   const { status } = useSession()
-  const isAuthenticated = status === "authenticated"
 
   // TODO remove
   const router = useRouter()
   useEffect(() => {
-    if (!isAuthenticated && !["/", "/sign-in"].includes(router.pathname)) {
+    if (
+      status === "unauthenticated" &&
+      !["/", "/sign-in"].includes(router.pathname)
+    ) {
       router.push("/")
     }
-  }, [isAuthenticated, router])
+  }, [status, router])
 
   return (
     <div className={cn("relative flex min-h-screen flex-col bg-primary")}>
-      {isAuthenticated && <Header />}
+      {status === "authenticated" && <Header />}
       {children}
     </div>
   )
