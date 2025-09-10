@@ -6,6 +6,8 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "@/server/api/trpc"
+import { TRPCError } from "@trpc/server"
+import { enrichQuestionWithAI } from "@/server/services/ai"
 
 const questionInputSchema = z.object({
   name: z.string().min(1),
@@ -70,7 +72,6 @@ export const questionRouter = createTRPCRouter({
             : undefined,
       }
 
-      // Fetch items for the current page and total count in a single transaction
       const [items, totalCount] = await ctx.db.$transaction([
         ctx.db.question.findMany({
           take: limit,
@@ -80,7 +81,7 @@ export const questionRouter = createTRPCRouter({
             attachments: true,
           },
           orderBy: {
-            createdAt: "desc",
+            createdAt: "asc",
           },
         }),
         ctx.db.question.count({
@@ -126,7 +127,7 @@ export const questionRouter = createTRPCRouter({
         },
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: {
-          createdAt: "desc",
+          createdAt: "asc",
         },
       })
 
@@ -162,5 +163,70 @@ export const questionRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.question.delete({ where: { id: input.id } })
+    }),
+
+  enrichOne: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const question = await ctx.db.question.findUnique({
+        where: { id: input.id },
+        select: { body: true, solutionType: true },
+      })
+
+      if (!question) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Question not found.",
+        })
+      }
+
+      if (question.solutionType !== SolutionType.SHORT) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Enrichment is only available for SHORT answer questions.",
+        })
+      }
+
+      const aiEnrichment = await enrichQuestionWithAI(question)
+
+      return ctx.db.question.update({
+        where: { id: input.id },
+        data: {
+          work: aiEnrichment.work,
+          solution: aiEnrichment.solution,
+        },
+      })
+    }),
+
+  enrichMany: protectedProcedure
+    .input(z.object({ ids: z.array(z.string()) }))
+    .mutation(async ({ ctx, input }) => {
+      const questionsToEnrich = await ctx.db.question.findMany({
+        where: {
+          id: { in: input.ids },
+          solutionType: SolutionType.SHORT,
+          work: null, // Only enrich those that need it
+        },
+        select: { id: true, body: true, solutionType: true },
+      })
+
+      if (questionsToEnrich.length === 0) {
+        return { enrichedCount: 0 }
+      }
+
+      const enrichmentPromises = questionsToEnrich.map(async (question) => {
+        const aiEnrichment = await enrichQuestionWithAI(question)
+        return ctx.db.question.update({
+          where: { id: question.id },
+          data: {
+            work: aiEnrichment.work,
+            solution: aiEnrichment.solution,
+          },
+        })
+      })
+
+      await Promise.all(enrichmentPromises)
+
+      return { enrichedCount: questionsToEnrich.length }
     }),
 })

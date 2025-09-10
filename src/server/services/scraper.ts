@@ -1,5 +1,4 @@
 import * as cheerio from "cheerio"
-import { MathMLToLaTeX } from "mathml-to-latex"
 import { QuestionSource, SolutionType } from "@prisma/client"
 import type { PrismaClient } from "@prisma/client"
 
@@ -10,6 +9,7 @@ import {
   FIPI_URL,
 } from "@/server/lib/fipi"
 import type { AnyNode, Element } from "domhandler"
+import { convertMathmlToLatex } from "@/utils/latex"
 
 export type ParsedQBlock = {
   id: string
@@ -21,6 +21,7 @@ export type ParsedQBlock = {
 export type ParsedIBlock = {
   name: string
   solutionType: SolutionType
+  topicIds: string[]
 }
 
 export type ParsedQuestion = ParsedQBlock & ParsedIBlock
@@ -52,15 +53,39 @@ export function parseIBlockFromHtml(iblockHtml: string): ParsedIBlock | null {
   } else if (solutionTypeText === "Развернутый ответ") {
     solutionType = SolutionType.LONG
   } else {
-    return null
+    solutionType = SolutionType.LONG
   }
 
-  if (!name) return null
+  const topicIds = Array.from(
+    iblock
+      .find('td.param-name:contains("КЭС:")')
+      .first()
+      .next("td")
+      .find("div")
+      .map((_, n) => {
+        const text = parseNode(n, undefined, undefined, true).trim()
+        if (!text) {
+          return null
+        }
+        const id = text.split(" ")[0]
+        if (!id) {
+          return null
+        }
+        return id
+      })
+  )
 
-  return { name, solutionType }
+  console.log(name, topicIds)
+
+  return { name, solutionType, topicIds }
 }
 
-function parseNode(node: AnyNode, isMath = false): string {
+function parseNode(
+  node: AnyNode,
+  isMath = false,
+  isNonSemanticTable = false,
+  isUnescaped = false
+): string {
   if (!node) {
     return ""
   }
@@ -84,16 +109,9 @@ function parseNode(node: AnyNode, isMath = false): string {
       if (!tbody || tbody.type !== "tag" || tbody.tagName !== "tbody") {
         return ""
       }
-      console.log(element.previousSibling, element.nextSibling)
-      // top level tables are not semantically valuable; just parse their tds
       const rows = tbody.children
-      if (
-        element.parentNode?.type === "tag" &&
-        element.parentNode.tagName === "td" &&
-        element.parentNode.attribs["class"]?.includes("cell_0") &&
-        element.previousSibling?.previousSibling?.type !== "tag" &&
-        element.nextSibling?.nextSibling?.type !== "tag"
-      ) {
+
+      if (isNonSemanticTable) {
         const tds = rows.flatMap((r) =>
           r.type === "tag" && r.tagName === "tr" ? r.children : []
         )
@@ -115,8 +133,8 @@ function parseNode(node: AnyNode, isMath = false): string {
           if (tds.length === 0) {
             return null
           }
-          const parsedTds = tds.map((td) => parseNode(td)).join(" | ")
-          return `| ${parsedTds} |`
+          const parsedTds = tds.map((td) => parseNode(td))
+          return parsedTds
         })
         .filter((row) => row !== null)
 
@@ -124,27 +142,34 @@ function parseNode(node: AnyNode, isMath = false): string {
         return ""
       }
 
-      const header = "|   ".repeat(parsedRows[0].split("|").length - 1) + "|"
-      const separator = "|---".repeat(parsedRows[0].split("|").length - 1) + "|"
+      const header = "|   ".repeat(parsedRows[0].length - 1) + "|"
+      const separator = "|---".repeat(parsedRows[0].length - 1) + "|"
 
-      return `\n${header}\n${separator}\n${parsedRows.join("\n")}\n`
+      return `\n${header}\n${separator}\n${parsedRows
+        .map((row) => `| ${row.join(" | ")} |`)
+        .join("\n")}\n`
     } else if (tagName === "math") {
       const contentHtml = element.childNodes
         .map((childNode) => parseNode(childNode, true))
         .join("")
-      const latex = MathMLToLaTeX.convert("<math>" + contentHtml + "</math>")
-      return `$${latex}$`
+      const latex = convertMathmlToLatex("<math>" + contentHtml + "</math>")
+      return ` $${latex}$ `
     } else if (
       isMath ||
-      tagName === "span" ||
-      tagName === "p" ||
       tagName === "td" ||
+      tagName === "div" ||
+      tagName === "p" ||
+      tagName === "span" ||
       tagName === "i" ||
       tagName === "b"
     ) {
       const content = element.childNodes
-        .map((childNode) => parseNode(childNode, isMath))
+        .map((childNode) =>
+          parseNode(childNode, isMath, undefined, isUnescaped)
+        )
         .join("")
+        .replaceAll(/ +/g, " ")
+        .replaceAll(/ ([\,\?]|\\\.|\\\!)/g, "$1")
       // math elements with no text are still semantically valuable
       if (!content && !isMath) {
         return ""
@@ -154,15 +179,14 @@ function parseNode(node: AnyNode, isMath = false): string {
         : content.startsWith("$")
           ? ["", ""]
           : tagName === "i"
-            ? ["*", "*"]
+            ? [" *", "* "]
             : tagName === "b"
-              ? ["**", "**"]
+              ? [" **", "** "]
               : ["", ""]
       return prefix + content + suffix
     }
   } else if (node.type === "text") {
-    //console.log(node)
-    return isMath
+    return isMath || isUnescaped
       ? node.data.trim()
       : // escape characters that are used in markdown
         node.data.replaceAll(
@@ -171,14 +195,15 @@ function parseNode(node: AnyNode, isMath = false): string {
         ) || ""
   }
 
-  console.log(node.type === "tag" && node.tagName)
-
   return ""
 }
 
 export function parseQBlockFromHtml(qblockHtml: string): ParsedQBlock | null {
   const $ = cheerio.load(
-    qblockHtml.replaceAll("<m:", "<").replaceAll("</m:", "</"),
+    qblockHtml
+      .replaceAll("<m:", "<")
+      .replaceAll("</m:", "</")
+      .replaceAll("&nbsp;", ""),
     undefined,
     false
   )
@@ -194,14 +219,46 @@ export function parseQBlockFromHtml(qblockHtml: string): ParsedQBlock | null {
 
   if (!guid) return null
 
+  const allElements = qblock.find("td.cell_0").contents().toArray()
+  const elementsMeta = allElements.map((element) => ({
+    element,
+    isTable: element.type === "tag" && element.tagName === "table",
+  }))
+
+  const nonTableElements = elementsMeta
+    .filter((item) => !item.isTable)
+    .map((item) => item.element)
+  const tableElements = elementsMeta
+    .filter((item) => item.isTable)
+    .map((item) => item.element)
+
+  const parsedNonTables = nonTableElements.map((element) => parseNode(element))
+  const hasNonTableContent = parsedNonTables.some(
+    (p) => p.replaceAll(/\s/g, "") !== ""
+  )
+  const parsedTables = tableElements.map((element) =>
+    parseNode(element, false, !hasNonTableContent)
+  )
+
   const bodyParts: string[] = []
-  qblock
-    .find("td.cell_0")
-    .contents()
-    .each((_, element) => {
-      const text = parseNode(element)
-      bodyParts.push(text)
-    })
+  let nonTableIdx = 0
+  let tableIdx = 0
+  elementsMeta.forEach((meta) => {
+    if (meta.isTable) {
+      const content = parsedTables[tableIdx++]
+      if (!content) {
+        return
+      }
+      bodyParts.push(content)
+    } else {
+      const content = parsedNonTables[nonTableIdx++]
+      if (!content) {
+        return
+      }
+      bodyParts.push(content)
+    }
+  })
+
   const body = bodyParts
     .map((p) => p.trim())
     .filter((p) => p)
@@ -375,18 +432,23 @@ export async function scrapePage(
   const newQuestions = parsedQuestions.filter((q) => !existingIds.has(q.id))
 
   for (const question of newQuestions) {
+    const { topicIds, attachments, ...data } = question
+
     await db.question.create({
       data: {
-        id: question.id,
-        name: question.name,
-        prompt: question.prompt,
-        body: question.body,
-        solutionType: question.solutionType,
+        id: data.id,
+        name: data.name,
+        prompt: data.prompt,
+        body: data.body,
+        solutionType: data.solutionType,
         source: QuestionSource.FIPI,
         subjectId,
         creatorId: user?.id,
+        topics: {
+          connect: topicIds.map((id) => ({ id_subjectId: { id, subjectId } })),
+        },
         attachments: {
-          create: question.attachments.map((url) => ({ url })),
+          create: attachments.map((url) => ({ url })),
         },
       },
     })

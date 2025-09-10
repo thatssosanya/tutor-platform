@@ -14,6 +14,7 @@ export const env = createEnv({
       .enum(["development", "test", "production"])
       .default("development"),
     FIPI_INTERMEDIATE_CERT: z.string(),
+    ENRICHMENT_AI_API_KEY: z.string(),
   },
 
   /**
@@ -35,6 +36,7 @@ export const env = createEnv({
     DATABASE_DIRECT_URL: process.env.DATABASE_DIRECT_URL,
     NODE_ENV: process.env.NODE_ENV,
     FIPI_INTERMEDIATE_CERT: process.env.FIPI_INTERMEDIATE_CERT,
+    ENRICHMENT_AI_API_KEY: process.env.ENRICHMENT_AI_API_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

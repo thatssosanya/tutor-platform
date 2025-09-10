@@ -6,7 +6,6 @@ import Markdown from "react-markdown"
 import remarkMath from "remark-math"
 import remarkGfm from "remark-gfm"
 import rehypeKatex from "rehype-katex"
-import { fixMalformedLatex } from "@/utils/latex"
 import "katex/dist/katex.min.css"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
@@ -36,7 +35,7 @@ export function QuestionCard({
                   remarkPlugins={[remarkMath, remarkGfm]}
                   rehypePlugins={[rehypeKatex]}
                 >
-                  {fixMalformedLatex(question.body)}
+                  {question.body}
                 </Markdown>
               </Stack>
               <Stack className="ml-auto shrink-0">
