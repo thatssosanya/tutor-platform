@@ -2,10 +2,10 @@ import { FilePen, Trash2, UserPlus } from "lucide-react"
 import Head from "next/head"
 import React, { useEffect, useState } from "react"
 
-import { QuestionsView } from "@/components/QuestionsView"
-import { StudentsView } from "@/components/StudentsView"
-import { TestsView } from "@/components/TestsView"
-import { TestsViewFilters } from "@/components/TestsViewFilters"
+import { QuestionsView } from "@/components/questions/QuestionsView"
+import { StudentsView } from "@/components/students/StudentsView"
+import { TestsView } from "@/components/tests/TestsView"
+import { TestsViewFilters } from "@/components/tests/TestsViewFilters"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import {
   Box,

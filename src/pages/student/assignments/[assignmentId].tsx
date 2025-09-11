@@ -4,7 +4,7 @@ import Head from "next/head"
 import { useRouter } from "next/router"
 import React, { useEffect, useMemo, useState } from "react"
 
-import { QuestionsList } from "@/components/QuestionsList"
+import { QuestionsList } from "@/components/questions/QuestionsList"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import { Button, Container, Input, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"

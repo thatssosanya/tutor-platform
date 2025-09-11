@@ -7,7 +7,7 @@ import rehypeKatex from "rehype-katex"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 
-import { QuestionCard } from "@/components/QuestionCard"
+import { QuestionCard } from "@/components/questions/QuestionCard"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import { Button, Container, Paper, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"

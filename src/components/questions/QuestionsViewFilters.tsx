@@ -1,8 +1,8 @@
 import React from "react"
 
 import { Stack } from "@/ui"
-import { SubjectFilter } from "./SubjectFilter"
-import { TopicFilter } from "./TopicFilter"
+import { SubjectFilter } from "../filters/SubjectFilter"
+import { TopicFilter } from "../filters/TopicFilter"
 
 type QuestionsViewFiltersProps = {
   selectedSubjectId: string | null

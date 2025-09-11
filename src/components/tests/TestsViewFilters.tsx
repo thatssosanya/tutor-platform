@@ -1,16 +1,16 @@
 import React from "react"
 
-import { SubjectFilter } from "./SubjectFilter"
+import { SubjectFilter } from "../filters/SubjectFilter"
 
-type StudentsViewFiltersProps = {
+type TestsViewFiltersProps = {
   selectedSubjectId: string | null
   onSelectedSubjectIdChange: (id: string) => void
 }
 
-export function StudentsViewFilters({
+export function TestsViewFilters({
   selectedSubjectId,
   onSelectedSubjectIdChange,
-}: StudentsViewFiltersProps) {
+}: TestsViewFiltersProps) {
   return (
     <SubjectFilter
       selectedSubjectId={selectedSubjectId}
