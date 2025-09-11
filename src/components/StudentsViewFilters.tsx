@@ -1,5 +1,20 @@
 import React from "react"
 
-export function StudentsViewFilters() {
-  return <>Тут какие-то фильтры</>
+import { SubjectFilter } from "./SubjectFilter"
+
+type StudentsViewFiltersProps = {
+  selectedSubjectId: string | null
+  onSelectedSubjectIdChange: (id: string) => void
+}
+
+export function StudentsViewFilters({
+  selectedSubjectId,
+  onSelectedSubjectIdChange,
+}: StudentsViewFiltersProps) {
+  return (
+    <SubjectFilter
+      selectedSubjectId={selectedSubjectId}
+      onSelectedSubjectIdChange={onSelectedSubjectIdChange}
+    />
+  )
 }

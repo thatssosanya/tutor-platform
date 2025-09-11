@@ -3,9 +3,10 @@ import Head from "next/head"
 import React, { useEffect, useState } from "react"
 
 import { QuestionsView } from "@/components/QuestionsView"
+import { StudentsView } from "@/components/StudentsView"
 import { TestsView } from "@/components/TestsView"
 import { TestsViewFilters } from "@/components/TestsViewFilters"
-import DefaultLayout from "@/layouts/DefaultLayout"
+import ProtectedLayout from "@/layouts/ProtectedLayout"
 import {
   Box,
   Button,
@@ -18,13 +19,12 @@ import {
 } from "@/ui"
 import { api } from "@/utils/api"
 import { formatDateToString } from "@/utils/date"
+import { PermissionBit } from "@/utils/permissions"
+import { useSubjects } from "@/utils/subjects"
 import type { Question } from "@prisma/client"
-import { StudentsView } from "@/components/StudentsView"
 
 export default function TutorTestsPage() {
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
-    null
-  )
+  const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false)
   const [isQuestionsDialogOpen, setQuestionsDialogOpen] = useState(false)
   const [activeTestId, setActiveTestId] = useState<string | null>(null)
@@ -216,17 +216,18 @@ export default function TutorTestsPage() {
       <Head>
         <title>Управление тестами</title>
       </Head>
-      <DefaultLayout>
+      <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
         <Container>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             <div className="md:col-span-1">
-              <Stack className="gap-8">
+              <Stack className="gap-4">
                 <Stack>
                   <h1 className="text-2xl font-bold">Тесты</h1>
                   <p className="mt-1 text-secondary">
                     Управляйте вашими тестами и заданиями.
                   </p>
                 </Stack>
+                <hr className="border-input" />
                 <TestsViewFilters
                   selectedSubjectId={selectedSubjectId}
                   onSelectedSubjectIdChange={setSelectedSubjectId}
@@ -248,7 +249,7 @@ export default function TutorTestsPage() {
             </div>
           </div>
         </Container>
-      </DefaultLayout>
+      </ProtectedLayout>
 
       <Dialog
         isOpen={isAssignDialogOpen}

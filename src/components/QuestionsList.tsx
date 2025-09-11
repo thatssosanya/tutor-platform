@@ -14,7 +14,7 @@ type QuestionsListProps = {
   hasNextPage: boolean
   isFetchingNextPage: boolean
   fetchNextPage: () => void
-  cardControls: (question: Question) => React.ReactNode
+  cardControls?: (question: Question) => React.ReactNode
   cardFooter?: (question: Question) => React.ReactNode
 }
 

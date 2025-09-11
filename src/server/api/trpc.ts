@@ -15,6 +15,7 @@ import { ZodError } from "zod"
 
 import { auth } from "@/server/auth"
 import { db } from "@/server/db"
+import { hasPermission, type PermissionBit } from "@/utils/permissions"
 
 /**
  * 1. CONTEXT
@@ -159,3 +160,30 @@ export const protectedProcedure = t.procedure
       },
     })
   })
+
+/**
+ * Protected procedure factory
+ *
+ * A factory function that creates a protected procedure. It takes an array of permission bits
+ * and returns a procedure that will check if the user has at least one of the required permissions.
+ *
+ * @param permissionBits - An array of `PermissionBit` enums.
+ */
+export const createProtectedProcedure = (permissionBits: PermissionBit[]) => {
+  return protectedProcedure.use(({ ctx, next }) => {
+    const userPermissions = ctx.session.user.permissions
+    const isPermitted = permissionBits.some((permission) =>
+      hasPermission(userPermissions, permission)
+    )
+
+    if (!isPermitted) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message:
+          "You do not have sufficient permissions to perform this action.",
+      })
+    }
+
+    return next({ ctx })
+  })
+}

@@ -1,19 +1,19 @@
 import { Check, ExternalLink } from "lucide-react"
 import Head from "next/head"
 import Link from "next/link"
-import React, { useMemo, useState } from "react"
+import React, { useMemo } from "react"
 
 import { TestsList } from "@/components/TestsList"
 import { TestsViewFilters } from "@/components/TestsViewFilters"
-import DefaultLayout from "@/layouts/DefaultLayout"
+import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container, Stack } from "@/ui"
 import { api } from "@/utils/api"
+import { PermissionBit } from "@/utils/permissions"
+import { useSubjects } from "@/utils/subjects"
 import type { Assignment } from "@prisma/client"
 
 export default function StudentAssignmentsPage() {
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
-    null
-  )
+  const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
 
   const assignmentsQuery =
     api.assignment.getStudentAssignmentsBySubject.useQuery(
@@ -54,7 +54,7 @@ export default function StudentAssignmentsPage() {
       <Head>
         <title>Мои задания</title>
       </Head>
-      <DefaultLayout>
+      <ProtectedLayout permissionBits={[PermissionBit.STUDENT]}>
         <Container>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             <div className="md:col-span-1">
@@ -86,7 +86,7 @@ export default function StudentAssignmentsPage() {
             </div>
           </div>
         </Container>
-      </DefaultLayout>
+      </ProtectedLayout>
     </>
   )
 }

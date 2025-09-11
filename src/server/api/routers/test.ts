@@ -1,6 +1,11 @@
 import { z } from "zod"
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
+import {
+  createProtectedProcedure,
+  createTRPCRouter,
+  protectedProcedure,
+} from "@/server/api/trpc"
+import { PermissionBit } from "@/utils/permissions"
 
 const questionEntrySchema = z.object({
   questionId: z.string(),
@@ -8,7 +13,27 @@ const questionEntrySchema = z.object({
 })
 
 export const testRouter = createTRPCRouter({
-  create: protectedProcedure
+  // --- PROTECTED ---
+
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.test.findUnique({
+        where: { id: input.id },
+        include: {
+          questions: {
+            orderBy: { order: "asc" },
+            include: {
+              question: true,
+            },
+          },
+        },
+      })
+    }),
+
+  // --- FOR TUTORS ---
+
+  create: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         name: z.string().min(1),
@@ -38,7 +63,7 @@ export const testRouter = createTRPCRouter({
       })
     }),
 
-  getAllBySubject: protectedProcedure
+  getAllBySubject: createProtectedProcedure([PermissionBit.TUTOR])
     .input(z.object({ subjectId: z.string() }))
     .query(({ ctx, input }) => {
       return ctx.db.test.findMany({
@@ -50,23 +75,7 @@ export const testRouter = createTRPCRouter({
       })
     }),
 
-  getById: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(({ ctx, input }) => {
-      return ctx.db.test.findUnique({
-        where: { id: input.id },
-        include: {
-          questions: {
-            orderBy: { order: "asc" },
-            include: {
-              question: true,
-            },
-          },
-        },
-      })
-    }),
-
-  getTestsContainingQuestion: protectedProcedure
+  getTestsContainingQuestion: createProtectedProcedure([PermissionBit.TUTOR])
     .input(z.object({ questionId: z.string(), subjectId: z.string() }))
     .query(({ ctx, input }) => {
       return ctx.db.test.findMany({
@@ -85,7 +94,7 @@ export const testRouter = createTRPCRouter({
       })
     }),
 
-  update: protectedProcedure
+  update: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         id: z.string(),
@@ -118,7 +127,7 @@ export const testRouter = createTRPCRouter({
       })
     }),
 
-  updateQuestions: protectedProcedure
+  updateQuestions: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         testId: z.string(),
@@ -145,7 +154,7 @@ export const testRouter = createTRPCRouter({
       })
     }),
 
-  toggleQuestion: protectedProcedure
+  toggleQuestion: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         testId: z.string(),
@@ -176,7 +185,7 @@ export const testRouter = createTRPCRouter({
       }
     }),
 
-  updateQuestionInTests: protectedProcedure
+  updateQuestionInTests: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         questionId: z.string(),
@@ -224,7 +233,7 @@ export const testRouter = createTRPCRouter({
       })
     }),
 
-  delete: protectedProcedure
+  delete: createProtectedProcedure([PermissionBit.TUTOR])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.test.delete({

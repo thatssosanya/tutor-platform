@@ -1,19 +1,18 @@
 import { signOut, useSession } from "next-auth/react"
 import Head from "next/head"
-import Link from "next/link"
 
 import { Button, Container, Paper, Stack } from "@/ui"
-import DefaultLayout from "@/layouts/DefaultLayout"
+import ProtectedLayout from "@/layouts/ProtectedLayout"
 
 export default function Home() {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
 
   return (
     <>
       <Head>
         <title>Tutor Platform</title>
       </Head>
-      <DefaultLayout>
+      <ProtectedLayout>
         <Container className="my-auto md:max-w-md">
           <Paper>
             <Stack className="items-center gap-4 text-center">
@@ -21,33 +20,18 @@ export default function Home() {
                 Tutor Platform
               </h1>
 
-              {status === "loading" && (
-                <p className="text-secondary">Загрузка...</p>
-              )}
-
-              {status === "authenticated" && session && (
-                <Stack className="gap-2">
-                  <p className="text-secondary">
-                    Вы вошли как {session.user?.displayName}
-                  </p>
-                  <Button variant="danger" onClick={() => void signOut()}>
-                    Выйти
-                  </Button>
-                </Stack>
-              )}
-
-              {status === "unauthenticated" && (
-                <Stack className="gap-2">
-                  <p className="text-secondary">Вы не авторизованы</p>
-                  <Link href="/sign-in">
-                    <Button>Войти</Button>
-                  </Link>
-                </Stack>
-              )}
+              <Stack className="gap-2">
+                <p className="text-secondary">
+                  Вы вошли как {session?.user?.displayName}
+                </p>
+                <Button variant="danger" onClick={() => void signOut()}>
+                  Выйти
+                </Button>
+              </Stack>
             </Stack>
           </Paper>
         </Container>
-      </DefaultLayout>
+      </ProtectedLayout>
     </>
   )
 }

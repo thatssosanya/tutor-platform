@@ -1,51 +1,35 @@
-import React, { useEffect, useMemo } from "react"
+import React from "react"
 
-import { RadioGroup, type RadioOption } from "@/ui"
-import { api } from "@/utils/api"
+import { Stack } from "@/ui"
+import { SubjectFilter } from "./SubjectFilter"
+import { TopicFilter } from "./TopicFilter"
 
 type QuestionsViewFiltersProps = {
   selectedSubjectId: string | null
   onSelectedSubjectIdChange: (id: string) => void
+  selectedTopicIds: string[]
+  onSelectedTopicIdsChange: (ids: string[]) => void
 }
 
 export function QuestionsViewFilters({
   selectedSubjectId,
   onSelectedSubjectIdChange,
+  selectedTopicIds,
+  onSelectedTopicIdsChange,
 }: QuestionsViewFiltersProps) {
-  const subjectsQuery = api.subject.getAll.useQuery()
-
-  const firstSubjectId = useMemo(
-    () =>
-      (subjectsQuery.data &&
-        subjectsQuery.data.length > 0 &&
-        subjectsQuery.data[0]!.id) ||
-      null,
-    [subjectsQuery.data]
-  )
-
-  useEffect(() => {
-    if (!selectedSubjectId && firstSubjectId) {
-      onSelectedSubjectIdChange(firstSubjectId)
-    }
-  }, [selectedSubjectId, firstSubjectId, onSelectedSubjectIdChange])
-
-  if (subjectsQuery.isLoading) return <p>Загрузка предметов...</p>
-  if (!subjectsQuery.data || subjectsQuery.data.length === 0)
-    return <p>Предметы не найдены.</p>
-
-  const subjectOptions: RadioOption<string>[] = subjectsQuery.data.map(
-    (subject) => ({
-      value: subject.id,
-      label: subject.name,
-    })
-  )
-
   return (
-    <RadioGroup<string>
-      options={subjectOptions}
-      value={selectedSubjectId}
-      onChange={onSelectedSubjectIdChange}
-      variant="button"
-    />
+    <Stack className="gap-4">
+      <SubjectFilter
+        selectedSubjectId={selectedSubjectId}
+        onSelectedSubjectIdChange={onSelectedSubjectIdChange}
+      />
+      {selectedSubjectId && (
+        <TopicFilter
+          subjectId={selectedSubjectId}
+          selectedTopicIds={selectedTopicIds}
+          onSelectedTopicIdsChange={onSelectedTopicIdsChange}
+        />
+      )}
+    </Stack>
   )
 }

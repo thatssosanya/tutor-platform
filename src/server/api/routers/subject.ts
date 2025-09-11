@@ -1,13 +1,35 @@
 import { z } from "zod"
 
 import {
+  createProtectedProcedure,
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
 } from "@/server/api/trpc"
+import { PermissionBit } from "@/utils/permissions"
 
 export const subjectRouter = createTRPCRouter({
-  create: protectedProcedure
+  // --- PUBLIC ---
+
+  getAll: publicProcedure.query(({ ctx }) => {
+    return ctx.db.subject.findMany({
+      orderBy: { name: "asc" },
+    })
+  }),
+
+  // --- PROTECTED ---
+
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.subject.findUnique({
+        where: { id: input.id },
+      })
+    }),
+
+  // --- FOR ADMINS ---
+
+  create: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.subject.create({
@@ -17,21 +39,7 @@ export const subjectRouter = createTRPCRouter({
       })
     }),
 
-  getAll: publicProcedure.query(({ ctx }) => {
-    return ctx.db.subject.findMany({
-      orderBy: { name: "asc" },
-    })
-  }),
-
-  getById: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(({ ctx, input }) => {
-      return ctx.db.subject.findUnique({
-        where: { id: input.id },
-      })
-    }),
-
-  update: protectedProcedure
+  update: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ id: z.string(), name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.subject.update({
@@ -40,7 +48,7 @@ export const subjectRouter = createTRPCRouter({
       })
     }),
 
-  delete: protectedProcedure
+  delete: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.subject.delete({

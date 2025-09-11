@@ -1,13 +1,17 @@
 /* eslint-disable */
 import { type Session, type User } from "next-auth"
 import { type JWT } from "next-auth/jwt"
-import { type User as UserRecord } from "@prisma/client"
+import {
+  type User as UserRecord,
+  type Subject as SubjectRecord,
+} from "@prisma/client"
 
 interface CustomUser {
   id: UserRecord["id"]
   name: UserRecord["name"]
   displayName: UserRecord["displayName"]
   permissions: UserRecord["permissions"]
+  subjects: Pick<SubjectRecord, "id" | "name">[]
 }
 
 declare module "next-auth" {

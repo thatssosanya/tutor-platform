@@ -1,8 +1,9 @@
 import { z } from "zod"
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
+import { createProtectedProcedure, createTRPCRouter } from "@/server/api/trpc"
 import { TRPCError } from "@trpc/server"
 import { parseDateString as parseDateStringUtil } from "@/utils/date"
+import { PermissionBit } from "@/utils/permissions"
 
 const parseDateString = (dateStr: string | undefined | null): Date | null => {
   if (!dateStr) return null
@@ -10,7 +11,9 @@ const parseDateString = (dateStr: string | undefined | null): Date | null => {
 }
 
 export const assignmentRouter = createTRPCRouter({
-  create: protectedProcedure
+  // --- FOR TUTORS ---
+
+  create: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         testId: z.string(),
@@ -29,7 +32,7 @@ export const assignmentRouter = createTRPCRouter({
       })
     }),
 
-  getByTestId: protectedProcedure
+  getByTestId: createProtectedProcedure([PermissionBit.TUTOR])
     .input(z.object({ testId: z.string() }))
     .query(({ ctx, input }) => {
       return ctx.db.assignment.findMany({
@@ -40,7 +43,7 @@ export const assignmentRouter = createTRPCRouter({
       })
     }),
 
-  updateAssignmentsForTest: protectedProcedure
+  updateAssignmentsForTest: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         testId: z.string(),
@@ -113,7 +116,12 @@ export const assignmentRouter = createTRPCRouter({
       })
     }),
 
-  getStudentAssignments: protectedProcedure.query(({ ctx }) => {
+  // --- FOR TUTORS | STUDENTS ---
+
+  getStudentAssignments: createProtectedProcedure([
+    PermissionBit.STUDENT,
+    PermissionBit.TUTOR,
+  ]).query(({ ctx }) => {
     return ctx.db.assignment.findMany({
       where: { assignedToId: ctx.session.user.id },
       orderBy: { createdAt: "desc" },
@@ -121,7 +129,10 @@ export const assignmentRouter = createTRPCRouter({
     })
   }),
 
-  getStudentAssignmentsBySubject: protectedProcedure
+  getStudentAssignmentsBySubject: createProtectedProcedure([
+    PermissionBit.STUDENT,
+    PermissionBit.TUTOR,
+  ])
     .input(z.object({ subjectId: z.string() }))
     .query(({ ctx, input }) => {
       return ctx.db.assignment.findMany({
@@ -146,7 +157,10 @@ export const assignmentRouter = createTRPCRouter({
       })
     }),
 
-  getById: protectedProcedure
+  getById: createProtectedProcedure([
+    PermissionBit.STUDENT,
+    PermissionBit.TUTOR,
+  ])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const assignment = await ctx.db.assignment.findFirst({
@@ -181,7 +195,9 @@ export const assignmentRouter = createTRPCRouter({
       return assignment
     }),
 
-  submitAnswers: protectedProcedure
+  // --- FOR STUDENTS ---
+
+  submitAnswers: createProtectedProcedure([PermissionBit.STUDENT])
     .input(
       z.object({
         assignmentId: z.string(),

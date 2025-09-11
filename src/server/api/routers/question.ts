@@ -2,12 +2,13 @@ import { z } from "zod"
 import { QuestionSource, SolutionType } from "@prisma/client"
 
 import {
+  createProtectedProcedure,
   createTRPCRouter,
   protectedProcedure,
-  publicProcedure,
 } from "@/server/api/trpc"
 import { TRPCError } from "@trpc/server"
 import { enrichQuestionWithAI } from "@/server/services/ai"
+import { PermissionBit } from "@/utils/permissions"
 
 const questionInputSchema = z.object({
   name: z.string().min(1),
@@ -23,7 +24,20 @@ const questionInputSchema = z.object({
 })
 
 export const questionRouter = createTRPCRouter({
-  create: protectedProcedure
+  // --- PROTECTED ---
+
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.question.findUnique({
+        where: { id: input.id },
+        include: { topics: true, attachments: true, options: true },
+      })
+    }),
+
+  // --- FOR TUTORS ---
+
+  create: createProtectedProcedure([PermissionBit.TUTOR])
     .input(questionInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { topicIds, ...cleanInput } = input
@@ -40,16 +54,7 @@ export const questionRouter = createTRPCRouter({
       })
     }),
 
-  getById: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(({ ctx, input }) => {
-      return ctx.db.question.findUnique({
-        where: { id: input.id },
-        include: { topics: true, attachments: true, options: true },
-      })
-    }),
-
-  getWithOffset: publicProcedure
+  getWithOffset: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(10),
@@ -98,7 +103,7 @@ export const questionRouter = createTRPCRouter({
       }
     }),
 
-  getPaginated: publicProcedure
+  getPaginated: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
         limit: z.number().min(1).max(100).nullish(),
@@ -143,7 +148,7 @@ export const questionRouter = createTRPCRouter({
       }
     }),
 
-  update: protectedProcedure
+  update: createProtectedProcedure([PermissionBit.TUTOR])
     .input(questionInputSchema.extend({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.question.update({
@@ -159,13 +164,13 @@ export const questionRouter = createTRPCRouter({
       })
     }),
 
-  delete: protectedProcedure
+  delete: createProtectedProcedure([PermissionBit.TUTOR])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.question.delete({ where: { id: input.id } })
     }),
 
-  enrichOne: protectedProcedure
+  enrichOne: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const question = await ctx.db.question.findUnique({
@@ -198,7 +203,7 @@ export const questionRouter = createTRPCRouter({
       })
     }),
 
-  enrichMany: protectedProcedure
+  enrichMany: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ ids: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
       const questionsToEnrich = await ctx.db.question.findMany({

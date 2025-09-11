@@ -1,25 +1,30 @@
 import { z } from "zod"
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
+import { createProtectedProcedure, createTRPCRouter } from "@/server/api/trpc"
 import {
   parseQBlockFromHtml,
   scrapePage,
   scrapeSubjects,
   scrapeTopics,
 } from "@/server/services/scraper"
+import { PermissionBit } from "@/utils/permissions"
 
 export const scraperRouter = createTRPCRouter({
-  scrapeSubjects: protectedProcedure.mutation(async ({ ctx }) => {
-    return scrapeSubjects(ctx.db)
-  }),
+  // --- FOR ADMINS ---
 
-  scrapeTopics: protectedProcedure
+  scrapeSubjects: createProtectedProcedure([PermissionBit.ADMIN]).mutation(
+    async ({ ctx }) => {
+      return scrapeSubjects(ctx.db)
+    }
+  ),
+
+  scrapeTopics: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ subjectId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return scrapeTopics(ctx.db, input.subjectId)
     }),
 
-  scrapePage: protectedProcedure
+  scrapePage: createProtectedProcedure([PermissionBit.ADMIN])
     .input(
       z.object({
         page: z.number().min(1),
@@ -30,7 +35,7 @@ export const scraperRouter = createTRPCRouter({
       return scrapePage(ctx.db, subjectId, page, ctx.session.user)
     }),
 
-  parseQBlock: protectedProcedure
+  parseQBlock: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ html: z.string() }))
     .mutation(({ input }) => {
       return parseQBlockFromHtml(input.html)

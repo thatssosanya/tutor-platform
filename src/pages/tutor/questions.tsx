@@ -6,9 +6,11 @@ import React, { useEffect, useState } from "react"
 import { QuestionsView } from "@/components/QuestionsView"
 import { QuestionsViewFilters } from "@/components/QuestionsViewFilters"
 import { TestsList } from "@/components/TestsList"
-import DefaultLayout from "@/layouts/DefaultLayout"
+import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Checkbox, Container, Dialog, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
+import { PermissionBit } from "@/utils/permissions"
+import { useSubjects } from "@/utils/subjects"
 import { skipToken } from "@tanstack/react-query"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
@@ -58,9 +60,8 @@ function TestManagementDialog({
 }
 
 export default function TutorQuestionsPage() {
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
-    null
-  )
+  const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
   const [managingQuestion, setManagingQuestion] = useState<Question | null>(
     null
   )
@@ -86,7 +87,10 @@ export default function TutorQuestionsPage() {
   // Mutations
   const deleteMutation = api.question.delete.useMutation({
     onSuccess: () => {
-      utils.question.getPaginated.invalidate({ subjectId: selectedSubjectId! })
+      utils.question.getPaginated.invalidate({
+        subjectId: selectedSubjectId!,
+        topicIds: selectedTopicIds,
+      })
     },
   })
   const updateQuestionInTestsMutation =
@@ -105,6 +109,10 @@ export default function TutorQuestionsPage() {
       setEditedTestIds(new Set(testsWithQuestionQuery.data.map((t) => t.id)))
     }
   }, [testsWithQuestionQuery.data])
+
+  useEffect(() => {
+    setSelectedTopicIds([])
+  }, [selectedSubjectId])
 
   // Handlers
   const handleDelete = (questionId: string) => {
@@ -160,20 +168,23 @@ export default function TutorQuestionsPage() {
       <Head>
         <title>Управление вопросами</title>
       </Head>
-      <DefaultLayout>
+      <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
         <Container>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             <div className="md:col-span-1">
-              <Stack className="gap-8">
+              <Stack className="gap-4">
                 <Stack>
                   <h1 className="text-2xl font-bold">Вопросы</h1>
                   <p className="mt-1 text-secondary">
                     Управляйте вашей базой вопросов.
                   </p>
                 </Stack>
+                <hr className="border-input" />
                 <QuestionsViewFilters
                   selectedSubjectId={selectedSubjectId}
                   onSelectedSubjectIdChange={setSelectedSubjectId}
+                  selectedTopicIds={selectedTopicIds}
+                  onSelectedTopicIdsChange={setSelectedTopicIds}
                 />
               </Stack>
             </div>
@@ -181,6 +192,7 @@ export default function TutorQuestionsPage() {
               {selectedSubjectId ? (
                 <QuestionsView
                   subjectId={selectedSubjectId}
+                  topicIds={selectedTopicIds}
                   cardControls={questionCardControls}
                   isCreateAllowed={true}
                 />
@@ -192,7 +204,7 @@ export default function TutorQuestionsPage() {
             </div>
           </div>
         </Container>
-      </DefaultLayout>
+      </ProtectedLayout>
 
       {managingQuestion && selectedSubjectId && (
         <TestManagementDialog

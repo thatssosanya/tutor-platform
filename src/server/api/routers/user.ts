@@ -1,9 +1,14 @@
 import { humanId } from "human-id"
 import { customAlphabet } from "nanoid"
 import { z } from "zod"
+import bcrypt from "bcryptjs"
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
-import { createPermissions, isTutor, PermissionBit } from "@/utils/permissions"
+import {
+  createProtectedProcedure,
+  createTRPCRouter,
+  protectedProcedure,
+} from "@/server/api/trpc"
+import { createPermissions, PermissionBit } from "@/utils/permissions"
 import { Prisma } from "@prisma/client"
 import { TRPCError } from "@trpc/server"
 
@@ -20,27 +25,85 @@ const generateStudentPassword = customAlphabet(
 )
 
 export const userRouter = createTRPCRouter({
-  getStudents: protectedProcedure.query(async ({ ctx }) => {
-    if (!isTutor(ctx.session.user.permissions)) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "У вас нет прав для просмотра списка учеников.",
-      })
-    }
+  // --- PROTECTED ---
 
-    return ctx.db.user.findMany({
-      where: { creatorId: ctx.session.user.id },
-      orderBy: { createdAt: "desc" },
+  getProfile: protectedProcedure.query(({ ctx }) => {
+    return ctx.db.user.findUniqueOrThrow({
+      where: { id: ctx.session.user.id },
+      select: {
+        displayName: true,
+        subjects: { select: { id: true } },
+      },
     })
   }),
 
-  createStudent: protectedProcedure
-    .input(z.object({ displayName: z.string().min(1) }))
+  updateProfile: protectedProcedure
+    .input(
+      z.object({
+        displayName: z.string().min(1),
+        password: z.string().min(8).optional(),
+        subjectIds: z.array(z.string()),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      if (!isTutor(ctx.session.user.permissions)) {
+      const { displayName, password, subjectIds } = input
+
+      const updateData: Prisma.UserUpdateInput = {
+        displayName,
+        subjects: {
+          set: subjectIds.map((id) => ({ id })),
+        },
+      }
+
+      if (password && password.trim().length > 0) {
+        updateData.password = await bcrypt.hash(password, 12)
+      }
+
+      return ctx.db.user.update({
+        where: { id: ctx.session.user.id },
+        data: updateData,
+      })
+    }),
+
+  // --- FOR TUTORS ---
+
+  getStudents: createProtectedProcedure([PermissionBit.TUTOR]).query(
+    async ({ ctx }) => {
+      return ctx.db.user.findMany({
+        where: { creatorId: ctx.session.user.id },
+        orderBy: { createdAt: "desc" },
+      })
+    }
+  ),
+
+  createStudent: createProtectedProcedure([PermissionBit.TUTOR])
+    .input(
+      z.object({
+        displayName: z.string().min(1),
+        subjectIds: z.array(z.string()),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const tutor = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        include: { subjects: { select: { id: true } } },
+      })
+      if (!tutor) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Аккаунт репетитора не найден.",
+        })
+      }
+
+      const tutorSubjectIds = new Set(tutor.subjects.map((s) => s.id))
+      const canAssignAll = input.subjectIds.every((id) =>
+        tutorSubjectIds.has(id)
+      )
+
+      if (!canAssignAll) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "У вас нет прав для создания учеников.",
+          message: "Вы не можете назначить предмет, который не ведете.",
         })
       }
 
@@ -59,6 +122,9 @@ export const userRouter = createTRPCRouter({
               password,
               permissions: createPermissions([PermissionBit.STUDENT]),
               creatorId: ctx.session.user.id,
+              subjects: {
+                connect: input.subjectIds.map((id) => ({ id })),
+              },
             },
           })
         } catch (error) {
@@ -89,16 +155,9 @@ export const userRouter = createTRPCRouter({
       return student
     }),
 
-  getStudent: protectedProcedure
+  getStudent: createProtectedProcedure([PermissionBit.TUTOR])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      if (!isTutor(ctx.session.user.permissions)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "У вас нет прав для просмотра информации об ученике.",
-        })
-      }
-
       const student = await ctx.db.user.findUnique({
         where: { id: input.id },
       })

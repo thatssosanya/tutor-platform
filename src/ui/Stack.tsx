@@ -1,11 +1,26 @@
 import { cn } from "@/styles"
 import React from "react"
 
-type StackProps = {
+type StackOwnProps<T extends React.ElementType> = {
   children: React.ReactNode
   className?: string
+  as?: T
 }
 
-export function Stack({ children, className = "" }: StackProps) {
-  return <div className={cn("flex flex-col", className)}>{children}</div>
+type StackProps<T extends React.ElementType> = StackOwnProps<T> &
+  Omit<React.ComponentPropsWithoutRef<T>, keyof StackOwnProps<T>>
+
+export function Stack<T extends React.ElementType = "div">({
+  children,
+  className = "",
+  as,
+  ...rest
+}: StackProps<T>) {
+  const Component = as || "div"
+
+  return (
+    <Component className={cn("flex flex-col", className)} {...rest}>
+      {children}
+    </Component>
+  )
 }

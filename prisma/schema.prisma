@@ -28,10 +28,11 @@ enum SolutionType {
 model User {
     id String @id @unique @default(cuid())
 
-    name        String @unique
+    name        String    @unique
     displayName String
     password    String
     permissions Int
+    subjects    Subject[]
 
     creatorId String?
     creator   User?   @relation("CreatedBy", fields: [creatorId], references: [id])
@@ -52,9 +53,10 @@ model Subject {
 
     name String
 
-    topics Question[]
-    Topic  Topic[]
-    Test   Test[]
+    questions Question[]
+    topics    Topic[]
+    tests     Test[]
+    users     User[]
 }
 
 model Topic {
@@ -99,6 +101,8 @@ model Question {
 
     testEntries    TestQuestion[]
     studentAnswers StudentAnswer[]
+
+    confirmed Boolean @default(false)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

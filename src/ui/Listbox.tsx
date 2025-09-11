@@ -12,6 +12,7 @@ import { cn } from "@/styles"
 export type ListboxOptionType<T> = {
   value: T
   label: string
+  disabled?: boolean
 }
 
 type BaseProps<T> = {
@@ -60,11 +61,12 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
             <ChevronsUpDown className="h-5 w-5 text-secondary" />
           </span>
         </ListboxButton>
-        <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-primary bg-paper py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+        <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-input bg-paper py-1 text-base shadow-lg focus:outline-none sm:text-sm">
           {options.map((option) => (
             <ListboxOption
               key={String(option.value)}
               value={option}
+              disabled={option.disabled}
               className="group relative cursor-default select-none py-2 pl-10 pr-4 text-secondary data-focus:bg-muted-highlight data-focus:text-primary"
             >
               <span className="block truncate font-normal group-data-selected:font-semibold">

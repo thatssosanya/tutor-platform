@@ -4,11 +4,14 @@ import React, { useState } from "react"
 
 import { StudentsView } from "@/components/StudentsView"
 import { StudentsViewFilters } from "@/components/StudentsViewFilters"
-import DefaultLayout from "@/layouts/DefaultLayout"
+import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container, Dialog, Stack } from "@/ui"
 import { api } from "@/utils/api"
+import { PermissionBit } from "@/utils/permissions"
+import { useSubjects } from "@/utils/subjects"
 
 export default function TutorStudentsPage() {
+  const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     null
   )
@@ -56,18 +59,22 @@ export default function TutorStudentsPage() {
       <Head>
         <title>Управление учениками</title>
       </Head>
-      <DefaultLayout>
+      <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
         <Container>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             <div className="md:col-span-1">
-              <Stack className="gap-8">
+              <Stack className="gap-4">
                 <Stack>
                   <h1 className="text-2xl font-bold">Ученики</h1>
                   <p className="mt-1 text-secondary">
                     Управляйте аккаунтами ваших учеников.
                   </p>
                 </Stack>
-                <StudentsViewFilters />
+                <hr className="border-input" />
+                <StudentsViewFilters
+                  selectedSubjectId={selectedSubjectId}
+                  onSelectedSubjectIdChange={setSelectedSubjectId}
+                />
               </Stack>
             </div>
             <div className="md:col-span-3">
@@ -79,7 +86,7 @@ export default function TutorStudentsPage() {
             </div>
           </div>
         </Container>
-      </DefaultLayout>
+      </ProtectedLayout>
 
       <Dialog
         isOpen={!!selectedStudentId}

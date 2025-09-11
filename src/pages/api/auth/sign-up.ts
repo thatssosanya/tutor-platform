@@ -13,7 +13,7 @@ export default async function handler(
   }
 
   try {
-    const { name, password } = req.body
+    const { name, password, subjectIds } = req.body
 
     if (
       !name ||
@@ -23,6 +23,12 @@ export default async function handler(
     ) {
       return res.status(400).json({
         message: "Пароль должен содержать не менее 8 символов.",
+      })
+    }
+
+    if (!subjectIds || !Array.isArray(subjectIds) || subjectIds.length === 0) {
+      return res.status(400).json({
+        message: "Выберите хотя бы один предмет.",
       })
     }
 
@@ -44,6 +50,9 @@ export default async function handler(
         displayName: name as string,
         password: hashedPassword,
         permissions: createPermissions([PermissionBit.TUTOR]),
+        subjects: {
+          connect: (subjectIds as string[]).map((id) => ({ id })),
+        },
       },
     })
 

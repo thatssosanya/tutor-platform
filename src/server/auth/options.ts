@@ -27,6 +27,7 @@ const authOptions: NextAuthConfig = {
 
         const user = await db?.user.findFirst({
           where: { name: credentials.name },
+          include: { subjects: { select: { id: true, name: true } } },
         })
 
         if (!user) {
@@ -54,6 +55,7 @@ const authOptions: NextAuthConfig = {
           name: user.name,
           displayName: user.displayName,
           permissions: user.permissions,
+          subjects: user.subjects.map((s) => ({ id: s.id, name: s.name })),
         }
       },
     }),
@@ -65,6 +67,7 @@ const authOptions: NextAuthConfig = {
         token.name = user.name ?? "MISSING_NAME"
         token.displayName = user.displayName
         token.permissions = user.permissions
+        token.subjects = user.subjects
       }
       return token
     },
@@ -75,6 +78,7 @@ const authOptions: NextAuthConfig = {
         session.user.name = token.name as CustomUser["name"]
         session.user.displayName = token.displayName
         session.user.permissions = token.permissions
+        session.user.subjects = token.subjects
       }
       return session
     },

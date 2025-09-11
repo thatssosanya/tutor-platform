@@ -19,12 +19,14 @@ type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
 type QuestionsViewProps = {
   subjectId: string
+  topicIds?: string[]
   cardControls: (question: Question) => React.ReactNode
   isCreateAllowed?: boolean
 }
 
 export function QuestionsView({
   subjectId,
+  topicIds,
   cardControls,
   isCreateAllowed = false,
 }: QuestionsViewProps) {
@@ -39,12 +41,12 @@ export function QuestionsView({
 
   const utils = api.useUtils()
   const questionsQuery = api.question.getPaginated.useInfiniteQuery(
-    { subjectId, limit: 10 },
+    { subjectId, topicIds, limit: 10 },
     { getNextPageParam: (lastPage) => lastPage.nextCursor }
   )
   const createQuestionMutation = api.question.create.useMutation({
     onSuccess: async () => {
-      await utils.question.getPaginated.invalidate({ subjectId })
+      await utils.question.getPaginated.invalidate({ subjectId, topicIds })
       handleCancel()
     },
   })

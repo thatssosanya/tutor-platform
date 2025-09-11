@@ -8,6 +8,8 @@ import { QuestionsList } from "@/components/QuestionsList"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import { Button, Container, Input, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
+import ProtectedLayout from "@/layouts/ProtectedLayout"
+import { PermissionBit } from "@/utils/permissions"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -140,7 +142,7 @@ export default function AssignmentPage() {
       <Head>
         <title>Задание: {assignmentQuery.data.test.name}</title>
       </Head>
-      <DefaultLayout>
+      <ProtectedLayout permissionBits={[PermissionBit.STUDENT]}>
         <Container>
           <Stack className="gap-8">
             <Row className="justify-between items-center">
@@ -174,12 +176,11 @@ export default function AssignmentPage() {
               hasNextPage={false}
               isFetchingNextPage={false}
               fetchNextPage={() => {}}
-              cardControls={() => null} // No controls needed here
               cardFooter={cardFooter}
             />
           </Stack>
         </Container>
-      </DefaultLayout>
+      </ProtectedLayout>
     </>
   )
 }

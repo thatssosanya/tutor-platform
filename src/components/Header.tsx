@@ -53,9 +53,12 @@ export function Header() {
         </Row>
 
         <Row className="flex-1 justify-end gap-4">
-          <span className="text-sm font-medium text-secondary">
+          <Link
+            href="/account"
+            className="text-sm font-medium text-secondary transition-colors hover:text-primary"
+          >
             {user.displayName ?? user.name}
-          </span>
+          </Link>
           <Button
             size="sm"
             variant="secondary"
