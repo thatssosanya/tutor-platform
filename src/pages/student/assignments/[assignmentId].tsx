@@ -1,14 +1,18 @@
-import { SolutionType } from "@prisma/client"
+import { SolutionType, type StudentAnswer } from "@prisma/client"
 import { Check, X } from "lucide-react"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import React, { useEffect, useMemo, useState } from "react"
+import Markdown from "react-markdown"
+import rehypeKatex from "rehype-katex"
+import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import "katex/dist/katex.min.css"
 
 import { QuestionsList } from "@/components/questions/QuestionsList"
-import DefaultLayout from "@/layouts/DefaultLayout"
-import { Button, Container, Input, Row, Stack } from "@/ui"
-import { api, type RouterOutputs } from "@/utils/api"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
+import { Button, Collapsible, Container, Input, Row, Stack } from "@/ui"
+import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
@@ -23,7 +27,10 @@ export default function AssignmentPage() {
   const utils = api.useUtils()
   const assignmentQuery = api.assignment.getById.useQuery(
     { id: assignmentId },
-    { enabled: !!assignmentId }
+    {
+      enabled: !!assignmentId,
+      refetchOnWindowFocus: false,
+    }
   )
   const submitMutation = api.assignment.submitAnswers.useMutation({
     onSuccess: async () => {
@@ -37,7 +44,6 @@ export default function AssignmentPage() {
         assignmentQuery.data.answers.map((a) => [a.questionId, a.answer])
       )
       setAnswers(initialAnswers)
-      // If assignment is already completed, lock editing mode.
       if (assignmentQuery.data.completedAt) {
         setIsEditing(false)
       }
@@ -48,6 +54,13 @@ export default function AssignmentPage() {
     () => assignmentQuery.data?.test.questions.map((tq) => tq.question) ?? [],
     [assignmentQuery.data]
   )
+
+  const studentAnswersMap = useMemo(() => {
+    if (!assignmentQuery.data?.answers) {
+      return new Map<string, StudentAnswer>()
+    }
+    return new Map(assignmentQuery.data.answers.map((a) => [a.questionId, a]))
+  }, [assignmentQuery.data?.answers])
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers((prev) => new Map(prev).set(questionId, answer))
@@ -68,14 +81,14 @@ export default function AssignmentPage() {
   const cardFooter = (question: Question) => {
     if (question.solutionType !== SolutionType.SHORT) return null
 
-    const currentAnswer = answers.get(question.id) ?? ""
+    const currentAnswerText = answers.get(question.id) ?? ""
 
     if (isEditing && !isCompleted) {
       return (
         <Row className="gap-2">
           <Input
             placeholder="Ваш ответ"
-            value={currentAnswer}
+            value={currentAnswerText}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             className="flex-1"
           />
@@ -84,35 +97,47 @@ export default function AssignmentPage() {
     }
 
     if (!isEditing || isCompleted) {
-      const isCorrect =
-        question.solution?.trim().toLowerCase() ===
-        currentAnswer.trim().toLowerCase()
+      const studentAnswer = studentAnswersMap.get(question.id)
+      const isCorrect = studentAnswer?.isCorrect
 
       return (
-        <Row className="gap-2 text-sm items-center">
-          {currentAnswer ? (
-            <>
-              <span className="font-semibold text-primary">
-                {currentAnswer}
-              </span>
-              {isCorrect ? (
-                <Check className="h-4 w-4 text-green-500" />
-              ) : (
-                <X className="h-4 w-4 text-red-500" />
-              )}
-            </>
-          ) : (
-            <span className="text-secondary">Нет ответа</span>
+        <Stack className="gap-2 text-sm">
+          <Row className="items-center">
+            {currentAnswerText ? (
+              <>
+                <span className="font-semibold text-primary">
+                  {currentAnswerText}
+                </span>
+                {isCorrect === true && (
+                  <Check className="ml-2 h-4 w-4 text-green-500" />
+                )}
+                {isCorrect === false && (
+                  <X className="ml-2 h-4 w-4 text-red-500" />
+                )}
+              </>
+            ) : (
+              <span className="text-secondary">Нет ответа</span>
+            )}
+            {isCorrect === false && question.solution && (
+              <p className="text-secondary ml-4">
+                Ответ:{" "}
+                <span className="font-semibold text-primary">
+                  {question.solution}
+                </span>
+              </p>
+            )}
+          </Row>
+          {question.work && (
+            <Collapsible title="Решение">
+              <Markdown
+                remarkPlugins={[remarkMath, remarkGfm]}
+                rehypePlugins={[rehypeKatex]}
+              >
+                {question.work}
+              </Markdown>
+            </Collapsible>
           )}
-          {!isCorrect && question.solution && (
-            <p className="text-secondary ml-auto">
-              Правильный ответ:{" "}
-              <span className="font-semibold text-primary">
-                {question.solution}
-              </span>
-            </p>
-          )}
-        </Row>
+        </Stack>
       )
     }
 
@@ -121,21 +146,23 @@ export default function AssignmentPage() {
 
   if (assignmentQuery.isLoading) {
     return (
-      <DefaultLayout>
-        <p>Загрузка задания...</p>
-      </DefaultLayout>
+      <ProtectedLayout>
+        <Container>
+          <p>Загрузка задания...</p>
+        </Container>
+      </ProtectedLayout>
     )
   }
 
   if (!assignmentQuery.data) {
     return (
-      <DefaultLayout>
-        <p>Не удалось найти задание.</p>
-      </DefaultLayout>
+      <ProtectedLayout>
+        <Container>
+          <p>Не удалось найти задание.</p>
+        </Container>
+      </ProtectedLayout>
     )
   }
-
-  const pages = [{ items: questions }]
 
   return (
     <>
@@ -145,7 +172,7 @@ export default function AssignmentPage() {
       <ProtectedLayout permissionBits={[PermissionBit.STUDENT]}>
         <Container>
           <Stack className="gap-8">
-            <Row className="justify-between items-center">
+            <Row className="items-center justify-between">
               <Stack>
                 <h1 className="text-2xl font-bold">
                   {assignmentQuery.data.test.name}
@@ -171,11 +198,8 @@ export default function AssignmentPage() {
             </Row>
 
             <QuestionsList
-              pages={pages}
-              isLoading={false}
-              hasNextPage={false}
-              isFetchingNextPage={false}
-              fetchNextPage={() => {}}
+              questions={questions}
+              isLoading={assignmentQuery.isLoading}
               cardFooter={cardFooter}
             />
           </Stack>

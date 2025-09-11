@@ -9,7 +9,7 @@ import remarkMath from "remark-math"
 
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import DefaultLayout from "@/layouts/DefaultLayout"
-import { Button, Container, Paper, Stack } from "@/ui"
+import { Button, Checkbox, Container, Paper, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { fixFrac } from "@/utils/latex"
 
@@ -23,6 +23,9 @@ const ScrapeSubjectPage: NextPage = () => {
   const [page, setPage] = useState(1)
   const [targetPage, setTargetPage] = useState<number | "">("")
   const [isAutoScraping, setIsAutoScraping] = useState(false)
+  const [verifiedStatus, setVerifiedStatus] = useState<Map<string, boolean>>(
+    new Map()
+  )
 
   const apiUtils = api.useUtils()
 
@@ -53,6 +56,16 @@ const ScrapeSubjectPage: NextPage = () => {
   useEffect(() => {
     setPage(1)
   }, [fipiSubjectId])
+
+  useEffect(() => {
+    if (paginatedData?.items) {
+      const initialStatus = new Map<string, boolean>()
+      paginatedData.items.forEach((q) => {
+        initialStatus.set(q.id, q.verified)
+      })
+      setVerifiedStatus(initialStatus)
+    }
+  }, [paginatedData?.items])
 
   const scrapeTopicsMutation = api.scraper.scrapeTopics.useMutation({
     onSuccess: () => {
@@ -100,6 +113,20 @@ const ScrapeSubjectPage: NextPage = () => {
     },
   })
 
+  const updateVerificationsMutation =
+    api.question.updateVerifications.useMutation({
+      onSuccess: () => {
+        void apiUtils.question.getWithOffset.invalidate({
+          subjectId: fipiSubjectId,
+          page,
+        })
+        alert("Verification status saved.")
+      },
+      onError: (error) => {
+        alert(`Error saving status: ${error.message}`)
+      },
+    })
+
   const handleScrapeTopics = () => {
     if (!fipiSubjectId) return
     scrapeTopicsMutation.mutate({ subjectId: fipiSubjectId })
@@ -130,6 +157,50 @@ const ScrapeSubjectPage: NextPage = () => {
       return
     }
     enrichManyMutation.mutate({ ids: idsToEnrich })
+  }
+
+  const handleToggleVerified = (questionId: string) => {
+    setVerifiedStatus((prev) => {
+      const newStatus = new Map(prev)
+      newStatus.set(questionId, !newStatus.get(questionId))
+      return newStatus
+    })
+  }
+
+  const handleSaveVerification = () => {
+    const updates: Record<string, boolean> = {}
+    let hasChanges = false
+    if (questions) {
+      for (const question of questions) {
+        const currentStatus = verifiedStatus.get(question.id)
+        if (
+          currentStatus !== undefined &&
+          currentStatus !== question.verified
+        ) {
+          updates[question.id] = currentStatus
+          hasChanges = true
+        }
+      }
+    }
+
+    if (hasChanges) {
+      updateVerificationsMutation.mutate({ updates })
+    } else {
+      alert("No changes to save.")
+    }
+  }
+
+  const cardControls = (question: Question) => {
+    const isVerified = verifiedStatus.get(question.id) ?? false
+    return (
+      <div className="p-2">
+        <Checkbox
+          checked={isVerified}
+          onChange={() => handleToggleVerified(question.id)}
+          label="Verified"
+        />
+      </div>
+    )
   }
 
   const cardFooter = (question: Question) => {
@@ -301,6 +372,14 @@ const ScrapeSubjectPage: NextPage = () => {
                             ? "Enriching Page..."
                             : "Enrich Page with AI"}
                         </Button>
+                        <Button
+                          onClick={handleSaveVerification}
+                          disabled={updateVerificationsMutation.isPending}
+                        >
+                          {updateVerificationsMutation.isPending
+                            ? "Saving..."
+                            : "Save Verification"}
+                        </Button>
                       </div>
                     ))}
                 </Stack>
@@ -309,7 +388,12 @@ const ScrapeSubjectPage: NextPage = () => {
               {questions && questions.length > 0 ? (
                 <Stack className="gap-4">
                   {questions.map((q) => (
-                    <QuestionCard key={q.id} question={q} footer={cardFooter} />
+                    <QuestionCard
+                      key={q.id}
+                      question={q}
+                      footer={cardFooter}
+                      controls={cardControls}
+                    />
                   ))}
                 </Stack>
               ) : (

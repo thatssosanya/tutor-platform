@@ -102,7 +102,7 @@ model Question {
     testEntries    TestQuestion[]
     studentAnswers StudentAnswer[]
 
-    confirmed Boolean @default(false)
+    verified Boolean @default(false)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -182,7 +182,8 @@ model Assignment {
 model StudentAnswer {
     id String @id @default(cuid())
 
-    answer String
+    answer    String
+    isCorrect Boolean @default(false)
 
     assignmentId String
     assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)

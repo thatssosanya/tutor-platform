@@ -10,6 +10,7 @@ import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Checkbox, Container, Dialog, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
+import { useQuestionSources } from "@/utils/questionSources"
 import { useSubjects } from "@/utils/subjects"
 import { skipToken } from "@tanstack/react-query"
 
@@ -61,7 +62,9 @@ function TestManagementDialog({
 
 export default function TutorQuestionsPage() {
   const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
+  const { selectedSources, setSelectedSources } = useQuestionSources()
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
+  const [search, setSearch] = useState("")
   const [managingQuestion, setManagingQuestion] = useState<Question | null>(
     null
   )
@@ -90,6 +93,8 @@ export default function TutorQuestionsPage() {
       utils.question.getPaginated.invalidate({
         subjectId: selectedSubjectId!,
         topicIds: selectedTopicIds,
+        search,
+        sources: selectedSources,
       })
     },
   })
@@ -185,6 +190,10 @@ export default function TutorQuestionsPage() {
                   onSelectedSubjectIdChange={setSelectedSubjectId}
                   selectedTopicIds={selectedTopicIds}
                   onSelectedTopicIdsChange={setSelectedTopicIds}
+                  search={search}
+                  onSearchChange={setSearch}
+                  selectedSources={selectedSources}
+                  onSelectedSourcesChange={setSelectedSources}
                 />
               </Stack>
             </div>
@@ -193,6 +202,8 @@ export default function TutorQuestionsPage() {
                 <QuestionsView
                   subjectId={selectedSubjectId}
                   topicIds={selectedTopicIds}
+                  search={search}
+                  sources={selectedSources}
                   cardControls={questionCardControls}
                   isCreateAllowed={true}
                 />

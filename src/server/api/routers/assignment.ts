@@ -4,6 +4,7 @@ import { createProtectedProcedure, createTRPCRouter } from "@/server/api/trpc"
 import { TRPCError } from "@trpc/server"
 import { parseDateString as parseDateStringUtil } from "@/utils/date"
 import { PermissionBit } from "@/utils/permissions"
+import { SolutionType } from "@prisma/client"
 
 const parseDateString = (dateStr: string | undefined | null): Date | null => {
   if (!dateStr) return null
@@ -215,6 +216,19 @@ export const assignmentRouter = createTRPCRouter({
           id: input.assignmentId,
           assignedToId: ctx.session.user.id,
         },
+        include: {
+          test: {
+            include: {
+              questions: {
+                include: {
+                  question: {
+                    select: { id: true, solution: true, solutionType: true },
+                  },
+                },
+              },
+            },
+          },
+        },
       })
 
       if (!assignment) {
@@ -231,14 +245,56 @@ export const assignmentRouter = createTRPCRouter({
         })
       }
 
-      return ctx.db.$transaction(async (prisma) => {
-        await prisma.studentAnswer.createMany({
-          data: input.answers.map((a) => ({
-            assignmentId: input.assignmentId,
-            questionId: a.questionId,
-            answer: a.answer,
-          })),
+      const questionSolutions = new Map<
+        string,
+        { solution: string | null; solutionType: SolutionType }
+      >()
+      assignment.test.questions.forEach((q) => {
+        questionSolutions.set(q.questionId, {
+          solution: q.question.solution,
+          solutionType: q.question.solutionType,
         })
+      })
+
+      const answersWithCorrectness = input.answers.map((ans) => {
+        const questionInfo = questionSolutions.get(ans.questionId)
+        let isCorrect: boolean = false
+
+        if (
+          questionInfo &&
+          questionInfo.solutionType === SolutionType.SHORT &&
+          questionInfo.solution
+        ) {
+          isCorrect =
+            ans.answer.trim().toLowerCase() ===
+            questionInfo.solution.trim().toLowerCase()
+        }
+
+        return {
+          assignmentId: input.assignmentId,
+          questionId: ans.questionId,
+          answer: ans.answer,
+          isCorrect,
+        }
+      })
+
+      return ctx.db.$transaction(async (prisma) => {
+        // Since answers can be updated, we use upsert
+        for (const ans of answersWithCorrectness) {
+          await prisma.studentAnswer.upsert({
+            where: {
+              assignmentId_questionId: {
+                assignmentId: ans.assignmentId,
+                questionId: ans.questionId,
+              },
+            },
+            update: {
+              answer: ans.answer,
+              isCorrect: ans.isCorrect,
+            },
+            create: ans,
+          })
+        }
 
         return prisma.assignment.update({
           where: { id: input.assignmentId },

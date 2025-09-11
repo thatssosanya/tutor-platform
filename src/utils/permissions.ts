@@ -16,6 +16,10 @@ export function hasPermission(
   return (permissions & permission) === permission
 }
 
+export function isAdmin(permissions: number): boolean {
+  return hasPermission(permissions, PermissionBit.ADMIN)
+}
+
 export function isTutor(permissions: number): boolean {
   return hasPermission(permissions, PermissionBit.TUTOR)
 }
@@ -29,6 +33,7 @@ export function usePermissions() {
   const permissions = session?.user?.permissions ?? 0
 
   return {
+    isAdmin: isAdmin(permissions),
     isTutor: isTutor(permissions),
     isStudent: isStudent(permissions),
   }

@@ -67,6 +67,10 @@ export function TopicFilter({
     onSelectedTopicIdsChange(newSelectedOptions.map((option) => option.value))
   }
 
+  const getButtonText = (value: ListboxOptionType<string>[]) => {
+    return `Выбрано: ${value.length}`
+  }
+
   if (topicsQuery.isLoading) {
     return <p className="text-sm text-secondary">Загрузка тем...</p>
   }
@@ -83,7 +87,8 @@ export function TopicFilter({
         options={topicOptions}
         value={selectedOptions}
         onChange={handleOnChange}
-        placeholder="Выберите темы"
+        placeholder="Все темы"
+        getButtonText={getButtonText}
       />
     </Stack>
   )

@@ -31,6 +31,10 @@ type MultiSelectProps<T> = {
   multiple: true
   value: ListboxOptionType<T>[]
   onChange: (value: ListboxOptionType<T>[]) => void
+  getButtonText?: (
+    value: ListboxOptionType<T>[],
+    options: ListboxOptionType<T>[]
+  ) => string
 }
 
 type ListboxProps<T> = BaseProps<T> &
@@ -39,14 +43,28 @@ type ListboxProps<T> = BaseProps<T> &
 function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
   const { options, value, onChange, placeholder, multiple, className } = props
 
-  const getButtonText = () => {
+  const getButtonDisplay = () => {
     if (multiple) {
-      if (value && value.length > 0) {
-        return value.map((v) => v.label).join(", ")
+      const multiProps = props as MultiSelectProps<T>
+      const selectedOptions = multiProps.value
+      const allOptions = options
+
+      if (
+        selectedOptions.length === 0 ||
+        selectedOptions.length === allOptions.length
+      ) {
+        return placeholder
       }
+
+      if (multiProps.getButtonText) {
+        return multiProps.getButtonText(selectedOptions, allOptions)
+      }
+
+      return selectedOptions.map((v) => v.label).join(", ")
     } else {
-      if (value) {
-        return value.label
+      const singleProps = props as SingleSelectProps<T>
+      if (singleProps.value) {
+        return singleProps.value.label
       }
     }
     return placeholder
@@ -56,7 +74,7 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
     <HeadlessListbox value={value} onChange={onChange} multiple={multiple}>
       <div className={cn("relative", className)}>
         <ListboxButton className="relative w-full cursor-default rounded-md border border-input bg-input py-2 pl-3 pr-10 text-left text-primary focus:outline-none focus:ring-2 focus:ring-accent">
-          <span className="block truncate">{getButtonText()}</span>
+          <span className="block truncate">{getButtonDisplay()}</span>
           <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
             <ChevronsUpDown className="h-5 w-5 text-secondary" />
           </span>

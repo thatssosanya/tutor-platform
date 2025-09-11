@@ -1,6 +1,9 @@
+import { QuestionSource } from "@prisma/client"
 import React from "react"
 
 import { Stack } from "@/ui"
+import { SearchFilter } from "../filters/SearchFilter"
+import { SourceFilter } from "../filters/SourceFilter"
 import { SubjectFilter } from "../filters/SubjectFilter"
 import { TopicFilter } from "../filters/TopicFilter"
 
@@ -9,6 +12,10 @@ type QuestionsViewFiltersProps = {
   onSelectedSubjectIdChange: (id: string) => void
   selectedTopicIds: string[]
   onSelectedTopicIdsChange: (ids: string[]) => void
+  search: string
+  onSearchChange: (value: string) => void
+  selectedSources: QuestionSource[]
+  onSelectedSourcesChange: (sources: QuestionSource[]) => void
 }
 
 export function QuestionsViewFilters({
@@ -16,12 +23,21 @@ export function QuestionsViewFilters({
   onSelectedSubjectIdChange,
   selectedTopicIds,
   onSelectedTopicIdsChange,
+  search,
+  onSearchChange,
+  selectedSources,
+  onSelectedSourcesChange,
 }: QuestionsViewFiltersProps) {
   return (
     <Stack className="gap-4">
       <SubjectFilter
         selectedSubjectId={selectedSubjectId}
         onSelectedSubjectIdChange={onSelectedSubjectIdChange}
+      />
+      <SearchFilter search={search} onSearchChange={onSearchChange} />
+      <SourceFilter
+        selectedSources={selectedSources}
+        onSelectedSourcesChange={onSelectedSourcesChange}
       />
       {selectedSubjectId && (
         <TopicFilter

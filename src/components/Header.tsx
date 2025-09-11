@@ -16,10 +16,12 @@ const tutorLinks = [
 
 const studentLinks = [{ href: "/student/assignments", label: "Задания" }]
 
+const adminLink = { href: "/admin", label: "Админ" }
+
 export function Header() {
   const { data: session } = useSession()
   const router = useRouter()
-  const { isTutor } = usePermissions()
+  const { isTutor, isAdmin } = usePermissions()
 
   const links = isTutor ? tutorLinks : studentLinks
   const user = session?.user
@@ -49,6 +51,20 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                key={adminLink.href}
+                href={adminLink.href}
+                className={cn(
+                  "text-sm font-medium transition-colors hover:text-primary",
+                  router.pathname.startsWith(adminLink.href)
+                    ? "text-primary"
+                    : "text-secondary"
+                )}
+              >
+                {adminLink.label}
+              </Link>
+            )}
           </nav>
         </Row>
 

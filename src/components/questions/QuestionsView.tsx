@@ -1,10 +1,11 @@
-import { SolutionType } from "@prisma/client"
+import { QuestionSource, SolutionType } from "@prisma/client"
 import { Plus, X } from "lucide-react"
 import React, { useState } from "react"
 
 import {
   Button,
   Input,
+  Pagination,
   Paper,
   RadioGroup,
   type RadioOption,
@@ -20,6 +21,8 @@ type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 type QuestionsViewProps = {
   subjectId: string
   topicIds?: string[]
+  search?: string
+  sources?: QuestionSource[]
   cardControls: (question: Question) => React.ReactNode
   isCreateAllowed?: boolean
 }
@@ -27,6 +30,8 @@ type QuestionsViewProps = {
 export function QuestionsView({
   subjectId,
   topicIds,
+  search,
+  sources,
   cardControls,
   isCreateAllowed = false,
 }: QuestionsViewProps) {
@@ -38,15 +43,25 @@ export function QuestionsView({
   const [solutionType, setSolutionType] = useState<SolutionType>(
     SolutionType.SHORT
   )
+  const [currentPage, setCurrentPage] = useState(1)
 
   const utils = api.useUtils()
-  const questionsQuery = api.question.getPaginated.useInfiniteQuery(
-    { subjectId, topicIds, limit: 10 },
-    { getNextPageParam: (lastPage) => lastPage.nextCursor }
-  )
+  const questionsQuery = api.question.getPaginated.useQuery({
+    subjectId,
+    topicIds,
+    search,
+    sources,
+    page: currentPage,
+    limit: 10,
+  })
   const createQuestionMutation = api.question.create.useMutation({
     onSuccess: async () => {
-      await utils.question.getPaginated.invalidate({ subjectId, topicIds })
+      await utils.question.getPaginated.invalidate({
+        subjectId,
+        topicIds,
+        search,
+        sources,
+      })
       handleCancel()
     },
   })
@@ -65,33 +80,44 @@ export function QuestionsView({
     if (!prompt.trim() || !subjectId) return
 
     createQuestionMutation.mutate({
-      name: prompt, // Using prompt for name as a default
+      name: prompt,
       prompt,
       body,
       work,
       solution,
       solutionType,
       subjectId,
-      topicIds: [], // Topics can be added later
+      topicIds: [],
     })
   }
 
   const solutionTypeOptions: RadioOption<SolutionType>[] = [
     { value: SolutionType.SHORT, label: "Краткий ответ" },
     { value: SolutionType.LONG, label: "Развернутый ответ" },
-    // Add other types as needed
   ]
+
+  const questions = questionsQuery.data?.items ?? []
+
+  const pagination = (
+    <Pagination
+      currentPage={currentPage}
+      totalPagesProp={questionsQuery.data?.totalPages}
+      onChangePage={setCurrentPage}
+      className="self-center"
+    />
+  )
 
   return (
     <Stack className="gap-4">
+      {pagination}
+
       <QuestionsList
-        pages={questionsQuery.data?.pages}
+        questions={questions}
         isLoading={questionsQuery.isLoading}
-        hasNextPage={questionsQuery.hasNextPage}
-        isFetchingNextPage={questionsQuery.isFetchingNextPage}
-        fetchNextPage={() => questionsQuery.fetchNextPage()}
         cardControls={cardControls}
       />
+
+      {!questionsQuery.isFetching && pagination}
 
       {isCreateAllowed && (
         <div className="mt-2">
@@ -100,7 +126,7 @@ export function QuestionsView({
               <form onSubmit={handleSubmit}>
                 <Stack className="gap-4">
                   <Input
-                    placeholder="Условие (например, номер из варианта)"
+                    placeholder="Цель"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     autoFocus
@@ -123,7 +149,7 @@ export function QuestionsView({
                   />
                   {solutionType === SolutionType.SHORT && (
                     <Input
-                      placeholder="Ответ (для краткого типа)"
+                      placeholder="Ответ"
                       value={solution}
                       onChange={(e) => setSolution(e.target.value)}
                     />

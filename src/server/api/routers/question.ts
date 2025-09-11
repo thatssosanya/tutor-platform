@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { QuestionSource, SolutionType } from "@prisma/client"
+import { Prisma, QuestionSource, SolutionType } from "@prisma/client"
 
 import {
   createProtectedProcedure,
@@ -44,6 +44,7 @@ export const questionRouter = createTRPCRouter({
       return ctx.db.question.create({
         data: {
           ...cleanInput,
+          verified: true,
           creatorId: ctx.session.user.id,
           topics: {
             connect: topicIds.map((id) => ({
@@ -106,45 +107,69 @@ export const questionRouter = createTRPCRouter({
   getPaginated: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
-        limit: z.number().min(1).max(100).nullish(),
-        cursor: z.string().nullish(),
+        limit: z.number().min(1).max(100).default(10),
+        page: z.number().min(1).default(1),
         subjectId: z.string().optional(),
         topicIds: z.array(z.string()).optional(),
-        source: z.nativeEnum(QuestionSource).optional(),
+        sources: z.array(z.nativeEnum(QuestionSource)).optional(),
+        search: z.string().optional(),
+        includeUnverified: z.boolean().default(false),
       })
     )
     .query(async ({ ctx, input }) => {
-      const limit = input.limit ?? 10
-      const { cursor } = input
+      const {
+        limit,
+        page,
+        subjectId,
+        topicIds,
+        sources,
+        search,
+        includeUnverified,
+      } = input
+      const skip = (page - 1) * limit
 
-      const items = await ctx.db.question.findMany({
-        take: limit + 1,
-        where: {
-          subjectId: input.subjectId,
-          source: input.source,
-          topics:
-            input.topicIds && input.topicIds.length > 0
-              ? { some: { id: { in: input.topicIds } } }
-              : undefined,
-        },
-        include: {
-          attachments: true,
-        },
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: {
-          createdAt: "asc",
-        },
-      })
-
-      let nextCursor: typeof cursor | undefined = undefined
-      if (items.length > limit) {
-        const nextItem = items.pop()
-        nextCursor = nextItem!.id
+      const whereClause: Prisma.QuestionWhereInput = {
+        subjectId: subjectId,
+        verified: includeUnverified ? undefined : true,
+        source: sources && sources.length > 0 ? { in: sources } : undefined,
+        topics:
+          topicIds && topicIds.length > 0
+            ? { some: { id: { in: topicIds } } }
+            : undefined,
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { prompt: { contains: search, mode: "insensitive" } },
+                { body: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : undefined),
       }
+
+      const [items, totalCount] = await ctx.db.$transaction([
+        ctx.db.question.findMany({
+          take: limit,
+          skip,
+          where: whereClause,
+          include: {
+            attachments: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        }),
+        ctx.db.question.count({
+          where: whereClause,
+        }),
+      ])
+
+      const totalPages = Math.ceil(totalCount / limit)
 
       return {
         items,
-        nextCursor,
+        totalPages,
+        currentPage: page,
       }
     }),
 
@@ -169,6 +194,8 @@ export const questionRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.question.delete({ where: { id: input.id } })
     }),
+
+  // --- FOR ADMINS ---
 
   enrichOne: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ id: z.string() }))
@@ -233,5 +260,20 @@ export const questionRouter = createTRPCRouter({
       await Promise.all(enrichmentPromises)
 
       return { enrichedCount: questionsToEnrich.length }
+    }),
+
+  updateVerifications: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(z.object({ updates: z.record(z.string(), z.boolean()) }))
+    .mutation(async ({ ctx, input }) => {
+      const { updates } = input
+      const updatePromises = Object.entries(updates).map(([id, verified]) =>
+        ctx.db.question.update({
+          where: { id },
+          data: { verified },
+        })
+      )
+
+      await ctx.db.$transaction(updatePromises)
+      return { updatedCount: updatePromises.length }
     }),
 })
