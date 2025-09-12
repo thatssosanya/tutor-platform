@@ -3,15 +3,12 @@ import { useSession } from "next-auth/react"
 import Head from "next/head"
 import React, { useEffect, useState } from "react"
 
-import { QuestionsView } from "@/components/questions/QuestionsView"
-import { QuestionsViewFilters } from "@/components/questions/QuestionsViewFilters"
+import { QuestionsListView } from "@/components/questions/QuestionsListView"
 import { TestsList } from "@/components/tests/TestsList"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Checkbox, Container, Dialog, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
-import { useQuestionSources } from "@/utils/questionSources"
-import { useSubjects } from "@/utils/subjects"
 import { skipToken } from "@tanstack/react-query"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
@@ -61,10 +58,6 @@ function TestManagementDialog({
 }
 
 export default function TutorQuestionsPage() {
-  const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
-  const { selectedSources, setSelectedSources } = useQuestionSources()
-  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
-  const [search, setSearch] = useState("")
   const [managingQuestion, setManagingQuestion] = useState<Question | null>(
     null
   )
@@ -73,16 +66,18 @@ export default function TutorQuestionsPage() {
   const { data: session } = useSession()
   const utils = api.useUtils()
 
+  const subjectIdForDialog = managingQuestion?.subjectId
+
   // Data Queries
   const testsQuery = api.test.getAllBySubject.useQuery(
-    { subjectId: selectedSubjectId! },
-    { enabled: !!selectedSubjectId }
+    { subjectId: subjectIdForDialog! },
+    { enabled: !!subjectIdForDialog }
   )
   const testsWithQuestionQuery = api.test.getTestsContainingQuestion.useQuery(
-    !!managingQuestion && !!selectedSubjectId
+    !!managingQuestion && !!subjectIdForDialog
       ? {
           questionId: managingQuestion.id,
-          subjectId: selectedSubjectId,
+          subjectId: subjectIdForDialog,
         }
       : skipToken
   )
@@ -90,12 +85,7 @@ export default function TutorQuestionsPage() {
   // Mutations
   const deleteMutation = api.question.delete.useMutation({
     onSuccess: () => {
-      utils.question.getPaginated.invalidate({
-        subjectId: selectedSubjectId!,
-        topicIds: selectedTopicIds,
-        search,
-        sources: selectedSources,
-      })
+      utils.question.getPaginated.invalidate()
     },
   })
   const updateQuestionInTestsMutation =
@@ -103,7 +93,7 @@ export default function TutorQuestionsPage() {
       onSuccess: (_, variables) => {
         utils.test.getTestsContainingQuestion.invalidate({
           questionId: variables.questionId,
-          subjectId: selectedSubjectId!,
+          subjectId: subjectIdForDialog!,
         })
       },
     })
@@ -114,10 +104,6 @@ export default function TutorQuestionsPage() {
       setEditedTestIds(new Set(testsWithQuestionQuery.data.map((t) => t.id)))
     }
   }, [testsWithQuestionQuery.data])
-
-  useEffect(() => {
-    setSelectedTopicIds([])
-  }, [selectedSubjectId])
 
   // Handlers
   const handleDelete = (questionId: string) => {
@@ -175,49 +161,14 @@ export default function TutorQuestionsPage() {
       </Head>
       <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
         <Container>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-            <div className="md:col-span-1">
-              <Stack className="gap-4">
-                <Stack>
-                  <h1 className="text-2xl font-bold">Вопросы</h1>
-                  <p className="mt-1 text-secondary">
-                    Управляйте вашей базой вопросов.
-                  </p>
-                </Stack>
-                <hr className="border-input" />
-                <QuestionsViewFilters
-                  selectedSubjectId={selectedSubjectId}
-                  onSelectedSubjectIdChange={setSelectedSubjectId}
-                  selectedTopicIds={selectedTopicIds}
-                  onSelectedTopicIdsChange={setSelectedTopicIds}
-                  search={search}
-                  onSearchChange={setSearch}
-                  selectedSources={selectedSources}
-                  onSelectedSourcesChange={setSelectedSources}
-                />
-              </Stack>
-            </div>
-            <div className="md:col-span-3">
-              {selectedSubjectId ? (
-                <QuestionsView
-                  subjectId={selectedSubjectId}
-                  topicIds={selectedTopicIds}
-                  search={search}
-                  sources={selectedSources}
-                  cardControls={questionCardControls}
-                  isCreateAllowed={true}
-                />
-              ) : (
-                <p className="text-secondary">
-                  Выберите предмет для просмотра вопросов.
-                </p>
-              )}
-            </div>
-          </div>
+          <QuestionsListView
+            cardControls={questionCardControls}
+            isCreateAllowed={true}
+          />
         </Container>
       </ProtectedLayout>
 
-      {managingQuestion && selectedSubjectId && (
+      {managingQuestion && (
         <TestManagementDialog
           isOpen={!!managingQuestion}
           onClose={handleSaveAndClose}

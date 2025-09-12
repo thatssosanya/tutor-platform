@@ -2,10 +2,9 @@ import { FilePen, Trash2, UserPlus } from "lucide-react"
 import Head from "next/head"
 import React, { useEffect, useState } from "react"
 
-import { QuestionsView } from "@/components/questions/QuestionsView"
-import { StudentsView } from "@/components/students/StudentsView"
-import { TestsView } from "@/components/tests/TestsView"
-import { TestsViewFilters } from "@/components/tests/TestsViewFilters"
+import { StudentsList } from "@/components/students/StudentsList"
+import { TestQuestionManager } from "@/components/tests/TestQuestionManager"
+import { TestsListView } from "@/components/tests/TestsListView"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import {
   Box,
@@ -20,11 +19,8 @@ import {
 import { api } from "@/utils/api"
 import { formatDateToString } from "@/utils/date"
 import { PermissionBit } from "@/utils/permissions"
-import { useSubjects } from "@/utils/subjects"
-import type { Question } from "@prisma/client"
 
 export default function TutorTestsPage() {
-  const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false)
   const [isQuestionsDialogOpen, setQuestionsDialogOpen] = useState(false)
   const [activeTestId, setActiveTestId] = useState<string | null>(null)
@@ -182,13 +178,6 @@ export default function TutorTestsPage() {
     </>
   )
 
-  const questionCardControls = (question: Question) => (
-    <Checkbox
-      checked={editedQuestionIds.has(question.id)}
-      onChange={() => handleToggleQuestion(question.id)}
-    />
-  )
-
   const studentCardControls = (studentId: string) => {
     const isAssigned = studentAssignments.has(studentId)
     return (
@@ -218,36 +207,10 @@ export default function TutorTestsPage() {
       </Head>
       <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
         <Container>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-            <div className="md:col-span-1">
-              <Stack className="gap-4">
-                <Stack>
-                  <h1 className="text-2xl font-bold">Тесты</h1>
-                  <p className="mt-1 text-secondary">
-                    Управляйте вашими тестами и заданиями.
-                  </p>
-                </Stack>
-                <hr className="border-input" />
-                <TestsViewFilters
-                  selectedSubjectId={selectedSubjectId}
-                  onSelectedSubjectIdChange={setSelectedSubjectId}
-                />
-              </Stack>
-            </div>
-            <div className="md:col-span-3">
-              {selectedSubjectId ? (
-                <TestsView
-                  subjectId={selectedSubjectId}
-                  cardControls={testCardControls}
-                  isCreateAllowed={true}
-                />
-              ) : (
-                <p className="text-secondary">
-                  Выберите предмет для просмотра тестов.
-                </p>
-              )}
-            </div>
-          </div>
+          <TestsListView
+            cardControls={testCardControls}
+            isCreateAllowed={true}
+          />
         </Container>
       </ProtectedLayout>
 
@@ -263,7 +226,11 @@ export default function TutorTestsPage() {
           ) : studentsQuery.data?.length === 0 ? (
             <p>У вас еще нет учеников. Создайте их на странице учеников.</p>
           ) : (
-            <StudentsView cardControls={studentCardControls} />
+            <StudentsList
+              students={studentsQuery.data ?? []}
+              isLoading={studentsQuery.isLoading || assignmentsQuery.isLoading}
+              cardControls={studentCardControls}
+            />
           )}
         </Stack>
       </Dialog>
@@ -277,9 +244,10 @@ export default function TutorTestsPage() {
         {activeTestQuery.data ? (
           <Stack className="mt-4 gap-2">
             <h4 className="font-semibold text-primary">Добавить в тест</h4>
-            <QuestionsView
+            <TestQuestionManager
               subjectId={activeTestQuery.data.subjectId}
-              cardControls={questionCardControls}
+              checkedQuestionIds={editedQuestionIds}
+              onToggleQuestion={handleToggleQuestion}
             />
           </Stack>
         ) : (
