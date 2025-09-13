@@ -9,6 +9,7 @@ import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container } from "@/ui"
 import { api } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
+import { Transition } from "@headlessui/react"
 
 export default function TutorTestsPage() {
   const [activeTestId, setActiveTestId] = useQueryParam("testId")
@@ -51,18 +52,39 @@ export default function TutorTestsPage() {
         <title>Управление тестами</title>
       </Head>
       <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
-        <Container>
-          {activeTestId ? (
-            <TestDetailView
-              testId={activeTestId}
-              onBack={() => setActiveTestId(null)}
-            />
-          ) : (
+        <Container className="overflow-x-hidden grid">
+          <Transition
+            show={!activeTestId}
+            as="div"
+            className="[grid-area:1/1] transition-transform duration-300 ease-out"
+            enterFrom="-translate-x-full"
+            enterTo="translate-x-0"
+            leave="transition-transform duration-300 ease-in"
+            leaveFrom="translate-x-0"
+            leaveTo="-translate-x-full"
+          >
             <TestListView
               cardControls={testCardControls}
               isCreateAllowed={true}
             />
-          )}
+          </Transition>
+          <Transition
+            show={!!activeTestId}
+            as="div"
+            className="[grid-area:1/1] transition-transform duration-300 ease-out"
+            enterFrom="translate-x-full"
+            enterTo="translate-x-0"
+            leave="transition-transform duration-300 ease-in"
+            leaveFrom="translate-x-0"
+            leaveTo="translate-x-full"
+          >
+            {activeTestId && (
+              <TestDetailView
+                testId={activeTestId}
+                onBack={() => setActiveTestId(null)}
+              />
+            )}
+          </Transition>
         </Container>
       </ProtectedLayout>
     </>

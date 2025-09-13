@@ -9,6 +9,7 @@ import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container } from "@/ui"
 import { api } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
+import { Transition } from "@headlessui/react"
 
 export default function TutorStudentsPage() {
   const [activeStudentId, setActiveStudentId] = useQueryParam("studentId")
@@ -51,18 +52,39 @@ export default function TutorStudentsPage() {
         <title>Управление учениками</title>
       </Head>
       <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
-        <Container>
-          {activeStudentId ? (
-            <StudentDetailView
-              studentId={activeStudentId}
-              onBack={() => setActiveStudentId(null)}
-            />
-          ) : (
+        <Container className="overflow-x-hidden grid">
+          <Transition
+            show={!activeStudentId}
+            as="div"
+            className="[grid-area:1/1] transition-transform duration-300 ease-out"
+            enterFrom="-translate-x-full"
+            enterTo="translate-x-0"
+            leave="transition-transform duration-300 ease-in"
+            leaveFrom="translate-x-0"
+            leaveTo="-translate-x-full"
+          >
             <StudentListView
               cardControls={studentCardControls}
               isCreateAllowed={true}
             />
-          )}
+          </Transition>
+          <Transition
+            show={!!activeStudentId}
+            as="div"
+            className="[grid-area:1/1] transition-transform duration-300 ease-out"
+            enterFrom="translate-x-full"
+            enterTo="translate-x-0"
+            leave="transition-transform duration-300 ease-in"
+            leaveFrom="translate-x-0"
+            leaveTo="translate-x-full"
+          >
+            {activeStudentId && (
+              <StudentDetailView
+                studentId={activeStudentId}
+                onBack={() => setActiveStudentId(null)}
+              />
+            )}
+          </Transition>
         </Container>
       </ProtectedLayout>
     </>
