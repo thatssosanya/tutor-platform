@@ -1,56 +1,59 @@
-import { Plus, X } from "lucide-react";
-import React, { useState } from "react";
+import { Plus, X } from "lucide-react"
+import { useRouter } from "next/router"
+import React, { useState } from "react"
 
-import { useSubjectFilter } from "@/hooks/useSubjectFilter";
-import { Button, CheckboxGroup, Input, Paper, Row, Stack } from "@/ui";
-import { api } from "@/utils/api";
+import { Button, CheckboxGroup, Input, Paper, Row, Stack } from "@/ui"
+import { api } from "@/utils/api"
+import { useSubjects } from "@/utils/subjects"
 
 type StudentCreateFormProps = {
-  isCreateAllowed?: boolean;
-  onCreate?: (studentId: string) => void;
-};
+  isCreateAllowed?: boolean
+}
 
 export function StudentCreateForm({
   isCreateAllowed = false,
-  onCreate,
 }: StudentCreateFormProps) {
-  const [isCreating, setIsCreating] = useState(false);
-  const [newStudentDisplayName, setNewStudentDisplayName] = useState("");
-  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
-  const { subjects: tutorSubjects } = useSubjectFilter();
+  const [isCreating, setIsCreating] = useState(false)
+  const [newStudentDisplayName, setNewStudentDisplayName] = useState("")
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([])
+  const { subjects: tutorSubjects } = useSubjects()
+  const router = useRouter()
 
-  const utils = api.useUtils();
+  const utils = api.useUtils()
   const createStudentMutation = api.user.createStudent.useMutation({
     onSuccess: async (newStudent) => {
-      await utils.user.getStudents.invalidate();
-      handleCancel();
-      onCreate?.(newStudent.id);
+      await utils.user.getStudents.invalidate()
+      handleCancel()
+      await router.push({
+        pathname: router.pathname,
+        query: { ...router.query, studentId: newStudent.id },
+      })
     },
-  });
+  })
 
   const handleCancel = () => {
-    setIsCreating(false);
-    setNewStudentDisplayName("");
-    setSelectedSubjectIds([]);
-  };
+    setIsCreating(false)
+    setNewStudentDisplayName("")
+    setSelectedSubjectIds([])
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStudentDisplayName.trim()) return;
+    e.preventDefault()
+    if (!newStudentDisplayName.trim()) return
 
     createStudentMutation.mutate({
       displayName: newStudentDisplayName,
       subjectIds: selectedSubjectIds,
-    });
-  };
+    })
+  }
 
   const subjectOptions = tutorSubjects.map((s) => ({
     value: s.id,
     label: s.name,
-  }));
+  }))
 
   if (!isCreateAllowed) {
-    return null;
+    return null
   }
 
   return (
@@ -65,7 +68,7 @@ export function StudentCreateForm({
                 onChange={(e) => setNewStudentDisplayName(e.target.value)}
                 autoFocus
               />
-              <Stack className="gap-1.5">
+              <Stack className="gap-2">
                 <label className="text-sm font-medium">Предметы</label>
                 <CheckboxGroup
                   options={subjectOptions}
@@ -79,15 +82,9 @@ export function StudentCreateForm({
                   type="submit"
                   disabled={createStudentMutation.isPending}
                 >
-                  {createStudentMutation.isPending
-                    ? "Создание..."
-                    : "Создать"}
+                  {createStudentMutation.isPending ? "Создание..." : "Создать"}
                 </Button>
-                <Button
-                  variant="danger"
-                  type="button"
-                  onClick={handleCancel}
-                >
+                <Button variant="danger" type="button" onClick={handleCancel}>
                   <X className="h-4 w-4" />
                 </Button>
               </Row>
@@ -101,5 +98,5 @@ export function StudentCreateForm({
         </Button>
       )}
     </div>
-  );
+  )
 }

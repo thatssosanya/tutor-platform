@@ -3,6 +3,7 @@ import React from "react"
 import { cn } from "@/styles"
 
 import { buttonVariants } from "./Button"
+import { withLabel, type WithLabelProps } from "./withLabel"
 
 export type CheckboxOption<T> = {
   value: T
@@ -14,15 +15,17 @@ type CheckboxGroupProps<T> = {
   value: T[]
   onChange: (value: T[]) => void
   className?: string
-  variant?: "button"
+  variant?: "default" | "button" | "button-paper"
 }
+
+// TODO add default rendering
 
 function CheckboxGroupComponent<T extends string | number>({
   options,
   value,
   onChange,
   className,
-  variant,
+  variant = "default",
 }: CheckboxGroupProps<T>) {
   const selectedValues = new Set(value)
 
@@ -39,22 +42,24 @@ function CheckboxGroupComponent<T extends string | number>({
   return (
     <div
       className={cn(
-        variant === "button" ? "flex flex-wrap gap-2" : "space-y-2",
+        variant === "default" ? "space-y-2" : "flex flex-wrap gap-2",
         className
       )}
     >
       {options.map((option) =>
-        variant === "button" ? (
+        variant === "button" || variant === "button-paper" ? (
           <button
             key={String(option.value)}
             type="button"
             onClick={() => handleToggle(option.value)}
             className={cn(
-              buttonVariants({ size: "sm" }),
-              "cursor-pointer focus:outline-none",
-              selectedValues.has(option.value)
-                ? "bg-accent text-on-accent hover:bg-accent-highlight"
-                : "bg-input text-primary hover:bg-input-highlight"
+              buttonVariants({
+                size: "sm",
+                variant:
+                  variant === "button-paper" ? "primary-paper" : "secondary",
+              }),
+              selectedValues.has(option.value) &&
+                "bg-accent text-on-accent hover:bg-accent-highlight"
             )}
           >
             {option.label}
@@ -65,6 +70,8 @@ function CheckboxGroupComponent<T extends string | number>({
   )
 }
 
-export const CheckboxGroup = React.memo(
-  CheckboxGroupComponent
-) as typeof CheckboxGroupComponent
+export const CheckboxGroup = React.memo(withLabel(CheckboxGroupComponent)) as <
+  T extends string | number,
+>(
+  props: CheckboxGroupProps<T> & WithLabelProps
+) => React.ReactElement

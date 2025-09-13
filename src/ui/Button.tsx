@@ -1,6 +1,6 @@
 import { Button as HeadlessButton } from "@headlessui/react"
 import { cva, type VariantProps } from "class-variance-authority"
-import React, { forwardRef } from "react"
+import React from "react"
 
 import { cn } from "@/styles"
 
@@ -11,6 +11,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "bg-accent text-on-accent hover:bg-accent-highlight",
+        "primary-paper": "bg-primary text-primary hover:bg-primary-highlight",
         secondary: "bg-input text-primary hover:bg-input-highlight",
         danger: "bg-danger text-on-accent hover:bg-danger-highlight",
       },
@@ -19,29 +20,29 @@ const buttonVariants = cva(
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
       },
+      shadows: {
+        default: "shadow-primary shadow-sm inset-shadow-2xs",
+        none: "",
+      },
     },
     defaultVariants: {
       variant: "primary",
       size: "default",
+      shadows: "default",
     },
   }
 )
 
-export interface ButtonProps
-  extends React.ComponentProps<typeof HeadlessButton>,
-    VariantProps<typeof buttonVariants> {}
+export type ButtonProps = React.ComponentProps<typeof HeadlessButton> &
+  VariantProps<typeof buttonVariants>
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
-    return (
-      <HeadlessButton
-        ref={ref}
-        className={cn(buttonVariants({ variant, size, className }))}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+function Button({ className, variant, size, shadows, ...props }: ButtonProps) {
+  return (
+    <HeadlessButton
+      className={cn(buttonVariants({ variant, size, shadows, className }))}
+      {...props}
+    />
+  )
+}
 
 export { Button, buttonVariants }

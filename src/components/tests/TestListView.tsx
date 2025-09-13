@@ -2,23 +2,24 @@ import React from "react"
 
 import { useSubjectFilter } from "@/hooks/useSubjectFilter"
 import { Stack } from "@/ui"
-import { api, type RouterOutputs } from "@/utils/api"
-import { TestsList } from "./TestsList"
+import { api } from "@/utils/api"
+import { TestList } from "./TestList"
 import { TestCreateForm } from "./TestCreateForm"
-import { TestsViewFilters } from "./TestsViewFilters"
+import { SubjectFilter } from "../filters/SubjectFilter"
 
-type Test = RouterOutputs["test"]["getAllBySubject"][number]
-
-type TestsListViewProps = {
+type TestListViewProps = {
   cardControls: (testId: string) => React.ReactNode
   isCreateAllowed?: boolean
 }
 
-export function TestsListView({
+export function TestListView({
   cardControls,
   isCreateAllowed = false,
-}: TestsListViewProps) {
-  const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter()
+}: TestListViewProps) {
+  const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter({
+    isStorageSyncEnabled: true,
+    isQueryParamSyncEnabled: true,
+  })
 
   const testsQuery = api.test.getAllBySubject.useQuery(
     { subjectId: selectedSubjectId! },
@@ -36,7 +37,7 @@ export function TestsListView({
             </p>
           </Stack>
           <hr className="border-input" />
-          <TestsViewFilters
+          <SubjectFilter
             selectedSubjectId={selectedSubjectId}
             onSelectedSubjectIdChange={onSelectedSubjectIdChange}
           />
@@ -45,7 +46,7 @@ export function TestsListView({
       <div className="md:col-span-3">
         {selectedSubjectId ? (
           <Stack className="gap-4">
-            <TestsList
+            <TestList
               tests={testsQuery.data ?? []}
               isLoading={testsQuery.isLoading}
               cardControls={cardControls}

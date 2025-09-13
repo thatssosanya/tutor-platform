@@ -9,6 +9,7 @@ import React from "react"
 
 import { cn } from "@/styles"
 import { buttonVariants } from "./Button"
+import { withLabel, type WithLabelProps } from "./withLabel"
 
 export type RadioOption<T> = {
   value: T
@@ -21,7 +22,7 @@ type RadioGroupProps<T> = {
   value: T | null
   onChange: (value: T) => void
   className?: string
-  variant?: "default" | "button"
+  variant?: "default" | "button" | "button-paper"
 }
 
 function RadioGroupComponent<T extends string | number>({
@@ -41,14 +42,16 @@ function RadioGroupComponent<T extends string | number>({
       )}
     >
       {options.map((option) =>
-        variant === "button" ? (
+        variant === "button" || variant === "button-paper" ? (
           <Radio
             key={String(option.value)}
             value={option.value}
             className={cn(
-              buttonVariants({ size: "sm" }),
-              "cursor-pointer focus:outline-none data-checked:cursor-default",
-              "bg-input text-primary hover:bg-input-highlight",
+              buttonVariants({
+                size: "sm",
+                variant:
+                  variant === "button-paper" ? "primary-paper" : "secondary",
+              }),
               "data-checked:bg-accent data-checked:text-on-accent data-checked:hover:bg-accent-highlight"
             )}
           >
@@ -75,8 +78,8 @@ function RadioGroupComponent<T extends string | number>({
   )
 }
 
-export const RadioGroup = React.memo(RadioGroupComponent) as <
+export const RadioGroup = React.memo(withLabel(RadioGroupComponent)) as <
   T extends string | number,
 >(
-  props: RadioGroupProps<T>
+  props: RadioGroupProps<T> & WithLabelProps
 ) => React.ReactElement

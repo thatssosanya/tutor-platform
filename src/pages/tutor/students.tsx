@@ -1,50 +1,44 @@
-import { Eye, Trash2 } from "lucide-react"
+import { ExternalLink, Trash2 } from "lucide-react"
 import Head from "next/head"
-import React, { useState } from "react"
+import React from "react"
 
-import { StudentsListView } from "@/components/students/StudentsListView"
+import { StudentDetailView } from "@/components/students/StudentDetailView"
+import { StudentListView } from "@/components/students/StudentListView"
+import { useQueryParam } from "@/hooks/useQueryParam"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
-import { Button, Container, Dialog, Stack } from "@/ui"
+import { Button, Container } from "@/ui"
 import { api } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 
 export default function TutorStudentsPage() {
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
-    null
-  )
+  const [activeStudentId, setActiveStudentId] = useQueryParam("studentId")
+  const utils = api.useUtils()
 
-  const selectedStudentQuery = api.user.getStudent.useQuery(
-    { id: selectedStudentId! },
-    { enabled: !!selectedStudentId }
-  )
+  const deleteStudentMutation = api.user.deleteStudent.useMutation({
+    onSuccess: () => {
+      utils.user.getStudents.invalidate()
+    },
+  })
 
-  const handleView = (studentId: string) => {
-    setSelectedStudentId(studentId)
-  }
-
-  const handleCloseDialog = () => {
-    setSelectedStudentId(null)
-  }
-
-  const handleStudentCreated = (studentId: string) => {
-    setSelectedStudentId(studentId)
+  const handleDelete = (studentId: string) => {
+    if (window.confirm("Вы уверены, что хотите удалить этого ученика?")) {
+      deleteStudentMutation.mutate({ id: studentId })
+    }
   }
 
   const studentCardControls = (studentId: string) => (
     <>
       <Button
         size="sm"
-        variant="secondary"
-        onClick={() => handleView(studentId)}
+        variant="primary-paper"
+        onClick={() => setActiveStudentId(studentId)}
       >
-        <Eye className="h-4 w-4" />
+        <ExternalLink className="h-4 w-4" />
       </Button>
       <Button
         size="sm"
-        variant="secondary"
-        onClick={() => {
-          /* TODO: Delete */
-        }}
+        variant="primary-paper"
+        onClick={() => handleDelete(studentId)}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -58,47 +52,19 @@ export default function TutorStudentsPage() {
       </Head>
       <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
         <Container>
-          <StudentsListView
-            cardControls={studentCardControls}
-            isCreateAllowed={true}
-            onCreate={handleStudentCreated}
-          />
+          {activeStudentId ? (
+            <StudentDetailView
+              studentId={activeStudentId}
+              onBack={() => setActiveStudentId(null)}
+            />
+          ) : (
+            <StudentListView
+              cardControls={studentCardControls}
+              isCreateAllowed={true}
+            />
+          )}
         </Container>
       </ProtectedLayout>
-
-      <Dialog
-        isOpen={!!selectedStudentId}
-        onClose={handleCloseDialog}
-        title="Данные для входа ученика"
-        className="bg-primary shadow-2xl"
-      >
-        {selectedStudentQuery.isLoading ? (
-          <p>Загрузка данных...</p>
-        ) : selectedStudentQuery.data ? (
-          <Stack className="mt-4 gap-4">
-            <Stack className="gap-1">
-              <p className="text-sm font-medium text-secondary">Имя</p>
-              <p className="font-mono rounded bg-muted p-2 text-primary">
-                {selectedStudentQuery.data.displayName}
-              </p>
-            </Stack>
-            <Stack className="gap-1">
-              <p className="text-sm font-medium text-secondary">Логин</p>
-              <p className="font-mono rounded bg-muted p-2 text-primary">
-                {selectedStudentQuery.data.name}
-              </p>
-            </Stack>
-            <Stack className="gap-1">
-              <p className="text-sm font-medium text-secondary">Пароль</p>
-              <p className="font-mono rounded bg-muted p-2 text-primary">
-                {selectedStudentQuery.data.password}
-              </p>
-            </Stack>
-          </Stack>
-        ) : (
-          <p>Не удалось загрузить данные ученика.</p>
-        )}
-      </Dialog>
     </>
   )
 }

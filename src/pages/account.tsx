@@ -7,6 +7,7 @@ import {
   CheckboxGroup,
   Container,
   Input,
+  LabelBox,
   Paper,
   Row,
   Stack,
@@ -65,40 +66,28 @@ export default function AccountPage() {
                     Мой аккаунт
                   </h1>
                   <p className="text-sm text-secondary">
-                    Измените данные своего аккаунта.
+                    Управляйте своим аккаунтом.
                   </p>
                 </Stack>
 
                 <Stack className="gap-4">
-                  <Stack className="gap-1.5">
-                    <label
-                      htmlFor="displayName"
-                      className="text-sm font-medium"
-                    >
-                      Отображаемое имя
-                    </label>
-                    <Input
-                      id="displayName"
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      required
-                    />
-                  </Stack>
-                  <Stack className="gap-1.5">
-                    <label htmlFor="password" className="text-sm font-medium">
-                      Новый пароль
-                    </label>
-                    <Input
-                      id="password"
-                      placeholder="Оставьте пустым, чтобы не менять"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </Stack>
-                  <Stack className="gap-1.5">
-                    <label className="text-sm font-medium">Предметы</label>
+                  <Input
+                    label="Отображаемое имя"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    variant="primary-paper"
+                    required
+                  />
+                  <Input
+                    label="Новый пароль"
+                    placeholder="Оставьте пустым, чтобы не менять"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    variant="primary-paper"
+                  />
+                  <LabelBox label="Предметы">
                     {subjectsQuery.isLoading ? (
                       <p>Загрузка предметов...</p>
                     ) : (
@@ -106,10 +95,10 @@ export default function AccountPage() {
                         options={subjectOptions}
                         value={selectedSubjectIds}
                         onChange={setSelectedSubjectIds}
-                        variant="button"
+                        variant="button-paper"
                       />
                     )}
-                  </Stack>
+                  </LabelBox>
                 </Stack>
 
                 {updateProfileMutation.error && (

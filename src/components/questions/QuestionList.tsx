@@ -7,19 +7,19 @@ import { QuestionCard } from "./QuestionCard"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
-type QuestionsListProps = {
+type QuestionListProps = {
   questions: Question[]
   isLoading: boolean
   cardControls?: (question: Question) => React.ReactNode
   cardFooter?: (question: Question) => React.ReactNode
 }
 
-export function QuestionsList({
+export function QuestionList({
   questions,
   isLoading,
   cardControls,
   cardFooter,
-}: QuestionsListProps) {
+}: QuestionListProps) {
   if (isLoading) {
     return <p>Загрузка вопросов...</p>
   }

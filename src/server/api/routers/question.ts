@@ -114,6 +114,7 @@ export const questionRouter = createTRPCRouter({
         sources: z.array(z.nativeEnum(QuestionSource)).optional(),
         search: z.string().optional(),
         includeUnverified: z.boolean().default(false),
+        excludeIds: z.array(z.string()).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -125,10 +126,15 @@ export const questionRouter = createTRPCRouter({
         sources,
         search,
         includeUnverified,
+        excludeIds,
       } = input
       const skip = (page - 1) * limit
 
       const whereClause: Prisma.QuestionWhereInput = {
+        id:
+          excludeIds && excludeIds.length > 0
+            ? { notIn: excludeIds }
+            : undefined,
         subjectId: subjectId,
         verified: includeUnverified ? undefined : true,
         source: sources && sources.length > 0 ? { in: sources } : undefined,

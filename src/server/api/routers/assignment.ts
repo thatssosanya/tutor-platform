@@ -44,6 +44,24 @@ export const assignmentRouter = createTRPCRouter({
       })
     }),
 
+  getByTestIdWithStudent: createProtectedProcedure([PermissionBit.TUTOR])
+    .input(z.object({ testId: z.string() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.assignment.findMany({
+        where: {
+          testId: input.testId,
+          assignedById: ctx.session.user.id,
+        },
+        include: {
+          assignedTo: {
+            select: {
+              displayName: true,
+            },
+          },
+        },
+      })
+    }),
+
   updateAssignmentsForTest: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
@@ -114,6 +132,32 @@ export const assignmentRouter = createTRPCRouter({
             },
           })
         }
+      })
+    }),
+
+  delete: createProtectedProcedure([PermissionBit.TUTOR])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const assignment = await ctx.db.assignment.findFirst({
+        where: { id: input.id, assignedById: ctx.session.user.id },
+      })
+
+      if (!assignment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Задание не найдено.",
+        })
+      }
+
+      if (assignment.completedAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Нельзя удалить выполненное задание.",
+        })
+      }
+
+      return ctx.db.assignment.delete({
+        where: { id: input.id },
       })
     }),
 

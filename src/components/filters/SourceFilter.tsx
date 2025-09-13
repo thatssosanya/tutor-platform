@@ -2,7 +2,7 @@ import { QuestionSource } from "@prisma/client"
 import React, { useMemo } from "react"
 
 import { ALL_QUESTION_SOURCES } from "@/utils/consts"
-import { Listbox, Stack, type ListboxOptionType } from "@/ui"
+import { Listbox, type ListboxOptionType } from "@/ui"
 
 type SourceFilterProps = {
   selectedSources: QuestionSource[]
@@ -40,15 +40,13 @@ export function SourceFilter({
   }
 
   return (
-    <Stack className="gap-2" as="label">
-      <p className="text-sm">Источник</p>
-      <Listbox
-        multiple
-        options={sourceOptions}
-        value={selectedSourceOptions}
-        onChange={handleSourceChange}
-        placeholder="Все источники"
-      />
-    </Stack>
+    <Listbox
+      label="Источник"
+      multiple
+      options={sourceOptions}
+      value={selectedSourceOptions}
+      onChange={handleSourceChange}
+      placeholder="Все источники"
+    />
   )
 }

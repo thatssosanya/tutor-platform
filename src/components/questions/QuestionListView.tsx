@@ -7,33 +7,45 @@ import { Pagination, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { useSearchFilter } from "@/hooks/useSearchFilter"
 
-import { QuestionsViewFilters } from "./QuestionsViewFilters"
-import { QuestionsList } from "./QuestionsList"
+import { QuestionList } from "./QuestionList"
 import { QuestionCreateForm } from "./QuestionCreateForm"
+import { SubjectFilter } from "../filters/SubjectFilter"
+import { SearchFilter } from "../filters/SearchFilter"
+import { SourceFilter } from "../filters/SourceFilter"
+import { TopicFilter } from "../filters/TopicFilter"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
-type QuestionsListViewProps = {
+type QuestionListViewProps = {
   cardControls: (question: Question) => React.ReactNode
   isCreateAllowed?: boolean
 }
 
-export function QuestionsListView({
+export function QuestionListView({
   cardControls,
   isCreateAllowed = false,
-}: QuestionsListViewProps) {
+}: QuestionListViewProps) {
   const [currentPage, setCurrentPage] = useState(1)
-  const { search, onSearchChange } = useSearchFilter()
-  const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter()
-  const { selectedTopicIds, onSelectedTopicIdsChange } =
-    useTopicFilter(selectedSubjectId)
-  const { selectedSources, onSelectedSourcesChange } = useSourceFilter()
+  const { search, debouncedSearch, onSearchChange } = useSearchFilter({
+    isQueryParamSyncEnabled: true,
+  })
+  const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter({
+    isStorageSyncEnabled: true,
+    isQueryParamSyncEnabled: true,
+  })
+  const { selectedTopicIds, onSelectedTopicIdsChange } = useTopicFilter(
+    selectedSubjectId,
+    { isQueryParamSyncEnabled: true }
+  )
+  const { selectedSources, onSelectedSourcesChange } = useSourceFilter({
+    isQueryParamSyncEnabled: true,
+  })
 
   const questionsQuery = api.question.getPaginated.useQuery(
     {
       subjectId: selectedSubjectId!,
       topicIds: selectedTopicIds,
-      search,
+      search: debouncedSearch ?? undefined,
       sources: selectedSources,
       page: currentPage,
       limit: 10,
@@ -63,23 +75,29 @@ export function QuestionsListView({
             </p>
           </Stack>
           <hr className="border-input" />
-          <QuestionsViewFilters
+          <SubjectFilter
             selectedSubjectId={selectedSubjectId}
             onSelectedSubjectIdChange={onSelectedSubjectIdChange}
-            selectedTopicIds={selectedTopicIds}
-            onSelectedTopicIdsChange={onSelectedTopicIdsChange}
-            search={search}
-            onSearchChange={onSearchChange}
+          />
+          <SearchFilter search={search} onSearchChange={onSearchChange} />
+          <SourceFilter
             selectedSources={selectedSources}
             onSelectedSourcesChange={onSelectedSourcesChange}
           />
+          {selectedSubjectId && (
+            <TopicFilter
+              subjectId={selectedSubjectId}
+              selectedTopicIds={selectedTopicIds}
+              onSelectedTopicIdsChange={onSelectedTopicIdsChange}
+            />
+          )}
         </Stack>
       </div>
       <div className="md:col-span-3">
         {selectedSubjectId ? (
           <Stack className="gap-4">
             {pagination}
-            <QuestionsList
+            <QuestionList
               questions={questions}
               isLoading={questionsQuery.isLoading}
               cardControls={cardControls}

@@ -34,7 +34,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-primary bg-paper/80 backdrop-blur mb-10">
-      <Container className="flex h-16 items-center">
+      <Container className="flex h-16 items-center flex-row">
         <Row className="flex-1 gap-6">
           <nav className="flex items-center gap-4">
             {links.map((link) => (
@@ -80,6 +80,7 @@ export function Header() {
             variant="secondary"
             onClick={handleSignOut}
             aria-label="Выйти"
+            shadows="none"
           >
             <LogOut className="h-4 w-4" />
           </Button>

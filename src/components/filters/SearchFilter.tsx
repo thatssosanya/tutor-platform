@@ -1,6 +1,6 @@
 import React from "react"
 
-import { Input, Stack } from "@/ui"
+import { Input } from "@/ui"
 
 type SearchFilterProps = {
   search: string
@@ -9,13 +9,11 @@ type SearchFilterProps = {
 
 export function SearchFilter({ search, onSearchChange }: SearchFilterProps) {
   return (
-    <Stack className="gap-2" as="label">
-      <p className="text-sm">Поиск</p>
-      <Input
-        placeholder="По названию, тексту..."
-        value={search}
-        onChange={(e) => onSearchChange(e.target.value)}
-      />
-    </Stack>
+    <Input
+      label="Поиск"
+      placeholder="По названию, тексту..."
+      value={search}
+      onChange={(e) => onSearchChange(e.target.value)}
+    />
   )
 }

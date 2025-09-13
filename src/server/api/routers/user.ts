@@ -160,6 +160,7 @@ export const userRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const student = await ctx.db.user.findUnique({
         where: { id: input.id },
+        include: { subjects: true },
       })
 
       if (!student) {
@@ -177,5 +178,83 @@ export const userRouter = createTRPCRouter({
       }
 
       return student
+    }),
+
+  updateStudent: createProtectedProcedure([PermissionBit.TUTOR])
+    .input(
+      z.object({
+        id: z.string(),
+        displayName: z.string().min(1),
+        subjectIds: z.array(z.string()),
+        resetPassword: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, displayName, subjectIds, resetPassword } = input
+
+      const student = await ctx.db.user.findUnique({ where: { id } })
+
+      if (!student || student.creatorId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Вы не можете редактировать этого ученика.",
+        })
+      }
+
+      const tutor = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        include: { subjects: { select: { id: true } } },
+      })
+      if (!tutor) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Аккаунт репетитора не найден.",
+        })
+      }
+
+      const tutorSubjectIds = new Set(tutor.subjects.map((s) => s.id))
+      const canAssignAll = subjectIds.every((id) => tutorSubjectIds.has(id))
+
+      if (!canAssignAll) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Вы не можете назначить предмет, который не ведете.",
+        })
+      }
+
+      const updateData: Prisma.UserUpdateInput = {
+        displayName,
+        subjects: {
+          set: subjectIds.map((id) => ({ id })),
+        },
+      }
+
+      if (resetPassword) {
+        updateData.password = generateStudentPassword()
+      }
+
+      return ctx.db.user.update({
+        where: { id },
+        data: updateData,
+      })
+    }),
+
+  deleteStudent: createProtectedProcedure([PermissionBit.TUTOR])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const student = await ctx.db.user.findUnique({
+        where: { id: input.id },
+      })
+
+      if (!student || student.creatorId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Вы не можете удалить этого ученика.",
+        })
+      }
+
+      return ctx.db.user.delete({
+        where: { id: input.id },
+      })
     }),
 })

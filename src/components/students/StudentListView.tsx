@@ -1,23 +1,24 @@
-import React from "react"
 import { useSubjectFilter } from "@/hooks/useSubjectFilter"
-import { Stack } from "@/ui"
+import React from "react"
 import { api } from "@/utils/api"
-import { StudentsList } from "./StudentsList"
-import { StudentsViewFilters } from "./StudentsViewFilters"
+import { Stack } from "@/ui"
 import { StudentCreateForm } from "./StudentCreateForm"
+import { StudentList } from "./StudentList"
+import { SubjectFilter } from "../filters/SubjectFilter"
 
-type StudentsListViewProps = {
+type StudentListViewProps = {
   cardControls: (studentId: string) => React.ReactNode
   isCreateAllowed?: boolean
-  onCreate?: (studentId: string) => void
 }
 
-export function StudentsListView({
+export function StudentListView({
   cardControls,
   isCreateAllowed = false,
-  onCreate,
-}: StudentsListViewProps) {
-  const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter()
+}: StudentListViewProps) {
+  const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter({
+    isStorageSyncEnabled: true,
+    isQueryParamSyncEnabled: true,
+  })
   const studentsQuery = api.user.getStudents.useQuery()
 
   return (
@@ -31,7 +32,7 @@ export function StudentsListView({
             </p>
           </Stack>
           <hr className="border-input" />
-          <StudentsViewFilters
+          <SubjectFilter
             selectedSubjectId={selectedSubjectId}
             onSelectedSubjectIdChange={onSelectedSubjectIdChange}
           />
@@ -39,15 +40,12 @@ export function StudentsListView({
       </div>
       <div className="md:col-span-3">
         <Stack className="gap-4">
-          <StudentsList
+          <StudentList
             students={studentsQuery.data ?? []}
             isLoading={studentsQuery.isLoading}
             cardControls={cardControls}
           />
-          <StudentCreateForm
-            isCreateAllowed={isCreateAllowed}
-            onCreate={onCreate}
-          />
+          <StudentCreateForm isCreateAllowed={isCreateAllowed} />
         </Stack>
       </div>
     </div>

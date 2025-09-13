@@ -7,13 +7,13 @@ import { Stack } from "@/ui"
 
 type Test = RouterOutputs["test"]["getAllBySubject"][number]
 
-type TestsListProps = {
+type TestListProps = {
   tests: Test[]
   isLoading: boolean
   cardControls: (testId: string) => React.ReactNode
 }
 
-export function TestsList({ tests, isLoading, cardControls }: TestsListProps) {
+export function TestList({ tests, isLoading, cardControls }: TestListProps) {
   if (isLoading) {
     return <p>Загрузка тестов...</p>
   }

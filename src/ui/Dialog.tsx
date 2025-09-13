@@ -53,7 +53,7 @@ export function Dialog({
             >
               <DialogPanel
                 className={cn(
-                  "w-full transform overflow-hidden rounded-2xl bg-paper p-6 text-left align-middle shadow-xl transition-all",
+                  "w-full transform overflow-hidden rounded-2xl bg-primary p-6 text-left align-middle shadow-2xl inset-shadow-xs transition-all md:container",
                   className
                 )}
               >

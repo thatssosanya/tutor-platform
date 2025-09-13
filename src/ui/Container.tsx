@@ -1,5 +1,6 @@
 import { cn } from "@/styles"
 import React from "react"
+import { Stack } from "./Stack"
 
 type ContainerProps = {
   children: React.ReactNode
@@ -8,8 +9,8 @@ type ContainerProps = {
 
 export function Container({ children, className = "" }: ContainerProps) {
   return (
-    <div className={cn("mx-auto w-full h-full md:container", className)}>
+    <Stack className={cn("mx-auto w-full h-full md:container", className)}>
       {children}
-    </div>
+    </Stack>
   )
 }

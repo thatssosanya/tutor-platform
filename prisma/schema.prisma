@@ -169,9 +169,9 @@ model Assignment {
     test   Test   @relation(fields: [testId], references: [id])
 
     assignedById String
-    assignedBy   User   @relation("AssignedBy", fields: [assignedById], references: [id])
+    assignedBy   User   @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
     assignedToId String
-    assignedTo   User   @relation("AssignedTo", fields: [assignedToId], references: [id])
+    assignedTo   User   @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
 
     answers StudentAnswer[]
 

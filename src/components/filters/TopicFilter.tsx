@@ -1,6 +1,6 @@
 import React, { useMemo } from "react"
 
-import { Listbox, Stack, type ListboxOptionType } from "@/ui"
+import { Listbox, type ListboxOptionType } from "@/ui"
 import { api } from "@/utils/api"
 
 type TopicFilterProps = {
@@ -80,16 +80,14 @@ export function TopicFilter({
   }
 
   return (
-    <Stack className="gap-2" as="label">
-      <p className="text-sm">Темы</p>
-      <Listbox
-        multiple
-        options={topicOptions}
-        value={selectedOptions}
-        onChange={handleOnChange}
-        placeholder="Все темы"
-        getButtonText={getButtonText}
-      />
-    </Stack>
+    <Listbox
+      label="Темы"
+      multiple
+      options={topicOptions}
+      value={selectedOptions}
+      onChange={handleOnChange}
+      placeholder="Все темы"
+      getButtonText={getButtonText}
+    />
   )
 }

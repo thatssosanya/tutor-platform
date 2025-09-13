@@ -7,17 +7,17 @@ import { StudentCard } from "./StudentCard"
 
 type Student = RouterOutputs["user"]["getStudents"][number]
 
-type StudentsListProps = {
+type StudentListProps = {
   students: Student[]
   isLoading: boolean
   cardControls: (studentId: string) => React.ReactNode
 }
 
-export function StudentsList({
+export function StudentList({
   students,
   isLoading,
   cardControls,
-}: StudentsListProps) {
+}: StudentListProps) {
   if (isLoading) {
     return <p>Загрузка учеников...</p>
   }

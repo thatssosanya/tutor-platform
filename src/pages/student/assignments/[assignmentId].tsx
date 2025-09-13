@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import "katex/dist/katex.min.css"
 
-import { QuestionsList } from "@/components/questions/QuestionsList"
+import { QuestionList } from "@/components/questions/QuestionList"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Collapsible, Container, Input, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
@@ -85,14 +85,13 @@ export default function AssignmentPage() {
 
     if (isEditing && !isCompleted) {
       return (
-        <Row className="gap-2">
-          <Input
-            placeholder="Ваш ответ"
-            value={currentAnswerText}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className="flex-1"
-          />
-        </Row>
+        <Input
+          label="Ответ"
+          placeholder="Ваш ответ"
+          value={currentAnswerText}
+          onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+          className="flex-1"
+        />
       )
     }
 
@@ -197,7 +196,7 @@ export default function AssignmentPage() {
               {isCompleted && <Button disabled>Задание выполнено</Button>}
             </Row>
 
-            <QuestionsList
+            <QuestionList
               questions={questions}
               isLoading={assignmentQuery.isLoading}
               cardFooter={cardFooter}

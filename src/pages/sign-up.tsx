@@ -74,33 +74,25 @@ export default function SignUpPage() {
                 </Stack>
 
                 <Stack className="gap-4">
-                  <Stack className="gap-1.5">
-                    <label htmlFor="name" className="text-sm font-medium">
-                      Логин
-                    </label>
-                    <Input
-                      id="name"
-                      placeholder="Логин"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </Stack>
-                  <Stack className="gap-1.5">
-                    <label htmlFor="password" className="text-sm font-medium">
-                      Пароль
-                    </label>
-                    <Input
-                      id="password"
-                      placeholder="Пароль"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </Stack>
-                  <Stack className="gap-1.5">
+                  <Input
+                    label="Логин"
+                    placeholder="Логин"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    variant="primary-paper"
+                    required
+                  />
+                  <Input
+                    label="Пароль"
+                    placeholder="Пароль"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    variant="primary-paper"
+                    required
+                  />
+                  <Stack className="gap-2">
                     <label className="text-sm font-medium">Предметы</label>
                     {subjectsQuery.isLoading ? (
                       <p>Загрузка предметов...</p>
@@ -109,7 +101,7 @@ export default function SignUpPage() {
                         options={subjectOptions}
                         value={selectedSubjectIds}
                         onChange={setSelectedSubjectIds}
-                        variant="button"
+                        variant="button-paper"
                       />
                     )}
                   </Stack>
@@ -125,7 +117,7 @@ export default function SignUpPage() {
                   <Link href="/sign-in" className="w-full">
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="primary-paper"
                       className="w-full"
                     >
                       Войти

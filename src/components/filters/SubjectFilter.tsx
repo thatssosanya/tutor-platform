@@ -1,6 +1,6 @@
 import React from "react"
 
-import { RadioGroup, Stack, type RadioOption } from "@/ui"
+import { RadioGroup, type RadioOption } from "@/ui"
 import { useSubjects } from "@/utils/subjects"
 
 type SubjectFilterProps = {
@@ -24,14 +24,12 @@ export function SubjectFilter({
   }))
 
   return (
-    <Stack className="gap-2" as="label">
-      <p className="text-sm">Предметы</p>
-      <RadioGroup<string>
-        options={subjectOptions}
-        value={selectedSubjectId}
-        onChange={onSelectedSubjectIdChange}
-        variant="button"
-      />
-    </Stack>
+    <RadioGroup<string>
+      label="Предметы"
+      options={subjectOptions}
+      value={selectedSubjectId}
+      onChange={onSelectedSubjectIdChange}
+      variant="button"
+    />
   )
 }

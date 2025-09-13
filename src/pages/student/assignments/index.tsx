@@ -3,14 +3,14 @@ import Head from "next/head"
 import Link from "next/link"
 import React, { useMemo } from "react"
 
-import { TestsList } from "@/components/tests/TestsList"
-import { TestsViewFilters } from "@/components/tests/TestsViewFilters"
+import { TestList } from "@/components/tests/TestList"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container, Stack } from "@/ui"
 import { api } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 import { useSubjects } from "@/utils/subjects"
 import type { Assignment } from "@prisma/client"
+import { SubjectFilter } from "@/components/filters/SubjectFilter"
 
 export default function StudentAssignmentsPage() {
   const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
@@ -65,7 +65,7 @@ export default function StudentAssignmentsPage() {
                     Выберите предмет, чтобы начать.
                   </p>
                 </Stack>
-                <TestsViewFilters
+                <SubjectFilter
                   selectedSubjectId={selectedSubjectId}
                   onSelectedSubjectIdChange={setSelectedSubjectId}
                 />
@@ -73,7 +73,7 @@ export default function StudentAssignmentsPage() {
             </div>
             <div className="md:col-span-3">
               {selectedSubjectId ? (
-                <TestsList
+                <TestList
                   tests={tests}
                   isLoading={assignmentsQuery.isLoading}
                   cardControls={cardControls}

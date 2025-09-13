@@ -24,7 +24,11 @@ export const testRouter = createTRPCRouter({
           questions: {
             orderBy: { order: "asc" },
             include: {
-              question: true,
+              question: {
+                include: {
+                  attachments: true,
+                },
+              },
             },
           },
         },
@@ -183,6 +187,15 @@ export const testRouter = createTRPCRouter({
         })
         return { status: "added" }
       }
+    }),
+
+  updateName: createProtectedProcedure([PermissionBit.TUTOR])
+    .input(z.object({ id: z.string(), name: z.string().min(1) }))
+    .mutation(({ ctx, input }) => {
+      return ctx.db.test.update({
+        where: { id: input.id, creatorId: ctx.session.user.id },
+        data: { name: input.name },
+      })
     }),
 
   updateQuestionInTests: createProtectedProcedure([PermissionBit.TUTOR])
