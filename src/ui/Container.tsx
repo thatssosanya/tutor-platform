@@ -9,7 +9,7 @@ type ContainerProps = {
 
 export function Container({ children, className = "" }: ContainerProps) {
   return (
-    <Stack className={cn("mx-auto w-full h-full md:container", className)}>
+    <Stack className={cn("mx-auto w-full h-full md:container p-1", className)}>
       {children}
     </Stack>
   )
