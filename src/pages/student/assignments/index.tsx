@@ -27,7 +27,7 @@ export default function StudentAssignmentsPage() {
     }
     const tests = assignmentsQuery.data.map((a) => a.test)
     const assignmentMap = new Map(
-      assignmentsQuery.data.map((a) => [a.test.id, a])
+      [...assignmentsQuery.data].reverse().map((a) => [a.test.id, a])
     )
     return { tests, assignmentMap }
   }, [assignmentsQuery.data])

@@ -242,6 +242,7 @@ export const assignmentRouter = createTRPCRouter({
 
   // --- FOR STUDENTS ---
 
+  // TODO deprecate
   submitAnswers: createProtectedProcedure([PermissionBit.STUDENT])
     .input(
       z.object({
@@ -344,6 +345,95 @@ export const assignmentRouter = createTRPCRouter({
           where: { id: input.assignmentId },
           data: { completedAt: new Date() },
         })
+      })
+    }),
+
+  submitSingleAnswer: createProtectedProcedure([PermissionBit.STUDENT])
+    .input(
+      z.object({
+        assignmentId: z.string(),
+        questionId: z.string(),
+        answer: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { assignmentId, questionId, answer } = input
+
+      const assignment = await ctx.db.assignment.findFirst({
+        where: { id: assignmentId, assignedToId: ctx.session.user.id },
+      })
+
+      if (!assignment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Задание не найдено.",
+        })
+      }
+      if (assignment.completedAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Задание уже выполнено.",
+        })
+      }
+
+      const question = await ctx.db.question.findUnique({
+        where: { id: questionId },
+        select: { solution: true, solutionType: true },
+      })
+
+      if (!question) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Вопрос не найден." })
+      }
+
+      let isCorrect = false
+      if (question.solutionType === SolutionType.SHORT && question.solution) {
+        isCorrect =
+          answer.trim().toLowerCase() === question.solution.trim().toLowerCase()
+      }
+
+      const studentAnswerData = {
+        assignmentId,
+        questionId,
+        answer,
+        isCorrect,
+      }
+
+      return ctx.db.studentAnswer.upsert({
+        where: {
+          assignmentId_questionId: {
+            assignmentId,
+            questionId,
+          },
+        },
+        update: studentAnswerData,
+        create: studentAnswerData,
+      })
+    }),
+
+  completeAssignment: createProtectedProcedure([PermissionBit.STUDENT])
+    .input(z.object({ assignmentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const assignment = await ctx.db.assignment.findFirst({
+        where: { id: input.assignmentId, assignedToId: ctx.session.user.id },
+      })
+
+      if (!assignment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Задание не найдено.",
+        })
+      }
+
+      if (assignment.completedAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Задание уже было выполнено.",
+        })
+      }
+
+      return ctx.db.assignment.update({
+        where: { id: input.assignmentId },
+        data: { completedAt: new Date() },
       })
     }),
 })

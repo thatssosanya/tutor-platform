@@ -4,19 +4,20 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react"
-import React, { useEffect, useState } from "react"
+import React from "react"
+import type { VariantProps } from "class-variance-authority"
 
 import { cn } from "@/styles"
-
-import { Button } from "./Button"
+import { Button, buttonVariants } from "./Button"
 import { Row } from "./Row"
 
 type PaginationProps = {
   currentPage: number
-  totalPagesProp?: number | null
+  totalPages: number | null | undefined
   onChangePage: (page: number) => void
-  showEmptyPage?: boolean
   className?: string
+  variant?: "ellipsis" | "all-pages"
+  pageVariants?: Record<number, VariantProps<typeof buttonVariants>["variant"]>
 }
 
 const getPaginationItems = (currentPage: number, totalPages: number) => {
@@ -50,18 +51,38 @@ const getPaginationItems = (currentPage: number, totalPages: number) => {
 
 export function Pagination({
   currentPage,
-  totalPagesProp,
+  totalPages: totalPagesProp,
   onChangePage,
-  showEmptyPage = false,
   className,
+  variant = "ellipsis",
+  pageVariants = {},
 }: PaginationProps) {
-  const [totalPages, setTotalPages] = useState(totalPagesProp ?? 1)
-  useEffect(() => {
-    setTotalPages((prev) => totalPagesProp ?? prev)
-  }, [totalPagesProp])
+  const totalPages = totalPagesProp ?? 1
 
-  if (totalPages <= 1 && !showEmptyPage) {
+  if (totalPages <= 1) {
     return null
+  }
+
+  if (variant === "all-pages") {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+    return (
+      <Row className={cn("flex-wrap justify-center gap-1", className)}>
+        {pages.map((page) => (
+          <Button
+            key={page}
+            size="sm"
+            variant={
+              pageVariants[page] ??
+              (page === currentPage ? "primary" : "secondary")
+            }
+            onClick={() => onChangePage(page)}
+            className="min-w-[36px]"
+          >
+            {page}
+          </Button>
+        ))}
+      </Row>
+    )
   }
 
   const paginationItems = getPaginationItems(currentPage, totalPages)
@@ -98,21 +119,15 @@ export function Pagination({
           <Button
             key={item}
             size="sm"
-            variant={item === currentPage ? "primary" : "secondary"}
+            variant={
+              pageVariants[item] ??
+              (item === currentPage ? "primary" : "secondary")
+            }
             onClick={() => onChangePage(item)}
           >
             {item}
           </Button>
         )
-      )}
-      {showEmptyPage && (
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => onChangePage(totalPages + 1)}
-        >
-          {totalPages + 1}
-        </Button>
       )}
 
       <Button

@@ -33,8 +33,8 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-primary bg-paper/80 backdrop-blur mb-10">
-      <Container className="flex h-16 items-center flex-row">
+    <header className="fixed top-0 z-40 w-full border-b border-primary bg-paper/80 backdrop-blur mb-4 md:mb-8">
+      <Container className="flex h-16 items-center flex-row py-4 md:pb-4">
         <Row className="flex-1 gap-6">
           <nav className="flex items-center gap-4">
             {links.map((link) => (

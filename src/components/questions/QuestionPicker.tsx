@@ -73,7 +73,7 @@ export function QuestionPicker({
   const pagination = (
     <Pagination
       currentPage={currentPage}
-      totalPagesProp={availableQuestionsQuery.data?.totalPages}
+      totalPages={availableQuestionsQuery.data?.totalPages}
       onChangePage={setCurrentPage}
       className="self-center"
     />

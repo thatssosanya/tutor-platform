@@ -76,7 +76,7 @@ export function QuestionListView({
   const pagination = (
     <Pagination
       currentPage={currentPage}
-      totalPagesProp={questionsQuery.data?.totalPages}
+      totalPages={questionsQuery.data?.totalPages}
       onChangePage={handlePageChange}
       className="self-center"
     />
