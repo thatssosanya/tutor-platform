@@ -7,9 +7,11 @@ import { TestListView } from "@/components/tests/TestListView"
 import { useQueryParam } from "@/hooks/useQueryParam"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container } from "@/ui"
-import { api } from "@/utils/api"
+import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 import { Transition } from "@headlessui/react"
+
+type Test = RouterOutputs["test"]["getAllBySubject"][number]
 
 export default function TutorTestsPage() {
   const [activeTestId, setActiveTestId] = useQueryParam("testId")
@@ -27,19 +29,19 @@ export default function TutorTestsPage() {
     }
   }
 
-  const testCardControls = (testId: string) => (
+  const testCardControls = (test: Test) => (
     <>
       <Button
         size="sm"
         variant="primary-paper"
-        onClick={() => setActiveTestId(testId)}
+        onClick={() => setActiveTestId(test.id)}
       >
         <ExternalLink className="h-4 w-4" />
       </Button>
       <Button
         size="sm"
         variant="primary-paper"
-        onClick={() => handleDelete(testId)}
+        onClick={() => handleDelete(test.id)}
       >
         <Trash2 className="h-4 w-4" />
       </Button>

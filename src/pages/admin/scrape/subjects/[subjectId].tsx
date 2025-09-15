@@ -2,16 +2,12 @@ import { SolutionType } from "@prisma/client"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
 import React, { Fragment, useEffect, useState } from "react"
-import Markdown from "react-markdown"
-import rehypeKatex from "rehype-katex"
-import remarkGfm from "remark-gfm"
-import remarkMath from "remark-math"
 
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import { Button, Checkbox, Container, Paper, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
-import { fixFrac } from "@/utils/latex"
+import { Markdown } from "@/components/Markdown"
 
 type Question = RouterOutputs["question"]["getWithOffset"]["items"][number]
 
@@ -215,12 +211,7 @@ const ScrapeSubjectPage: NextPage = () => {
         <Stack className="mt-4 gap-2 text-sm">
           <h4 className="font-semibold text-primary">Решение:</h4>
           <Paper className="bg-muted p-3">
-            <Markdown
-              remarkPlugins={[remarkMath, remarkGfm]}
-              rehypePlugins={[rehypeKatex]}
-            >
-              {fixFrac(question.work)}
-            </Markdown>
+            <Markdown>{question.work}</Markdown>
           </Paper>
           <h4 className="font-semibold text-primary">Ответ:</h4>
           <p className="font-mono rounded-md bg-muted p-2 text-primary">

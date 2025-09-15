@@ -2,13 +2,15 @@ import React from "react"
 
 import { useSubjectFilter } from "@/hooks/useSubjectFilter"
 import { Stack } from "@/ui"
-import { api } from "@/utils/api"
+import { api, type RouterOutputs } from "@/utils/api"
 import { TestList } from "./TestList"
 import { TestCreateForm } from "./TestCreateForm"
 import { SubjectFilter } from "../filters/SubjectFilter"
 
+type Test = RouterOutputs["test"]["getAllBySubject"][number]
+
 type TestListViewProps = {
-  cardControls: (testId: string) => React.ReactNode
+  cardControls: (test: Test) => React.ReactNode
   isCreateAllowed?: boolean
 }
 

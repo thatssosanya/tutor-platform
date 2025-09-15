@@ -10,11 +10,13 @@ import DefaultLayout from "./DefaultLayout"
 interface ProtectedLayoutProps {
   children: React.ReactNode
   permissionBits?: PermissionBit[]
+  fullscreen?: boolean
 }
 
 const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({
   children,
   permissionBits,
+  fullscreen,
 }) => {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -37,7 +39,7 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({
   }, [status, isPermitted, router])
 
   if (status === "authenticated" && isPermitted) {
-    return <DefaultLayout>{children}</DefaultLayout>
+    return <DefaultLayout fullscreen={fullscreen}>{children}</DefaultLayout>
   }
 
   return (

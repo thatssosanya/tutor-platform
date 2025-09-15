@@ -6,11 +6,15 @@ import React, { useMemo } from "react"
 import { TestList } from "@/components/tests/TestList"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container, Stack } from "@/ui"
-import { api } from "@/utils/api"
+import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 import { useSubjects } from "@/utils/subjects"
-import type { Assignment } from "@prisma/client"
 import { SubjectFilter } from "@/components/filters/SubjectFilter"
+
+type Test =
+  RouterOutputs["assignment"]["getStudentAssignmentsBySubject"][number]["test"] & {
+    assignmentId?: string
+  }
 
 export default function StudentAssignmentsPage() {
   const { selectedSubjectId, setSelectedSubjectId } = useSubjects()
@@ -21,24 +25,26 @@ export default function StudentAssignmentsPage() {
       { enabled: !!selectedSubjectId }
     )
 
-  const { tests, assignmentMap } = useMemo(() => {
+  const tests = useMemo(() => {
     if (!assignmentsQuery.data) {
-      return { tests: [], assignmentMap: new Map<string, Assignment>() }
+      return []
     }
-    const tests = assignmentsQuery.data.map((a) => a.test)
-    const assignmentMap = new Map(
-      [...assignmentsQuery.data].reverse().map((a) => [a.test.id, a])
-    )
-    return { tests, assignmentMap }
+    const tests = assignmentsQuery.data.map(({ test, ...assignment }) => ({
+      ...test,
+      assignmentId: assignment.id,
+    }))
+    return tests
   }, [assignmentsQuery.data])
 
-  const cardControls = (testId: string) => {
-    const assignment = assignmentMap.get(testId)
+  const cardControls = (test: Test) => {
+    const assignment = assignmentsQuery.data?.find(
+      (a) => a.id === test.assignmentId
+    )
     if (!assignment) return null
 
     return (
       <Link href={`/student/assignments/${assignment.id}`}>
-        <Button size="sm">
+        <Button size="sm" variant="primary-paper">
           {assignment.completedAt ? (
             <Check className="h-4 w-4" />
           ) : (

@@ -3,11 +3,6 @@ import { Check, X } from "lucide-react"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import React, { useEffect, useMemo, useState } from "react"
-import Markdown from "react-markdown"
-import rehypeKatex from "rehype-katex"
-import remarkGfm from "remark-gfm"
-import remarkMath from "remark-math"
-import "katex/dist/katex.min.css"
 
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
@@ -18,6 +13,7 @@ import {
   Container,
   Input,
   Pagination,
+  Paper,
   Row,
   Stack,
 } from "@/ui"
@@ -25,6 +21,8 @@ import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 import type { VariantProps } from "class-variance-authority"
 import type { buttonVariants } from "@/ui/Button"
+import { cn } from "@/styles"
+import { Markdown } from "@/components/Markdown"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -48,13 +46,7 @@ function AnswerSolutionBlock({
   onSubmit,
   isSubmitting,
 }: AnswerSolutionBlockProps) {
-  const [isWorkOpen, setIsWorkOpen] = useState(false)
   const isAnswered = !!studentAnswer
-
-  // Base classes for the container
-  let containerClasses = "flex h-full w-full"
-  // When work is open, align content to the top. Otherwise, center it.
-  containerClasses += isWorkOpen ? " items-start" : " items-start"
 
   if (question.solutionType !== SolutionType.SHORT) {
     return null // Don't render anything for non-short-answer questions
@@ -64,48 +56,44 @@ function AnswerSolutionBlock({
   if (isCompleted || isAnswered) {
     const isCorrect = studentAnswer?.isCorrect
     return (
-      <Box className="w-full h-full justify-start gap-4 grid grid-cols-1 grid-rows-[auto_1fr_auto]">
-        <Row className="items-center gap-2">
-          <span className="font-semibold text-primary">
-            {studentAnswer?.answer ?? "Нет ответа"}
-          </span>
-          {isCorrect === true ? (
-            <Check className="h-4 w-4 text-green-500" />
-          ) : (
-            <X className="h-4 w-4 text-red-500" />
-          )}
-          {isCorrect === false && question.solution && (
-            <span className="text-secondary">
-              Правильный ответ:{" "}
-              <span className="font-semibold text-primary">
-                {question.solution}
-              </span>
+      <Paper className="w-full h-full gap-4 grid grid-cols-1 grid-rows-[auto_1fr_auto]">
+        <Stack>
+          <p className="font-semibold">{question.prompt}</p>
+          <Row className="items-center gap-2">
+            <span className="text-primary text-2xl">
+              {studentAnswer?.answer ?? "Нет ответа"}
             </span>
-          )}
-        </Row>
+            {isCorrect === true ? (
+              <Check className="h-8 w-8 text-success" />
+            ) : (
+              <X className="h-8 w-8 text-danger" />
+            )}
+            {isCorrect === false && question.solution && (
+              <span className="text-secondary text-xl">
+                Правильный ответ:{" "}
+                <span className="text-primary">{question.solution}</span>
+              </span>
+            )}
+          </Row>
+        </Stack>
         {question.work && (
           <Collapsible
             title="Решение"
             className="min-h-0"
             panelClassName="overflow-y-auto max-h-full"
           >
-            <Markdown
-              remarkPlugins={[remarkMath, remarkGfm]}
-              rehypePlugins={[rehypeKatex]}
-            >
-              {question.work + question.work}
-            </Markdown>
+            <Markdown>{question.work}</Markdown>
           </Collapsible>
         )}
-      </Box>
+      </Paper>
     )
   }
 
   // Otherwise, show the input to submit an answer.
   return (
-    <div className={containerClasses}>
+    <Paper className="w-full justify-center gap-4">
+      <p className="font-semibold">{question.prompt}</p>
       <Input
-        label="Ответ"
         placeholder="Ваш ответ"
         value={currentAnswer}
         onChange={(e) => setCurrentAnswer(e.target.value)}
@@ -119,7 +107,7 @@ function AnswerSolutionBlock({
           </Button>
         }
       />
-    </div>
+    </Paper>
   )
 }
 
@@ -248,9 +236,19 @@ export default function AssignmentPage() {
       <Head>
         <title>Задание: {assignmentQuery.data.test.name}</title>
       </Head>
-      <ProtectedLayout permissionBits={[PermissionBit.STUDENT]}>
-        <Container className="md:h-screen md:max-h-screen md:overflow-clip md:grid gap-8 md:grid-cols-[auto_2fr_1fr] grid-rows-[auto_1fr] pt-24">
-          <Stack className="justify-between items-center md:col-start-2 md:col-span-2">
+      <ProtectedLayout permissionBits={[PermissionBit.STUDENT]} fullscreen>
+        <Container className="flex flex-col md:grid md:grid-cols-[2fr_1fr] md:grid-rows-[auto_1fr_auto] gap-8 pt-24 md:h-screen md:max-h-screen">
+          <Box className="md:col-span-2 md:row-start-3">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalQuestions}
+              onChangePage={setCurrentPage}
+              pageVariants={pageVariants}
+              variant="all-pages"
+            />
+          </Box>
+
+          <Stack className="items-center md:row-start-1 md:col-start-1">
             <h1 className="text-2xl font-bold">
               {assignmentQuery.data.test.name}
             </h1>
@@ -259,64 +257,49 @@ export default function AssignmentPage() {
             </p>
           </Stack>
 
-          <Stack className="md:col-start-1 md:row-start-2 gap-4 md:overflow-y-auto md:p-2">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalQuestions}
-              onChangePage={setCurrentPage}
-              pageVariants={pageVariants}
-              className="md:flex-col"
-              variant="all-pages"
-            />
+          <Box className="flex justify-center items-center md:row-start-1 md:col-start-2">
             {!isCompleted && (
               <Button
                 onClick={handleCompleteAssignment}
                 disabled={!canComplete || completeAssignmentMutation.isPending}
-                size="sm"
-                className="md:px-0 md:mt-4"
-                variant={canComplete ? "success" : "primary"}
+                variant={canComplete ? "success" : "secondary"}
                 aria-label="Завершить"
               >
-                <Box className="md:hidden">
-                  {completeAssignmentMutation.isPending
-                    ? "Завершение..."
-                    : "Завершить"}
-                </Box>
-                <Check className="hidden md:inline-block h-4 w-4" />
+                {completeAssignmentMutation.isPending
+                  ? "Завершение..."
+                  : "Завершить"}
               </Button>
             )}
             {isCompleted && (
-              <Button
-                variant="success"
-                size="sm"
-                className="md:px-0 md:mt-4"
-                disabled
-              >
-                <Box className="md:hidden">Задание выполнено</Box>
-                <Check className="hidden md:inline-block h-4 w-4" />
+              <Button variant="success" disabled>
+                Задание выполнено
               </Button>
             )}
-          </Stack>
-
-          <Box className="md:col-start-2 md:row-start-2">
-            <QuestionCard
-              question={currentQuestion}
-              isPromptHidden={isCompleted}
-              size="lg"
-            />
           </Box>
 
-          <Box className="md:col-start-3 md:row-start-2 md:h-full md:max-h-full md:min-h-0">
-            <AnswerSolutionBlock
-              question={currentQuestion}
-              studentAnswer={currentStudentAnswer}
-              isCompleted={isCompleted}
-              currentAnswer={currentAnswer}
-              setCurrentAnswer={setCurrentAnswer}
-              onSubmit={handleSubmitAnswer}
-              isSubmitting={submitAnswerMutation.isPending}
-            />
+          <Box
+            className={cn(
+              "md:row-start-2 md:col-start-1 md:overflow-y-auto",
+              currentQuestion.solutionType !== SolutionType.SHORT &&
+                "col-span-2"
+            )}
+          >
+            <QuestionCard question={currentQuestion} isPromptHidden size="lg" />
           </Box>
+
+          {currentQuestion.solutionType === SolutionType.SHORT && (
+            <Box className="md:row-start-2 md:col-start-2 md:h-full md:max-h-full md:min-h-0">
+              <AnswerSolutionBlock
+                question={currentQuestion}
+                studentAnswer={currentStudentAnswer}
+                isCompleted={isCompleted}
+                currentAnswer={currentAnswer}
+                setCurrentAnswer={setCurrentAnswer}
+                onSubmit={handleSubmitAnswer}
+                isSubmitting={submitAnswerMutation.isPending}
+              />
+            </Box>
+          )}
         </Container>
       </ProtectedLayout>
     </>

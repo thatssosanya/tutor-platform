@@ -36,8 +36,8 @@
   --text-color-primary-highlight: oklch(37.2% 0.044 257.287); /* slate-700 */
   --text-color-secondary: oklch(0.446 0.043 257.281); /* slate-600 */
   --text-color-on-accent: #fff; /* white */
-  --text-color-danger: oklch(0.936 0.032 17.717); /* red-100 */
-  --text-color-success: oklch(0.612 0.151 150.3);
+  --text-color-danger: oklch(0.637 0.237 25.331); /* red-500 */
+  --text-color-success: oklch(0.723 0.219 149.579); /* green-500 */
   --text-color-muted: oklch(0.554 0.046 257.417); /* slate-500 */
 
   /* Border & Ring Colors */

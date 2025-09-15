@@ -2,12 +2,8 @@ import React from "react"
 
 import { Chip, Paper, Row, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
-import Markdown from "react-markdown"
-import remarkMath from "remark-math"
-import remarkGfm from "remark-gfm"
-import rehypeKatex from "rehype-katex"
-import "katex/dist/katex.min.css"
 import { cn } from "@/styles"
+import { Markdown } from "../Markdown"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -40,12 +36,7 @@ export function QuestionCard({
       </Row>
       <Stack className="my-auto items-start md:flex-row md:items-center">
         <Stack className={cn("text-lg")}>
-          <Markdown
-            remarkPlugins={[remarkMath, remarkGfm]}
-            rehypePlugins={[rehypeKatex]}
-          >
-            {question.body}
-          </Markdown>
+          <Markdown>{question.body}</Markdown>
         </Stack>
         <Stack className="ml-auto shrink-0">
           {question.attachments.map((a) => (

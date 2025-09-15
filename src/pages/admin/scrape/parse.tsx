@@ -4,14 +4,8 @@ import React, { useState } from "react"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import { Button, Container, Paper, Stack } from "@/ui"
 import { api } from "@/utils/api"
-
-import Markdown from "react-markdown"
-import rehypeKatex from "rehype-katex"
-import remarkMath from "remark-math"
-import remarkGfm from "remark-gfm"
 import type { ParsedQBlock } from "@/server/services/scraper"
-import { fixMalformedLatex } from "@/utils/latex"
-import "katex/dist/katex.min.css"
+import { Markdown } from "@/components/Markdown"
 
 export default function ScrapeParsePage() {
   const [html, setHtml] = useState("")
@@ -73,12 +67,7 @@ export default function ScrapeParsePage() {
                   )}
                 {parsedQBlock && (
                   <>
-                    <Markdown
-                      remarkPlugins={[remarkMath, remarkGfm]}
-                      rehypePlugins={[rehypeKatex]}
-                    >
-                      {fixMalformedLatex(parsedQBlock.body)}
-                    </Markdown>
+                    <Markdown>{parsedQBlock.body}</Markdown>
                     <pre className="mt-4 overflow-x-auto rounded bg-muted p-4 text-sm">
                       {JSON.stringify(parsedQBlock, null, 2)}
                     </pre>
