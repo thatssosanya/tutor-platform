@@ -162,13 +162,11 @@ function CustomPaginationNav({
               : "border-danger"
             : "border-primary"
 
-        const pageColor = isCurrent
-          ? "text-accent"
-          : studentAnswer
-            ? isCorrect
-              ? "text-success"
-              : "text-danger"
-            : "text-primary"
+        const pageColor = studentAnswer
+          ? isCorrect
+            ? "text-success"
+            : "text-danger"
+          : "text-primary"
 
         return (
           <Paper
