@@ -102,7 +102,7 @@ export function QuestionDetailView({
       id: question.id,
       ...formState,
       subjectId: question.subjectId,
-      topicIds: question.topics.map((t) => t.id),
+      topicIds: question.topics.map((t) => t.topicId),
       source: question.source,
     })
   }

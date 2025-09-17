@@ -1,15 +1,19 @@
 import { cn } from "@/styles"
-import React from "react"
+import React, { type ElementType } from "react"
+import { Box, defaultBoxElement, type BoxProps } from "./Box"
 
-type RowProps = {
-  children: React.ReactNode
-  className?: string
-}
-
-export function Row({ children, className = "" }: RowProps) {
+export function Row<E extends ElementType = typeof defaultBoxElement>({
+  className = "",
+  as,
+  ...props
+}: BoxProps<E>) {
   return (
-    <div className={cn("flex flex-row items-center", className)}>
-      {children}
-    </div>
+    <Box
+      as={as ?? defaultBoxElement}
+      className={cn("flex flex-row items-center", className)}
+      {...props}
+    >
+      {props.children}
+    </Box>
   )
 }

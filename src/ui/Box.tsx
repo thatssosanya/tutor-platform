@@ -1,11 +1,34 @@
 import { cn } from "@/styles"
-import React from "react"
+import React, {
+  type ComponentPropsWithoutRef,
+  type ElementType,
+  type PropsWithChildren,
+} from "react"
 
-type BoxProps = {
-  children: React.ReactNode
-  className?: string
+type PolymorphicAsProp<E extends ElementType> = {
+  as?: E
 }
 
-export function Box({ children, className = "" }: BoxProps) {
-  return <div className={cn(className)}>{children}</div>
+type PolymorphicProps<E extends ElementType> = PropsWithChildren<
+  ComponentPropsWithoutRef<E> & PolymorphicAsProp<E>
+>
+
+export const defaultBoxElement = "div"
+
+export type BoxProps<E extends ElementType = typeof defaultBoxElement> =
+  PolymorphicProps<E>
+
+export function Box<E extends ElementType = typeof defaultBoxElement>({
+  children,
+  className = "",
+  as,
+  ...props
+}: BoxProps<E>) {
+  const Component = as ?? defaultBoxElement
+
+  return (
+    <Component className={cn(className)} {...props}>
+      {children}
+    </Component>
+  )
 }

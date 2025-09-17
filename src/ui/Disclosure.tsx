@@ -1,5 +1,5 @@
 import {
-  Disclosure,
+  Disclosure as HeadlessDisclosure,
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react"
@@ -8,7 +8,7 @@ import React from "react"
 import { cn } from "@/styles"
 import { Stack } from "./Stack"
 
-type CollapsibleProps = {
+type DisclosureProps = {
   title: string
   children: React.ReactNode
   className?: string
@@ -16,15 +16,15 @@ type CollapsibleProps = {
   panelClassName?: string
 }
 
-export function Collapsible({
+export function Disclosure({
   title,
   children,
   className,
   buttonClassName,
   panelClassName,
-}: CollapsibleProps) {
+}: DisclosureProps) {
   return (
-    <Disclosure as={Stack} className={cn("group w-full", className)}>
+    <HeadlessDisclosure as={Stack} className={cn("group w-full", className)}>
       <DisclosureButton
         className={cn(
           "flex w-full items-center justify-between rounded-lg group-data-open:rounded-b-none bg-muted px-4 py-2 text-left text-sm font-medium text-primary hover:bg-muted-highlight focus:outline-none focus-visible:ring focus-visible:ring-accent focus-visible:ring-opacity-75 cursor-pointer",
@@ -41,6 +41,6 @@ export function Collapsible({
       <DisclosurePanel className={cn("pt-4", panelClassName)}>
         {children}
       </DisclosurePanel>
-    </Disclosure>
+    </HeadlessDisclosure>
   )
 }

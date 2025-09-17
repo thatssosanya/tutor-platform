@@ -34,7 +34,7 @@ export function QuestionCard({
         <Chip title={"#" + question.name} variant="primary" />
         {controls && <Row className="ml-auto">{controls(question)}</Row>}
       </Row>
-      <Stack className="my-auto items-start md:flex-row md:items-center">
+      <Stack className="items-start md:flex-row md:items-center md:min-h-80">
         <Stack className={cn("text-lg")}>
           <Markdown>{question.body}</Markdown>
         </Stack>
@@ -45,7 +45,7 @@ export function QuestionCard({
         </Stack>
       </Stack>
       {(!isPromptHidden || footer) && (
-        <Stack className={cn("gap-4", size === "lg" && "mt-auto")}>
+        <Stack className={cn("gap-4", size === "lg" && "mt-auto min-h-0")}>
           {!isPromptHidden && (
             <p className="font-semibold text-primary">{question.prompt}</p>
           )}

@@ -19,7 +19,7 @@ const DefaultLayout: React.FC<DefaultLayoutProps> = ({
     <div
       className={cn(
         "relative flex flex-col min-h-screen bg-primary",
-        fullscreen ? "max-h-screen overflow-y-clip" : "pt-24"
+        fullscreen ? "md:max-h-screen md:overflow-y-clip" : "pt-24"
       )}
     >
       {status === "authenticated" && <Header />}

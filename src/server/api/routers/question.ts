@@ -187,15 +187,21 @@ export const questionRouter = createTRPCRouter({
   update: createProtectedProcedure([PermissionBit.TUTOR])
     .input(questionInputSchema.extend({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const { topicIds, ...questionData } = input
+
       return ctx.db.question.update({
         where: { id: input.id },
         data: {
-          ...input,
+          ...questionData,
           topics: {
-            set: input.topicIds.map((id) => ({
-              connect: {
-                topic: {
-                  id_subjectId: { id, subjectId: input.subjectId },
+            deleteMany: {},
+            create: topicIds.map((topicId) => ({
+              topic: {
+                connect: {
+                  id_subjectId: {
+                    id: topicId,
+                    subjectId: input.subjectId,
+                  },
                 },
               },
             })),

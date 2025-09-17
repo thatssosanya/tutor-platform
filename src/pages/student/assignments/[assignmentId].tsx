@@ -1,28 +1,25 @@
 import { SolutionType, type StudentAnswer } from "@prisma/client"
-import { Check, X } from "lucide-react"
+import { Check, Eye, EyeOff, X } from "lucide-react"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import React, { useEffect, useMemo, useState } from "react"
 
+import { Markdown } from "@/components/Markdown"
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
+import { cn } from "@/styles"
 import {
   Box,
   Button,
-  Collapsible,
   Container,
   Input,
-  Pagination,
   Paper,
   Row,
   Stack,
+  Accordion,
 } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
-import type { VariantProps } from "class-variance-authority"
-import type { buttonVariants } from "@/ui/Button"
-import { cn } from "@/styles"
-import { Markdown } from "@/components/Markdown"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -46,52 +43,66 @@ function AnswerSolutionBlock({
   onSubmit,
   isSubmitting,
 }: AnswerSolutionBlockProps) {
+  const [isWorkOpen, setIsWorkOpen] = useState(false)
+
   const isAnswered = !!studentAnswer
 
   if (question.solutionType !== SolutionType.SHORT) {
-    return null // Don't render anything for non-short-answer questions
+    return null
   }
 
-  // If the assignment is done or this specific question is answered, show the result.
   if (isCompleted || isAnswered) {
     const isCorrect = studentAnswer?.isCorrect
     return (
-      <Paper className="w-full h-full gap-4 grid grid-cols-1 grid-rows-[auto_1fr_auto]">
-        <Stack>
-          <p className="font-semibold">{question.prompt}</p>
-          <Row className="items-center gap-2">
-            <span className="text-primary text-2xl">
-              {studentAnswer?.answer ?? "Нет ответа"}
-            </span>
-            {isCorrect === true ? (
-              <Check className="h-8 w-8 text-success" />
-            ) : (
-              <X className="h-8 w-8 text-danger" />
-            )}
-            {isCorrect === false && question.solution && (
-              <span className="text-secondary text-xl">
-                Правильный ответ:{" "}
-                <span className="text-primary">{question.solution}</span>
-              </span>
-            )}
-          </Row>
-        </Stack>
+      <Stack className="w-full gap-4 grid grid-cols-1 grid-rows-[1fr_auto_auto] md:min-h-0">
         {question.work && (
-          <Collapsible
+          <Accordion
             title="Решение"
-            className="min-h-0"
-            panelClassName="overflow-y-auto max-h-full"
+            className="md:min-h-0"
+            panelClassName="md:min-h-0 overflow-y-auto px-0 py-4 text-lg"
+            isOpen={isWorkOpen}
+            noButton
           >
-            <Markdown>{question.work}</Markdown>
-          </Collapsible>
+            <Markdown>{"# Решение\n\n" + question.work}</Markdown>
+          </Accordion>
         )}
-      </Paper>
+        <Row className="items-center gap-2">
+          <span className="text-primary text-2xl">
+            {studentAnswer?.answer ?? "Нет ответа"}
+          </span>
+          {isCorrect === true ? (
+            <Check className="h-8 w-8 text-success" />
+          ) : (
+            <X className="h-8 w-8 text-danger" />
+          )}
+          {isCorrect === false && question.solution && (
+            <span className="text-secondary text-xl">
+              Правильный ответ:{" "}
+              <span className="text-primary">{question.solution}</span>
+            </span>
+          )}
+        </Row>
+        <Row className="justify-evenly mt-4">
+          <Button size="lg" className="gap-4" disabled>
+            <Eye />
+            Подсказка
+          </Button>
+          <Button
+            size="lg"
+            className="gap-4"
+            onClick={() => setIsWorkOpen((prev) => !prev)}
+          >
+            {isWorkOpen ? <EyeOff /> : <Eye />}
+            Решение
+          </Button>
+        </Row>
+      </Stack>
     )
   }
 
   // Otherwise, show the input to submit an answer.
   return (
-    <Paper className="w-full justify-center gap-4">
+    <Stack className="w-full justify-center gap-4">
       <p className="font-semibold">{question.prompt}</p>
       <Input
         placeholder="Ваш ответ"
@@ -107,7 +118,102 @@ function AnswerSolutionBlock({
           </Button>
         }
       />
-    </Paper>
+      <Row className="justify-evenly mt-4">
+        <Button size="lg" className="gap-4" disabled>
+          <Eye />
+          Подсказка
+        </Button>
+        <Button size="lg" className="gap-4" disabled>
+          <Eye />
+          Решение
+        </Button>
+      </Row>
+    </Stack>
+  )
+}
+
+// --- New Custom Pagination Component ---
+interface CustomPaginationNavProps {
+  questions: Question[]
+  studentAnswersMap: Map<string, StudentAnswer>
+  currentPage: number
+  setCurrentPage: (page: number) => void
+}
+
+function CustomPaginationNav({
+  questions,
+  studentAnswersMap,
+  currentPage,
+  setCurrentPage,
+}: CustomPaginationNavProps) {
+  return (
+    <Stack className="md:min-h-0 h-full overflow-y-auto pr-2 gap-4">
+      {questions.map((q, index) => {
+        const pageNum = index + 1
+        const isCurrent = currentPage === pageNum
+        const studentAnswer = studentAnswersMap.get(q.id)
+        const isCorrect = studentAnswer?.isCorrect
+
+        const borderColor = isCurrent
+          ? "border-accent"
+          : studentAnswer
+            ? isCorrect
+              ? "border-success"
+              : "border-danger"
+            : "border-primary"
+
+        const pageColor = isCurrent
+          ? "text-accent"
+          : studentAnswer
+            ? isCorrect
+              ? "text-success"
+              : "text-danger"
+            : "text-primary"
+
+        return (
+          <Paper
+            key={q.id}
+            onClick={() => setCurrentPage(pageNum)}
+            className={cn(
+              "grid cursor-pointer grid-cols-[auto_1fr] grid-rows-[auto_auto] gap-x-6 gap-y-2 p-2 border-2 transition-colors",
+              borderColor
+            )}
+          >
+            <span
+              className={cn(
+                "row-span-2 flex items-center justify-center text-4xl",
+                pageColor
+              )}
+            >
+              {pageNum}
+            </span>
+            <p className="col-start-2 row-start-1 truncate text-secondary">
+              <Markdown>
+                {q.body?.split("\n")[0]?.replaceAll("\\dfrac", "\\frac") ??
+                  null}
+              </Markdown>
+            </p>
+            {studentAnswer ? (
+              <Row className="col-start-2 row-start-2 items-center gap-2 text-sm">
+                <span>{studentAnswer.answer}</span>
+                {isCorrect ? (
+                  <Check className="h-4 w-4 text-success" />
+                ) : (
+                  <>
+                    <X className="h-4 w-4 text-danger" />
+                    {q.solution && (
+                      <span className="text-secondary">
+                        Ответ: {q.solution}
+                      </span>
+                    )}
+                  </>
+                )}
+              </Row>
+            ) : null}
+          </Paper>
+        )
+      })}
+    </Stack>
   )
 }
 
@@ -197,20 +303,6 @@ export default function AssignmentPage() {
   const answeredQuestionsCount = studentAnswersMap.size
   const canComplete = answeredQuestionsCount === answerableQuestions
 
-  const pageVariants = useMemo(() => {
-    const variants: Record<
-      number,
-      VariantProps<typeof buttonVariants>["variant"]
-    > = {}
-    questions.forEach((q, index) => {
-      const answer = studentAnswersMap.get(q.id)
-      if (answer) {
-        variants[index + 1] = answer.isCorrect ? "success" : "danger"
-      }
-    })
-    return variants
-  }, [questions, studentAnswersMap])
-
   if (assignmentQuery.isLoading) {
     return (
       <ProtectedLayout>
@@ -237,17 +329,7 @@ export default function AssignmentPage() {
         <title>Задание: {assignmentQuery.data.test.name}</title>
       </Head>
       <ProtectedLayout permissionBits={[PermissionBit.STUDENT]} fullscreen>
-        <Container className="flex flex-col md:grid md:grid-cols-[2fr_1fr] md:grid-rows-[auto_1fr_auto] gap-8 pt-24 md:h-screen md:max-h-screen">
-          <Box className="md:col-span-2 md:row-start-3">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalQuestions}
-              onChangePage={setCurrentPage}
-              pageVariants={pageVariants}
-              variant="all-pages"
-            />
-          </Box>
-
+        <Container className="flex flex-col md:grid md:grid-cols-[2fr_1fr] md:grid-rows-[auto_1fr] gap-8 pt-24 md:h-screen md:max-h-screen">
           <Stack className="items-center md:row-start-1 md:col-start-1">
             <h1 className="text-2xl font-bold">
               {assignmentQuery.data.test.name}
@@ -279,24 +361,40 @@ export default function AssignmentPage() {
 
           <Box
             className={cn(
-              "md:row-start-2 md:col-start-1 md:overflow-y-auto",
+              "md:row-start-2 md:col-start-1 md:min-h-0",
               currentQuestion.solutionType !== SolutionType.SHORT &&
                 "col-span-2"
             )}
           >
-            <QuestionCard question={currentQuestion} isPromptHidden size="lg" />
+            <QuestionCard
+              question={currentQuestion}
+              isPromptHidden
+              size="lg"
+              footer={
+                currentQuestion.solutionType === SolutionType.SHORT
+                  ? () => (
+                      <AnswerSolutionBlock
+                        question={currentQuestion}
+                        studentAnswer={currentStudentAnswer}
+                        isCompleted={isCompleted}
+                        currentAnswer={currentAnswer}
+                        setCurrentAnswer={setCurrentAnswer}
+                        onSubmit={handleSubmitAnswer}
+                        isSubmitting={submitAnswerMutation.isPending}
+                      />
+                    )
+                  : undefined
+              }
+            />
           </Box>
 
           {currentQuestion.solutionType === SolutionType.SHORT && (
             <Box className="md:row-start-2 md:col-start-2 md:h-full md:max-h-full md:min-h-0">
-              <AnswerSolutionBlock
-                question={currentQuestion}
-                studentAnswer={currentStudentAnswer}
-                isCompleted={isCompleted}
-                currentAnswer={currentAnswer}
-                setCurrentAnswer={setCurrentAnswer}
-                onSubmit={handleSubmitAnswer}
-                isSubmitting={submitAnswerMutation.isPending}
+              <CustomPaginationNav
+                questions={questions}
+                studentAnswersMap={studentAnswersMap}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
               />
             </Box>
           )}

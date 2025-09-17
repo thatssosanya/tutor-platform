@@ -43,6 +43,9 @@
   /* Border & Ring Colors */
   --border-color-primary: oklch(0.929 0.013 255.508); /* slate-200 */
   --border-color-input: oklch(0.869 0.022 252.894); /* slate-300 */
+  --border-color-accent: oklch(0.623 0.214 259.815); /* blue-500 */
+  --border-color-danger: oklch(0.637 0.237 25.331); /* red-500 */
+  --border-color-success: oklch(0.723 0.219 149.579); /* green-500 */
   --ring-color-accent: oklch(62.3% 0.214 259.815 / 0.5); /* blue-500/50 */
 
   /* Shadow Colors */
