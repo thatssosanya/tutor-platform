@@ -49,6 +49,8 @@ export default function ScrapeParsePage() {
               </Button>
             </div>
 
+            {html && <Markdown>{html}</Markdown>}
+
             {parsedQBlock && (
               <Paper>
                 <h2 className="text-lg font-bold">Result</h2>

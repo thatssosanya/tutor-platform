@@ -3,8 +3,8 @@ import { QuestionSource, SolutionType } from "@prisma/client"
 import type { PrismaClient } from "@prisma/client"
 
 import {
-  fetchFipi,
-  FIPI_ID_CLEANUP_REGEX,
+  fetchFipiPage,
+  FIPI_ID_REGEX,
   FIPI_SHOW_PICTURE_Q_REGEX,
   FIPI_URL,
 } from "@/server/lib/fipi"
@@ -136,7 +136,10 @@ function parseNode(
           const parsedTds = tds.map((td) => parseNode(td))
           return parsedTds
         })
-        .filter((row) => row !== null)
+        .filter(
+          (row): row is string[] =>
+            row !== null && row.some((v) => v.trim().length > 0)
+        )
 
       if (!parsedRows[0]) {
         return ""
@@ -184,15 +187,11 @@ function parseNode(
               ? [" **", "** "]
               : ["", ""]
       return prefix + content + suffix
+    } else if (tagName === "br") {
+      return " "
     }
   } else if (node.type === "text") {
-    return isMath || isUnescaped
-      ? node.data.trim()
-      : // escape characters that are used in markdown
-        node.data.replaceAll(
-          /[\\\`\*\_\{\}\[\]\(\)\#\+\-\.\!]/g,
-          (c) => "\\" + c
-        ) || ""
+    return node.data.trim() || ""
   }
 
   return ""
@@ -203,7 +202,7 @@ export function parseQBlockFromHtml(qblockHtml: string): ParsedQBlock | null {
     qblockHtml
       .replaceAll("<m:", "<")
       .replaceAll("</m:", "</")
-      .replaceAll("&nbsp;", ""),
+      .replaceAll("&nbsp;", " "),
     undefined,
     false
   )
@@ -277,7 +276,7 @@ export function parseQBlockFromHtml(qblockHtml: string): ParsedQBlock | null {
 }
 
 export async function scrapeSubjects(db: PrismaClient) {
-  const html = await fetchFipi("/bank/index.php")
+  const html = await fetchFipiPage("/bank/index.php")
 
   const $ = cheerio.load(html)
 
@@ -300,18 +299,18 @@ export async function scrapeSubjects(db: PrismaClient) {
 }
 
 export async function scrapeTopics(db: PrismaClient, subjectId: string) {
-  const html = await fetchFipi(`/bank/index.php?proj=${subjectId}`)
+  const html = await fetchFipiPage(`/bank/index.php?proj=${subjectId}`)
 
   const $ = cheerio.load(html)
 
-  const scrapedRootTopicNames: string[] = []
+  const scrapedRootTopics: { id: string; name: string }[] = []
   const scrapedSubTopics: {
     id: string
     name: string
-    parentName: string
+    parentId: string
   }[] = []
 
-  let currentParentName: string | null = null
+  let currentParentId: string | null = null
   $('.filter-title:contains("Темы КЭС")')
     .first()
     .next(".dropdown")
@@ -319,31 +318,33 @@ export async function scrapeTopics(db: PrismaClient, subjectId: string) {
     .each((_, el) => {
       const element = $(el)
       if (element.hasClass("dropdown-header")) {
-        currentParentName = element
-          .text()
-          .trim()
-          .replace(FIPI_ID_CLEANUP_REGEX, "")
-        scrapedRootTopicNames.push(currentParentName)
+        const text = element.text().trim()
+        const id = text.match(FIPI_ID_REGEX)?.[0]?.trim()
+        const name = text.replace(FIPI_ID_REGEX, "")
+        if (id && name) {
+          currentParentId = id
+          scrapedRootTopics.push({ id, name })
+        }
       } else {
         const label = element.find("label")
         const id = label.find("input").val() as string
-        const name = label.text().trim().replace(FIPI_ID_CLEANUP_REGEX, "")
+        const name = label.text().trim().replace(FIPI_ID_REGEX, "")
 
-        if (id && name && currentParentName) {
-          scrapedSubTopics.push({ id, name, parentName: currentParentName })
+        if (id && name && currentParentId) {
+          scrapedSubTopics.push({ id, name, parentId: currentParentId })
         }
       }
     })
 
-  const existingRootTopics = await db.topic.findMany({
+  const oldRootTopics = await db.topic.findMany({
     where: { subjectId: subjectId, parentId: null },
-    select: { name: true },
+    select: { id: true },
   })
-  const existingRootTopicNames = new Set(existingRootTopics.map((t) => t.name))
+  const oldRootTopicIds = new Set(oldRootTopics.map((t) => t.id))
 
-  const newRootTopicsData = scrapedRootTopicNames
-    .filter((name) => !existingRootTopicNames.has(name))
-    .map((name) => ({ name, subjectId: subjectId }))
+  const newRootTopicsData = scrapedRootTopics
+    .filter((t) => !oldRootTopicIds.has(t.id))
+    .map((t) => ({ ...t, subjectId: subjectId }))
 
   if (newRootTopicsData.length > 0) {
     await db.topic.createMany({ data: newRootTopicsData })
@@ -353,15 +354,10 @@ export async function scrapeTopics(db: PrismaClient, subjectId: string) {
     where: { subjectId: subjectId, parentId: null },
   })
 
-  const parentNameToIdMap = new Map<string, string>()
-  allRootTopics.forEach((topic) => {
-    parentNameToIdMap.set(topic.name, topic.id)
-  })
-
   const subTopicsData = scrapedSubTopics
-    .map(({ id, name, parentName }) => {
-      const parentId = parentNameToIdMap.get(parentName)
-      if (!parentId) return null
+    .map(({ id, name, parentId }) => {
+      if (!parentId || !allRootTopics.find((t) => t.id === parentId))
+        return null
       return {
         id,
         name,
@@ -369,7 +365,7 @@ export async function scrapeTopics(db: PrismaClient, subjectId: string) {
         subjectId: subjectId,
       }
     })
-    .filter((t): t is NonNullable<typeof t> => t !== null)
+    .filter((t) => t !== null)
 
   let createdSubTopicsCount = 0
   if (subTopicsData.length > 0) {
@@ -394,7 +390,7 @@ export async function scrapePage(
     page - 1
   }&pagesize=10&rfsh=${encodeURIComponent(new Date().toString())}`
 
-  const html = await fetchFipi(path)
+  const html = await fetchFipiPage(path)
 
   const $ = cheerio.load(html)
 
@@ -445,7 +441,9 @@ export async function scrapePage(
         subjectId,
         creatorId: user?.id,
         topics: {
-          connect: topicIds.map((id) => ({ id_subjectId: { id, subjectId } })),
+          create: topicIds.map((id) => ({
+            topic: { connect: { id_subjectId: { id, subjectId } } },
+          })),
         },
         attachments: {
           create: attachments.map((url) => ({ url })),

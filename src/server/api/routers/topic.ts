@@ -24,6 +24,7 @@ export const topicRouter = createTRPCRouter({
   create: createProtectedProcedure([PermissionBit.ADMIN])
     .input(
       z.object({
+        id: z.string(),
         name: z.string().min(1),
         subjectId: z.string(),
         parentId: z.string().optional(),
@@ -32,6 +33,7 @@ export const topicRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.topic.create({
         data: {
+          id: input.id,
           name: input.name,
           subjectId: input.subjectId,
           parentId: input.parentId,

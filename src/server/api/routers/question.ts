@@ -9,6 +9,7 @@ import {
 import { TRPCError } from "@trpc/server"
 import { enrichQuestionWithAI } from "@/server/services/ai"
 import { PermissionBit } from "@/utils/permissions"
+import { verifyQuestion } from "@/server/lib/fipi"
 
 const questionInputSchema = z.object({
   name: z.string().min(1),
@@ -47,8 +48,12 @@ export const questionRouter = createTRPCRouter({
           verified: true,
           creatorId: ctx.session.user.id,
           topics: {
-            connect: topicIds.map((id) => ({
-              id_subjectId: { id, subjectId: input.subjectId },
+            create: topicIds.map((id) => ({
+              topic: {
+                connect: {
+                  id_subjectId: { id, subjectId: input.subjectId },
+                },
+              },
             })),
           },
         },
@@ -74,7 +79,7 @@ export const questionRouter = createTRPCRouter({
         source: source,
         topics:
           topicIds && topicIds.length > 0
-            ? { some: { id: { in: topicIds } } }
+            ? { some: { topicId: { in: topicIds } } }
             : undefined,
       }
 
@@ -140,7 +145,7 @@ export const questionRouter = createTRPCRouter({
         source: sources && sources.length > 0 ? { in: sources } : undefined,
         topics:
           topicIds && topicIds.length > 0
-            ? { some: { id: { in: topicIds } } }
+            ? { some: { topicId: { in: topicIds } } }
             : undefined,
         ...(search
           ? {
@@ -188,7 +193,11 @@ export const questionRouter = createTRPCRouter({
           ...input,
           topics: {
             set: input.topicIds.map((id) => ({
-              id_subjectId: { id, subjectId: input.subjectId },
+              connect: {
+                topic: {
+                  id_subjectId: { id, subjectId: input.subjectId },
+                },
+              },
             })),
           },
         },
@@ -208,7 +217,13 @@ export const questionRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const question = await ctx.db.question.findUnique({
         where: { id: input.id },
-        select: { body: true, solutionType: true },
+        select: {
+          id: true,
+          subjectId: true,
+          body: true,
+          solutionType: true,
+          attachments: true,
+        },
       })
 
       if (!question) {
@@ -227,11 +242,18 @@ export const questionRouter = createTRPCRouter({
 
       const aiEnrichment = await enrichQuestionWithAI(question)
 
+      const verified = await verifyQuestion(
+        question.id,
+        question.subjectId,
+        aiEnrichment.solution
+      )
+
       return ctx.db.question.update({
         where: { id: input.id },
         data: {
           work: aiEnrichment.work,
           solution: aiEnrichment.solution,
+          verified,
         },
       })
     }),
@@ -245,7 +267,13 @@ export const questionRouter = createTRPCRouter({
           solutionType: SolutionType.SHORT,
           work: null, // Only enrich those that need it
         },
-        select: { id: true, body: true, solutionType: true },
+        select: {
+          id: true,
+          subjectId: true,
+          body: true,
+          solutionType: true,
+          attachments: true,
+        },
       })
 
       if (questionsToEnrich.length === 0) {
@@ -254,11 +282,17 @@ export const questionRouter = createTRPCRouter({
 
       const enrichmentPromises = questionsToEnrich.map(async (question) => {
         const aiEnrichment = await enrichQuestionWithAI(question)
+        const verified = await verifyQuestion(
+          question.id,
+          question.subjectId,
+          aiEnrichment.solution
+        )
         return ctx.db.question.update({
           where: { id: question.id },
           data: {
             work: aiEnrichment.work,
             solution: aiEnrichment.solution,
+            verified,
           },
         })
       })

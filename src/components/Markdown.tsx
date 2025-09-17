@@ -24,6 +24,10 @@ function MarkdownComponent({ children }: { children: string | null }) {
         td: ({ node, ...rest }) => {
           return <td className="p-2 border-1 border-primary" {...rest} />
         },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        p: ({ node, ...rest }) => {
+          return <p className="my-1 first:mt-0 last:mb-0" {...rest} />
+        },
       }}
     >
       {fixMalformedLatex(children)}

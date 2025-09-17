@@ -1,17 +1,26 @@
-import { Agent, fetch } from "undici"
+import { Agent, fetch, FormData, type RequestInit } from "undici"
 import { env } from "@/env"
 import tls from "node:tls"
 
 const FIPI_BASE_URL = "https://ege.fipi.ru"
 
-export const fetchFipi = async (path: string) => {
+export const fetchFipi = async (
+  path: string,
+  options: Partial<RequestInit> = {}
+) => {
+  const fullPath = path.startsWith("http") ? path : FIPI_BASE_URL + path
+
   const fipiAgent = new Agent({
     connect: {
       ca: [...tls.rootCertificates, env.FIPI_INTERMEDIATE_CERT],
     },
   })
 
-  const response = await fetch(`${FIPI_BASE_URL}${path}`, {
+  const { headers, ...restOptions } = options
+
+  const response = await fetch(fullPath, {
+    method: "GET",
+    ...restOptions,
     headers: {
       accept:
         "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -26,12 +35,18 @@ export const fetchFipi = async (path: string) => {
       "sec-fetch-site": "same-origin",
       "sec-fetch-user": "?1",
       "upgrade-insecure-requests": "1",
+      ...headers,
     },
-    method: "GET",
     dispatcher: fipiAgent,
   })
 
-  if (!response.ok) throw new Error("Failed to fetch " + path)
+  if (!response.ok) throw new Error("Failed to fetch " + fullPath)
+
+  return response
+}
+
+export const fetchFipiPage = async (path: string) => {
+  const response = await fetchFipi(path)
 
   const buffer = await response.arrayBuffer()
   const decoder = new TextDecoder("windows-1251")
@@ -40,6 +55,64 @@ export const fetchFipi = async (path: string) => {
   return html
 }
 
+export const verifyQuestion = async (
+  questionId: string,
+  subjectId: string,
+  solution?: string
+) => {
+  // TODO add puppeteer
+  if (questionId) {
+    return false
+  }
+  try {
+    const body = new FormData()
+    body.append("guid", questionId)
+    body.append("proj", subjectId)
+    body.append("answer", solution)
+    body.append("ajax", "1")
+    const options = {
+      method: "POST",
+      body,
+      credentials: "include" as const,
+    }
+    const response = await fetchFipi("/bank/solve.php", options)
+    const text = await response.text()
+    if (text === "2" || text === "3") {
+      return text === "3"
+    }
+    const setCookie = response.headers.getSetCookie()
+    console.log({
+      Cookie:
+        "md_auto=qprint; " + setCookie.map((c) => c.split(";")[0]).join("; "),
+      Host: "ege.fipi.ru",
+      Origin: "https://ege.fipi.ru",
+      Referer: `https://ege.fipi.ru/bank/questions.php?proj=${subjectId}&init_filter_themes=1`,
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
+    })
+    const authenticatedResponse = await fetchFipi("/bank/solve.php", {
+      ...options,
+      headers: {
+        Cookie:
+          "md_auto=qprint; " + setCookie.map((c) => c.split(";")[0]).join("; "),
+        Host: "ege.fipi.ru",
+        Origin: "https://ege.fipi.ru",
+        Referer: `https://ege.fipi.ru/bank/questions.php?proj=${subjectId}&init_filter_themes=1`,
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+      },
+    })
+    const authenticatedText = await authenticatedResponse.text()
+    console.log(authenticatedText)
+    return authenticatedText === "3"
+  } catch (e) {
+    console.error(e)
+    return undefined
+  }
+}
+
 export const FIPI_SHOW_PICTURE_Q_REGEX = /ShowPictureQ\('(.*?)'\)/g
-export const FIPI_ID_CLEANUP_REGEX = /^\s*\d+(\.\d+)*\s*/
+export const FIPI_ID_REGEX = /^\s*\d+(\.\d+)*\s*/
 export const FIPI_URL = FIPI_BASE_URL
