@@ -1,6 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
-import React from "react"
+import React, { type ElementType } from "react"
 
 import { cn } from "@/styles"
 
@@ -25,7 +24,8 @@ export interface ChipProps extends VariantProps<typeof chipVariants> {
   title: string
   className?: string
   content?: React.ReactNode
-  onDelete?: () => void
+  onClick?: () => void
+  as?: ElementType
 }
 
 export function Chip({
@@ -33,22 +33,23 @@ export function Chip({
   variant,
   title,
   content,
-  onDelete,
+  onClick,
+  as,
   ...props
 }: ChipProps) {
+  const Component = as ?? (onClick ? "button" : "div")
   return (
-    <div className={cn(chipVariants({ variant, className }))} {...props}>
+    <Component
+      className={cn(
+        chipVariants({ variant, className }),
+        onClick && "cursor-pointer"
+      )}
+      onClick={onClick}
+      aria-label={title}
+      {...props}
+    >
       <span>{title}</span>
       {content}
-      {onDelete && (
-        <button
-          onClick={onDelete}
-          className="-mr-1.5 rounded-full p-0.5 hover:bg-black/10 cursor-pointer"
-          aria-label="Удалить"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
-    </div>
+    </Component>
   )
 }

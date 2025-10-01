@@ -1,5 +1,6 @@
-import { ArrowLeft, Eye, Save } from "lucide-react"
-import React, { useEffect, useState } from "react"
+// src/components/students/StudentDetailView.tsx
+import { ArrowLeft, ExternalLink, Eye, Save } from "lucide-react"
+import React, { useEffect, useMemo, useState } from "react"
 
 import {
   Button,
@@ -11,17 +12,26 @@ import {
   Row,
   Stack,
 } from "@/ui"
-import { api } from "@/utils/api"
+import { api, type RouterOutputs } from "@/utils/api"
 import { useSubjects } from "@/utils/subjects"
+import { TestList } from "../tests/TestList"
+import { skipToken } from "@tanstack/react-query"
+
+type Test =
+  RouterOutputs["assignment"]["getStudentAssignments"][number]["test"] & {
+    assignmentId?: string
+  }
 
 type StudentDetailViewProps = {
-  studentId: string
+  studentId: string | null
   onBack: () => void
+  onViewAssignment?: (assignmentId: string) => void
 }
 
 export function StudentDetailView({
   studentId,
   onBack,
+  onViewAssignment,
 }: StudentDetailViewProps) {
   const [displayName, setDisplayName] = useState("")
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([])
@@ -32,13 +42,36 @@ export function StudentDetailView({
   const { subjects: tutorSubjects } = useSubjects()
 
   const studentQuery = api.user.getStudent.useQuery(
-    { id: studentId },
-    { enabled: !!studentId }
+    studentId ? { id: studentId } : skipToken
   )
   const student = studentQuery.data
 
+  const assignmentsQuery = api.assignment.getStudentAssignments.useQuery(
+    studentId ? { studentId } : skipToken
+  )
+
+  const assignmentsAsTests = useMemo((): Test[] => {
+    if (!assignmentsQuery.data) return []
+    return assignmentsQuery.data.map(({ test, ...assignment }) => ({
+      ...test,
+      assignmentId: assignment.id,
+    }))
+  }, [assignmentsQuery.data])
+
+  const assignmentCardControls = (test: Test) =>
+    onViewAssignment && (
+      <Button
+        size="sm"
+        variant="primary-paper"
+        onClick={() => onViewAssignment(test.assignmentId!)}
+      >
+        <ExternalLink className="h-4 w-4" />
+      </Button>
+    )
+
   const updateStudentMutation = api.user.updateStudent.useMutation({
     onSuccess: () => {
+      if (!studentId) return
       utils.user.getStudent.invalidate({ id: studentId })
       utils.user.getStudents.invalidate()
     },
@@ -54,7 +87,7 @@ export function StudentDetailView({
   const handleSaveChanges = (resetPassword = false) => {
     if (!student) return
     updateStudentMutation.mutate({
-      id: studentId,
+      id: student.id,
       displayName,
       subjectIds: selectedSubjectIds,
       resetPassword,
@@ -97,6 +130,7 @@ export function StudentDetailView({
 
             <CheckboxGroup
               label="Предметы"
+              labelAs="div"
               options={subjectOptions}
               value={selectedSubjectIds}
               onChange={setSelectedSubjectIds}
@@ -114,6 +148,21 @@ export function StudentDetailView({
             </Row>
           </Stack>
         </Paper>
+
+        <Stack className="gap-4">
+          <h2 className="text-xl font-semibold">Задания</h2>
+          {assignmentsQuery.isLoading ? (
+            <p>Загрузка заданий...</p>
+          ) : assignmentsAsTests.length > 0 ? (
+            <TestList
+              tests={assignmentsAsTests}
+              isLoading={assignmentsQuery.isLoading}
+              cardControls={assignmentCardControls}
+            />
+          ) : (
+            <p className="text-secondary">У этого ученика нет заданий.</p>
+          )}
+        </Stack>
       </Stack>
       <Dialog
         title={student.displayName + ": Данные для входа"}

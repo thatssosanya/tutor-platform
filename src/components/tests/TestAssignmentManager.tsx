@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import React, { useState } from "react"
 
 import { Chip, LabelBox, Row, Stack } from "@/ui"
@@ -6,21 +6,30 @@ import { api } from "@/utils/api"
 import { formatDateToString } from "@/utils/date"
 
 import { TestAssignDialog } from "./TestAssignDialog"
+import { useRouter } from "next/router"
 
 type TestAssignmentManagerProps = {
+  subjectId: string
   testId: string
 }
 
-export function TestAssignmentManager({ testId }: TestAssignmentManagerProps) {
+export function TestAssignmentManager({
+  subjectId,
+  testId,
+}: TestAssignmentManagerProps) {
+  const router = useRouter()
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false)
   const utils = api.useUtils()
 
   const assignmentsQuery = api.assignment.getByTestIdWithStudent.useQuery({
     testId,
   })
-  const allStudentsQuery = api.user.getStudents.useQuery(undefined, {
-    enabled: isAssignDialogOpen,
-  })
+  const allStudentsQuery = api.user.getStudents.useQuery(
+    { subjectId },
+    {
+      enabled: isAssignDialogOpen,
+    }
+  )
 
   const deleteAssignmentMutation = api.assignment.delete.useMutation({
     onSuccess: async () => {
@@ -47,7 +56,7 @@ export function TestAssignmentManager({ testId }: TestAssignmentManagerProps) {
 
   return (
     <>
-      <LabelBox label="Задано">
+      <LabelBox label="Задано" labelAs="div">
         <Row className="flex-wrap gap-2 min-h-10">
           {assignments.map((assignment) => (
             <Chip
@@ -55,24 +64,33 @@ export function TestAssignmentManager({ testId }: TestAssignmentManagerProps) {
               title={assignment.assignedTo.displayName}
               variant={assignment.completedAt ? "success" : "primary"}
               content={
-                assignment.dueAt
-                  ? formatDateToString(assignment.dueAt)
-                  : undefined
+                assignment.dueAt ? (
+                  <>
+                    {formatDateToString(assignment.dueAt)}
+                    <button
+                      onClick={() => handleDelete(assignment.id)}
+                      className="-mr-1.5 rounded-full p-0.5 hover:bg-black/10 cursor-pointer"
+                      aria-label="Удалить"
+                    >
+                      <X className="h-[1em] w-[1em]" />
+                    </button>
+                  </>
+                ) : undefined
               }
-              onDelete={
-                !assignment.completedAt
-                  ? () => handleDelete(assignment.id)
-                  : undefined
-              }
+              as="a"
+              onClick={() => {
+                router.push(
+                  `/tutor/students?subjectId=${subjectId}&studentId=${assignment.assignedToId}&assignmentId=${assignment.id}&from=test`
+                )
+              }}
             />
           ))}
-          <button onClick={() => setAssignDialogOpen(true)}>
-            <Chip
-              title="Задать"
-              className="cursor-pointer hover:bg-muted-highlight"
-              content={<Plus className="h-[1em] w-[1em]" />}
-            />
-          </button>
+          <Chip
+            title="Задать"
+            className="cursor-pointer hover:bg-muted-highlight"
+            content={<Plus className="h-[1em] w-[1em]" />}
+            onClick={() => setAssignDialogOpen(true)}
+          />
         </Row>
       </LabelBox>
 

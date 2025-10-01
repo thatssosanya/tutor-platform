@@ -166,13 +166,27 @@ export const assignmentRouter = createTRPCRouter({
   getStudentAssignments: createProtectedProcedure([
     PermissionBit.STUDENT,
     PermissionBit.TUTOR,
-  ]).query(({ ctx }) => {
-    return ctx.db.assignment.findMany({
-      where: { assignedToId: ctx.session.user.id },
-      orderBy: { createdAt: "desc" },
-      include: { test: { select: { name: true, subject: true } } },
-    })
-  }),
+  ])
+    .input(z.object({ studentId: z.string() }).optional())
+    .query(({ ctx, input }) => {
+      return ctx.db.assignment.findMany({
+        where: input?.studentId
+          ? { assignedById: ctx.session.user.id, assignedToId: input.studentId }
+          : { assignedToId: ctx.session.user.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          test: {
+            include: {
+              _count: {
+                select: {
+                  questions: true,
+                },
+              },
+            },
+          },
+        },
+      })
+    }),
 
   getStudentAssignmentsBySubject: createProtectedProcedure([
     PermissionBit.STUDENT,
@@ -211,17 +225,26 @@ export const assignmentRouter = createTRPCRouter({
       const assignment = await ctx.db.assignment.findFirst({
         where: {
           id: input.id,
-          assignedToId: ctx.session.user.id,
+          OR: [
+            { assignedById: ctx.session.user.id },
+            {
+              assignedToId: ctx.session.user.id,
+            },
+          ],
         },
         include: {
           answers: true,
+          assignedTo: { select: { displayName: true } },
           test: {
             include: {
               questions: {
                 orderBy: { order: "asc" },
                 include: {
                   question: {
-                    include: { attachments: true },
+                    include: {
+                      attachments: true,
+                      topics: { include: { topic: { select: { id: true } } } },
+                    },
                   },
                 },
               },
@@ -233,7 +256,7 @@ export const assignmentRouter = createTRPCRouter({
       if (!assignment) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Задание не найдено.",
+          message: "Задание не найдено или у вас нет доступа.",
         })
       }
 

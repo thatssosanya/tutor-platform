@@ -24,7 +24,6 @@ export function Accordion({
   panelClassName,
   noButton,
 }: AccordionProps) {
-  console.log(isOpen)
   return (
     <Stack className={cn("w-full", className)}>
       {!noButton && (

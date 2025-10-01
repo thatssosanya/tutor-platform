@@ -1,8 +1,9 @@
-import React from "react"
+import React, { type ElementType } from "react"
 import { LabelBox } from "./LabelBox"
 
 export type WithLabelProps = {
   label?: string
+  labelAs?: ElementType
 }
 
 export const withLabel = <P extends object>(
@@ -10,6 +11,7 @@ export const withLabel = <P extends object>(
 ) => {
   const WithLabelComponent: React.FC<P & WithLabelProps> = ({
     label,
+    labelAs,
     ...props
   }) => {
     const renderedComponent = <WrappedComponent {...(props as P)} />
@@ -18,7 +20,7 @@ export const withLabel = <P extends object>(
     }
 
     return (
-      <LabelBox label={label}>
+      <LabelBox label={label} labelAs={labelAs}>
         <WrappedComponent {...(props as P)} />
       </LabelBox>
     )

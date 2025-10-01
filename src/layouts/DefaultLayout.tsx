@@ -18,7 +18,7 @@ const DefaultLayout: React.FC<DefaultLayoutProps> = ({
   return (
     <div
       className={cn(
-        "relative flex flex-col min-h-screen bg-primary",
+        "relative flex flex-col bg-primary min-h-screen w-screen overflow-x-clip",
         fullscreen ? "md:max-h-screen md:overflow-y-clip" : "pt-24"
       )}
     >

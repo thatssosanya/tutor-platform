@@ -19,7 +19,9 @@ export function StudentListView({
     isStorageSyncEnabled: true,
     isQueryParamSyncEnabled: true,
   })
-  const studentsQuery = api.user.getStudents.useQuery()
+  const studentsQuery = api.user.getStudents.useQuery({
+    subjectId: selectedSubjectId,
+  })
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-4">

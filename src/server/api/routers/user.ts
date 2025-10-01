@@ -67,14 +67,19 @@ export const userRouter = createTRPCRouter({
 
   // --- FOR TUTORS ---
 
-  getStudents: createProtectedProcedure([PermissionBit.TUTOR]).query(
-    async ({ ctx }) => {
+  getStudents: createProtectedProcedure([PermissionBit.TUTOR])
+    .input(z.object({ subjectId: z.string().nullable().optional() }))
+    .query(async ({ ctx, input }) => {
       return ctx.db.user.findMany({
-        where: { creatorId: ctx.session.user.id },
+        where: {
+          creatorId: ctx.session.user.id,
+          ...(input.subjectId
+            ? { subjects: { some: { id: input.subjectId } } }
+            : {}),
+        },
         orderBy: { createdAt: "desc" },
       })
-    }
-  ),
+    }),
 
   createStudent: createProtectedProcedure([PermissionBit.TUTOR])
     .input(

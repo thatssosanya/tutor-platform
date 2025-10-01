@@ -14,15 +14,13 @@ export function useQueryParam(
 ] {
   const router = useRouter()
 
-  const getQueryParamValue = () => {
+  const [value, setValue] = useState<string | null>(() => {
     if (!router.isReady) {
       return null
     }
     const paramValue = router.query[paramName]
     return (Array.isArray(paramValue) ? paramValue[0] : paramValue) || null
-  }
-
-  const [value, setValue] = useState<string | null>(getQueryParamValue)
+  })
 
   useEffect(() => {
     if (!isSyncEnabled || !router.isReady) {

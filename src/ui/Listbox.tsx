@@ -3,6 +3,7 @@ import {
   ListboxButton,
   ListboxOption,
   ListboxOptions,
+  Portal,
 } from "@headlessui/react"
 import { Check, ChevronsUpDown } from "lucide-react"
 import React, { useEffect, useRef } from "react"
@@ -150,9 +151,14 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
             key={String(option.value)}
             value={option}
             disabled={option.disabled}
-            className="group relative select-none py-2 pl-10 pr-4 text-secondary data-focus:bg-muted-highlight data-focus:text-primary cursor-pointer"
+            className="group relative select-none py-2 pl-10 pr-4 text-primary data-disabled:text-secondary data-focus:bg-muted-highlight cursor-pointer"
           >
-            <span className="block truncate font-normal group-data-selected:font-semibold">
+            <span
+              className={cn(
+                "block truncate font-normal group-data-selected:font-semibold",
+                option.label.startsWith("  ") && "pl-4"
+              )}
+            >
               {option.label}
             </span>
             <span className="absolute inset-y-0 left-0 hidden items-center pl-3 text-accent group-data-selected:flex">

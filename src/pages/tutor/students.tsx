@@ -1,6 +1,7 @@
 import { ExternalLink, Trash2 } from "lucide-react"
 import Head from "next/head"
-import React from "react"
+import React, { useState } from "react"
+import { Transition } from "@headlessui/react"
 
 import { StudentDetailView } from "@/components/students/StudentDetailView"
 import { StudentListView } from "@/components/students/StudentListView"
@@ -9,10 +10,16 @@ import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container } from "@/ui"
 import { api } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
-import { Transition } from "@headlessui/react"
+import { TutorAssignmentView } from "@/components/assignments/TutorAssignmentView"
 
 export default function TutorStudentsPage() {
   const [activeStudentId, setActiveStudentId] = useQueryParam("studentId")
+  const [renderedStudentId, setRenderedStudentId] = useState(activeStudentId)
+  const [activeAssignmentId, setActiveAssignmentId] =
+    useQueryParam("assignmentId")
+  const [renderedAssignmentId, setRenderedAssignmentId] =
+    useState(activeAssignmentId)
+
   const utils = api.useUtils()
 
   const deleteStudentMutation = api.user.deleteStudent.useMutation({
@@ -32,7 +39,10 @@ export default function TutorStudentsPage() {
       <Button
         size="sm"
         variant="primary-paper"
-        onClick={() => setActiveStudentId(studentId)}
+        onClick={() => {
+          setActiveStudentId(studentId)
+          setRenderedStudentId(studentId)
+        }}
       >
         <ExternalLink className="h-4 w-4" />
       </Button>
@@ -52,7 +62,7 @@ export default function TutorStudentsPage() {
         <title>Управление учениками</title>
       </Head>
       <ProtectedLayout permissionBits={[PermissionBit.TUTOR]}>
-        <Container className="overflow-x-hidden grid">
+        <Container className="overflow-x-hidden grid min-h-0">
           <Transition
             show={!activeStudentId}
             as="div"
@@ -69,7 +79,37 @@ export default function TutorStudentsPage() {
             />
           </Transition>
           <Transition
-            show={!!activeStudentId}
+            show={!!activeStudentId && !activeAssignmentId}
+            as="div"
+            className="[grid-area:1/1] transition-transform duration-300 ease-out grid"
+            enterFrom={
+              !activeAssignmentId && !!renderedAssignmentId
+                ? "-translate-x-full"
+                : "translate-x-full"
+            }
+            enterTo="translate-x-0"
+            leave="transition-transform duration-300 ease-in"
+            leaveFrom="translate-x-0"
+            leaveTo={
+              !!renderedAssignmentId ? "-translate-x-full" : "translate-x-full"
+            }
+            afterLeave={() => {
+              if (!activeAssignmentId) {
+                setRenderedStudentId(null)
+              }
+            }}
+          >
+            <StudentDetailView
+              studentId={renderedStudentId}
+              onBack={() => setActiveStudentId(null)}
+              onViewAssignment={(assignmentId) => {
+                setActiveAssignmentId(assignmentId)
+                setRenderedAssignmentId(assignmentId)
+              }}
+            />
+          </Transition>
+          <Transition
+            show={!!activeAssignmentId}
             as="div"
             className="[grid-area:1/1] transition-transform duration-300 ease-out"
             enterFrom="translate-x-full"
@@ -77,13 +117,12 @@ export default function TutorStudentsPage() {
             leave="transition-transform duration-300 ease-in"
             leaveFrom="translate-x-0"
             leaveTo="translate-x-full"
+            afterLeave={() => setRenderedAssignmentId(null)}
           >
-            {activeStudentId && (
-              <StudentDetailView
-                studentId={activeStudentId}
-                onBack={() => setActiveStudentId(null)}
-              />
-            )}
+            <TutorAssignmentView
+              assignmentId={renderedAssignmentId}
+              onBack={() => setActiveAssignmentId(null)}
+            />
           </Transition>
         </Container>
       </ProtectedLayout>

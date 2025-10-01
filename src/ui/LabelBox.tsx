@@ -1,12 +1,13 @@
-import React, { type PropsWithChildren } from "react"
+import React, { type ElementType, type PropsWithChildren } from "react"
 import { Stack } from "./Stack"
 
 function LabelBoxComponent({
   label,
+  labelAs = "label",
   children,
-}: PropsWithChildren<{ label: string }>) {
+}: PropsWithChildren<{ label: string; labelAs?: ElementType }>) {
   return (
-    <Stack as="label" className="gap-2">
+    <Stack as={labelAs} className="gap-2">
       <p className="text-sm font-medium text-secondary">{label}</p>
       {children}
     </Stack>

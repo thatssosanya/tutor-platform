@@ -8,18 +8,10 @@ import { Markdown } from "@/components/Markdown"
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { cn } from "@/styles"
-import {
-  Box,
-  Button,
-  Container,
-  Input,
-  Paper,
-  Row,
-  Stack,
-  Accordion,
-} from "@/ui"
+import { Box, Button, Container, Input, Paper, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
+import { AssignmentSolutionBlock } from "@/components/assignments/AssignmentSolutionBlock"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -43,60 +35,19 @@ function AnswerSolutionBlock({
   onSubmit,
   isSubmitting,
 }: AnswerSolutionBlockProps) {
-  const [isWorkOpen, setIsWorkOpen] = useState(false)
-
   const isAnswered = !!studentAnswer
 
   if (question.solutionType !== SolutionType.SHORT) {
     return null
   }
 
-  if (isCompleted || isAnswered) {
-    const isCorrect = studentAnswer?.isCorrect
+  if (isAnswered || isCompleted) {
     return (
-      <Stack className="w-full gap-4 grid grid-cols-1 grid-rows-[1fr_auto_auto] md:min-h-0">
-        {question.work && (
-          <Accordion
-            title="Решение"
-            className="md:min-h-0"
-            panelClassName="md:min-h-0 overflow-y-auto px-0 py-4 text-lg"
-            isOpen={isWorkOpen}
-            noButton
-          >
-            <Markdown>{"# Решение\n\n" + question.work}</Markdown>
-          </Accordion>
-        )}
-        <Row className="items-center gap-2">
-          <span className="text-primary text-2xl">
-            {studentAnswer?.answer ?? "Нет ответа"}
-          </span>
-          {isCorrect === true ? (
-            <Check className="h-8 w-8 text-success" />
-          ) : (
-            <X className="h-8 w-8 text-danger" />
-          )}
-          {isCorrect === false && question.solution && (
-            <span className="text-secondary text-xl">
-              Правильный ответ:{" "}
-              <span className="text-primary">{question.solution}</span>
-            </span>
-          )}
-        </Row>
-        <Row className="justify-evenly mt-4">
-          <Button size="lg" className="gap-4" disabled>
-            <Eye />
-            Подсказка
-          </Button>
-          <Button
-            size="lg"
-            className="gap-4"
-            onClick={() => setIsWorkOpen((prev) => !prev)}
-          >
-            {isWorkOpen ? <EyeOff /> : <Eye />}
-            Решение
-          </Button>
-        </Row>
-      </Stack>
+      <AssignmentSolutionBlock
+        question={question}
+        studentAnswer={studentAnswer}
+        showControls
+      />
     )
   }
 
@@ -105,10 +56,11 @@ function AnswerSolutionBlock({
     <Stack className="w-full justify-center gap-4">
       <p className="font-semibold">{question.prompt}</p>
       <Input
-        placeholder="Ваш ответ"
+        placeholder="Ответ"
         value={currentAnswer}
         onChange={(e) => setCurrentAnswer(e.target.value)}
         className="w-full"
+        variant="primary-paper"
         onKeyDown={(e) => {
           if (e.key === "Enter") onSubmit()
         }}
@@ -118,7 +70,7 @@ function AnswerSolutionBlock({
           </Button>
         }
       />
-      <Row className="justify-evenly mt-4">
+      <Stack className="justify-evenly mt-4 gap-4 md:flex-row">
         <Button size="lg" className="gap-4" disabled>
           <Eye />
           Подсказка
@@ -127,7 +79,7 @@ function AnswerSolutionBlock({
           <Eye />
           Решение
         </Button>
-      </Row>
+      </Stack>
     </Stack>
   )
 }
@@ -147,7 +99,7 @@ function CustomPaginationNav({
   setCurrentPage,
 }: CustomPaginationNavProps) {
   return (
-    <Stack className="md:min-h-0 h-full overflow-y-auto pr-2 gap-4">
+    <Stack className="md:min-h-0 h-full overflow-y-auto gap-4">
       {questions.map((q, index) => {
         const pageNum = index + 1
         const isCurrent = currentPage === pageNum
@@ -167,19 +119,21 @@ function CustomPaginationNav({
             ? "text-success"
             : "text-danger"
           : "text-primary"
-
+        console.log(
+          q.body?.split("\n")[0]?.replaceAll("\\dfrac", "\\frac") ?? null
+        )
         return (
           <Paper
             key={q.id}
             onClick={() => setCurrentPage(pageNum)}
             className={cn(
-              "grid cursor-pointer grid-cols-[auto_1fr] grid-rows-[auto_auto] gap-x-6 gap-y-2 p-2 border-2 transition-colors",
+              "grid cursor-pointer grid-cols-[auto_1fr] grid-rows-[auto_auto] gap-x-6 gap-y-2 py-4 border-2 transition-colors",
               borderColor
             )}
           >
             <span
               className={cn(
-                "row-span-2 flex items-center justify-center text-4xl",
+                "row-span-2 flex items-center justify-center text-4xl pl-2",
                 pageColor
               )}
             >

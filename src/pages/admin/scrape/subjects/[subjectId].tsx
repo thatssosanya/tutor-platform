@@ -1,13 +1,14 @@
 import { SolutionType } from "@prisma/client"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
-import React, { Fragment, useEffect, useState } from "react"
+import React, { Fragment, useCallback, useEffect, useState } from "react"
 
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import DefaultLayout from "@/layouts/DefaultLayout"
-import { Button, Checkbox, Container, Paper, Stack } from "@/ui"
+import { Button, Container, Paper, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { Markdown } from "@/components/Markdown"
+import { Check } from "lucide-react"
 
 type Question = RouterOutputs["question"]["getWithOffset"]["items"][number]
 
@@ -19,9 +20,8 @@ const ScrapeSubjectPage: NextPage = () => {
   const [page, setPage] = useState(1)
   const [targetPage, setTargetPage] = useState<number | "">("")
   const [isAutoScraping, setIsAutoScraping] = useState(false)
-  const [verifiedStatus, setVerifiedStatus] = useState<Map<string, boolean>>(
-    new Map()
-  )
+  const [isAutoEnriching, setIsAutoEnriching] = useState(false)
+  // Local state for verification status has been removed.
 
   const apiUtils = api.useUtils()
 
@@ -37,14 +37,12 @@ const ScrapeSubjectPage: NextPage = () => {
       { enabled: !!fipiSubjectId }
     )
 
+  const queryKey = { subjectId: fipiSubjectId, page, limit: 10 }
   const { data: paginatedData, isLoading: isLoadingQuestions } =
-    api.question.getWithOffset.useQuery(
-      { subjectId: fipiSubjectId, page, limit: 10 },
-      {
-        enabled: !!fipiSubjectId && !!topics && topics.length > 0,
-        refetchOnWindowFocus: !isAutoScraping,
-      }
-    )
+    api.question.getWithOffset.useQuery(queryKey, {
+      enabled: !!fipiSubjectId && !!topics && topics.length > 0,
+      refetchOnWindowFocus: !isAutoScraping && !isAutoEnriching,
+    })
 
   const questions = paginatedData?.items
   const totalPages = paginatedData?.totalPages
@@ -53,15 +51,7 @@ const ScrapeSubjectPage: NextPage = () => {
     setPage(1)
   }, [fipiSubjectId])
 
-  useEffect(() => {
-    if (paginatedData?.items) {
-      const initialStatus = new Map<string, boolean>()
-      paginatedData.items.forEach((q) => {
-        initialStatus.set(q.id, q.verified)
-      })
-      setVerifiedStatus(initialStatus)
-    }
-  }, [paginatedData?.items])
+  // All useEffects managing local verification state have been removed.
 
   const scrapeTopicsMutation = api.scraper.scrapeTopics.useMutation({
     onSuccess: () => {
@@ -92,34 +82,59 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const enrichOneMutation = api.question.enrichOne.useMutation({
     onSuccess: () => {
-      void apiUtils.question.getWithOffset.invalidate({
-        subjectId: fipiSubjectId,
-        page,
-      })
+      void apiUtils.question.getWithOffset.invalidate(queryKey)
     },
   })
 
   const enrichManyMutation = api.question.enrichMany.useMutation({
     onSuccess: (data) => {
-      alert(`Successfully enriched ${data.enrichedCount} questions.`)
-      void apiUtils.question.getWithOffset.invalidate({
-        subjectId: fipiSubjectId,
-        page,
-      })
+      void apiUtils.question.getWithOffset.invalidate(queryKey)
+
+      if (isAutoEnriching && targetPage && page < targetPage) {
+        setPage((prevPage) => prevPage + 1)
+      } else if (isAutoEnriching) {
+        setIsAutoEnriching(false)
+        alert("Auto-enrichment complete.")
+      } else {
+        alert(`Successfully enriched ${data.enrichedCount} questions.`)
+      }
+    },
+    onError: (error) => {
+      ;(setIsAutoEnriching(false),
+        alert(`Error enriching page: ${error.message}. Stopping automation.`))
     },
   })
 
   const updateVerificationsMutation =
     api.question.updateVerifications.useMutation({
-      onSuccess: () => {
-        void apiUtils.question.getWithOffset.invalidate({
-          subjectId: fipiSubjectId,
-          page,
+      onMutate: async ({ updates }) => {
+        await apiUtils.question.getWithOffset.cancel(queryKey)
+
+        const previousData = apiUtils.question.getWithOffset.getData(queryKey)
+
+        const questionId = Object.keys(updates)[0]
+        const newStatus = updates[questionId!]
+
+        if (!questionId) return { previousData }
+
+        apiUtils.question.getWithOffset.setData(queryKey, (oldData) => {
+          if (!oldData) return
+          return {
+            ...oldData,
+            items: oldData.items.map((q) =>
+              q.id === questionId ? { ...q, verified: newStatus ?? false } : q
+            ),
+          }
         })
-        alert("Verification status saved.")
+
+        return { previousData }
       },
-      onError: (error) => {
-        alert(`Error saving status: ${error.message}`)
+      onError: (err, newTodo, context) => {
+        apiUtils.question.getWithOffset.setData(queryKey, context?.previousData)
+        alert(`Failed to update status: ${err.message}`)
+      },
+      onSettled: () => {
+        void apiUtils.question.getWithOffset.invalidate(queryKey)
       },
     })
 
@@ -142,59 +157,75 @@ const ScrapeSubjectPage: NextPage = () => {
     scrapePageMutation.mutate({ subjectId: fipiSubjectId, page })
   }
 
-  const handleEnrichPage = () => {
+  const handleEnrichPage = useCallback(() => {
     if (!questions || questions.length === 0) return
     const idsToEnrich = questions
       .filter((q) => q.solutionType === SolutionType.SHORT && !q.work)
       .map((q) => q.id)
 
     if (idsToEnrich.length === 0) {
-      alert("All SHORT answer questions on this page are already enriched.")
+      if (isAutoEnriching) {
+        if (targetPage && page < targetPage) {
+          setPage((prevPage) => prevPage + 1)
+        } else {
+          setIsAutoEnriching(false)
+          alert("Auto-enrichment complete.")
+        }
+      } else {
+        alert("All SHORT answer questions on this page are already enriched.")
+      }
       return
     }
     enrichManyMutation.mutate({ ids: idsToEnrich })
-  }
+  }, [questions, isAutoEnriching, page, targetPage, enrichManyMutation])
 
-  const handleToggleVerified = (questionId: string) => {
-    setVerifiedStatus((prev) => {
-      const newStatus = new Map(prev)
-      newStatus.set(questionId, !newStatus.get(questionId))
-      return newStatus
-    })
-  }
-
-  const handleSaveVerification = () => {
-    const updates: Record<string, boolean> = {}
-    let hasChanges = false
-    if (questions) {
-      for (const question of questions) {
-        const currentStatus = verifiedStatus.get(question.id)
-        if (
-          currentStatus !== undefined &&
-          currentStatus !== question.verified
-        ) {
-          updates[question.id] = currentStatus
-          hasChanges = true
-        }
-      }
+  const handleAutoEnrich = () => {
+    if (!fipiSubjectId || !targetPage || targetPage <= page) {
+      alert("Please enter a target page number greater than the current page.")
+      return
     }
-
-    if (hasChanges) {
-      updateVerificationsMutation.mutate({ updates })
-    } else {
-      alert("No changes to save.")
-    }
+    setIsAutoEnriching(true)
+    handleEnrichPage()
   }
+
+  useEffect(() => {
+    if (isAutoEnriching && questions && !enrichManyMutation.isPending) {
+      handleEnrichPage()
+    }
+  }, [isAutoEnriching, questions, handleEnrichPage])
+
+  // `handleSaveVerification` and `handleToggleVerified` are no longer needed.
 
   const cardControls = (question: Question) => {
-    const isVerified = verifiedStatus.get(question.id) ?? false
+    // Check if this specific question is the one currently being mutated.
+    const isUpdatingThis =
+      updateVerificationsMutation.isPending &&
+      updateVerificationsMutation.variables?.updates[question.id] !== undefined
+
     return (
       <div className="p-2">
-        <Checkbox
-          checked={isVerified}
-          onChange={() => handleToggleVerified(question.id)}
-          label="Verified"
-        />
+        <Button
+          size="lg"
+          variant="secondary"
+          onClick={() =>
+            updateVerificationsMutation.mutate({
+              updates: { [question.id]: !question.verified },
+            })
+          }
+          disabled={isUpdatingThis}
+        >
+          {question.verified ? (
+            <>
+              <Check className="h-4 w-4 text-success mr-4" />
+              Verified
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4 text-danger mr-4" />
+              Unverified
+            </>
+          )}
+        </Button>
       </div>
     )
   }
@@ -258,7 +289,8 @@ const ScrapeSubjectPage: NextPage = () => {
     ? Array.from({ length: totalPages + 1 }, (_, i) => i + 1)
     : []
   const isScrapingInProgress = scrapePageMutation.isPending || isAutoScraping
-  const isEnrichingInProgress = enrichManyMutation.isPending
+  const isEnrichingInProgress = enrichManyMutation.isPending || isAutoEnriching
+  const isAnyAutomationRunning = isScrapingInProgress || isEnrichingInProgress
 
   return (
     <DefaultLayout>
@@ -275,7 +307,7 @@ const ScrapeSubjectPage: NextPage = () => {
               <Button
                 onClick={handleScrapeTopics}
                 disabled={
-                  scrapeTopicsMutation.isPending || isScrapingInProgress
+                  scrapeTopicsMutation.isPending || isAnyAutomationRunning
                 }
               >
                 {scrapeTopicsMutation.isPending
@@ -293,6 +325,12 @@ const ScrapeSubjectPage: NextPage = () => {
                   away.
                 </p>
               )}
+              {isAutoEnriching && (
+                <p className="font-bold text-green-500">
+                  Auto-enriching page {page} of {targetPage}... Do not navigate
+                  away.
+                </p>
+              )}
 
               {paginationButtons.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -302,7 +340,7 @@ const ScrapeSubjectPage: NextPage = () => {
                       size="sm"
                       variant={p === page ? "primary" : "secondary"}
                       onClick={() => setPage(p)}
-                      disabled={isScrapingInProgress || isEnrichingInProgress}
+                      disabled={isAnyAutomationRunning}
                     >
                       {p}
                     </Button>
@@ -318,11 +356,19 @@ const ScrapeSubjectPage: NextPage = () => {
                   <div className="flex flex-wrap items-center gap-4 rounded-lg border border-primary bg-paper p-4">
                     <Button
                       onClick={handleScrapeSinglePage}
-                      disabled={isScrapingInProgress || isEnrichingInProgress}
+                      disabled={isAnyAutomationRunning}
                     >
                       {scrapePageMutation.isPending && !isAutoScraping
                         ? `Scraping Page ${page}...`
                         : `Scrape Page ${page}`}
+                    </Button>
+                    <Button
+                      onClick={handleEnrichPage}
+                      disabled={isAnyAutomationRunning}
+                    >
+                      {enrichManyMutation.isPending && !isAutoEnriching
+                        ? "Enriching Page..."
+                        : "Enrich Page " + page}
                     </Button>
                     <span>OR</span>
                     <input
@@ -333,46 +379,24 @@ const ScrapeSubjectPage: NextPage = () => {
                           e.target.value === "" ? "" : Number(e.target.value)
                         )
                       }
-                      placeholder="Scrape until page..."
+                      placeholder="Scrape/Enrich until page..."
                       min={page + 1}
-                      disabled={isScrapingInProgress || isEnrichingInProgress}
+                      disabled={isAnyAutomationRunning}
                       className="w-48 rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <Button
                       onClick={handleAutoScrape}
-                      disabled={
-                        isScrapingInProgress ||
-                        isEnrichingInProgress ||
-                        !targetPage
-                      }
+                      disabled={isAnyAutomationRunning || !targetPage}
                     >
                       {isAutoScraping ? "Scraping..." : "Start Auto-Scrape"}
                     </Button>
+                    <Button
+                      onClick={handleAutoEnrich}
+                      disabled={isAnyAutomationRunning || !targetPage}
+                    >
+                      {isAutoEnriching ? "Enriching..." : "Start Auto-Enrich"}
+                    </Button>
                   </div>
-
-                  {!questions ||
-                    (questions.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-primary bg-paper p-4">
-                        <Button
-                          onClick={handleEnrichPage}
-                          disabled={
-                            isScrapingInProgress || isEnrichingInProgress
-                          }
-                        >
-                          {isEnrichingInProgress
-                            ? "Enriching Page..."
-                            : "Enrich Page with AI"}
-                        </Button>
-                        <Button
-                          onClick={handleSaveVerification}
-                          disabled={updateVerificationsMutation.isPending}
-                        >
-                          {updateVerificationsMutation.isPending
-                            ? "Saving..."
-                            : "Save Verification"}
-                        </Button>
-                      </div>
-                    ))}
                 </Stack>
               )}
 

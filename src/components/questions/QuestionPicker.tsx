@@ -1,53 +1,61 @@
 import { Plus, X } from "lucide-react"
-import React, { useState } from "react"
+import React from "react"
 
 import { SearchFilter } from "@/components/filters/SearchFilter"
 import { SourceFilter } from "@/components/filters/SourceFilter"
 import { TopicFilter } from "@/components/filters/TopicFilter"
 import { QuestionList } from "@/components/questions/QuestionList"
-import { useSearchFilter } from "@/hooks/useSearchFilter"
-import { useSourceFilter } from "@/hooks/useSourceFilter"
-import { useTopicFilter } from "@/hooks/useTopicFilter"
 import { Button, Pagination, Stack } from "@/ui"
-import { api, type RouterOutputs } from "@/utils/api"
+import { type RouterOutputs } from "@/utils/api"
+import type { QuestionSource } from "@prisma/client"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
 type TestQuestionPickerProps = {
   subjectId: string
+  // Selected questions
   selectedQuestions: Question[]
   isLoadingSelected: boolean
-  onAdd: (questionId: string) => void
   onRemove: (questionId: string) => void
+  // Available questions
+  availableQuestions: Question[]
+  isLoadingAvailable: boolean
+  onAdd: (questionId: string) => void
+  // Filters
+  search: string
+  onSearchChange: (value: string) => void
+  selectedSources: QuestionSource[]
+  onSelectedSourcesChange: (sources: QuestionSource[]) => void
+  selectedTopicIds: string[]
+  onSelectedTopicIdsChange: (ids: string[]) => void
+  // Pagination
+  currentPage: number
+  totalPages: number | undefined | null
+  onPageChange: (page: number) => void
 }
 
 export function QuestionPicker({
   subjectId,
+  // Selected
   selectedQuestions,
   isLoadingSelected,
-  onAdd,
   onRemove,
+  // Available
+  availableQuestions,
+  isLoadingAvailable,
+  onAdd,
+  // Filters
+  search,
+  onSearchChange,
+  selectedSources,
+  onSelectedSourcesChange,
+  selectedTopicIds,
+  onSelectedTopicIdsChange,
+  // Pagination
+  currentPage,
+  totalPages,
+  onPageChange,
 }: TestQuestionPickerProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const { search, debouncedSearch, onSearchChange } = useSearchFilter()
-  const { selectedTopicIds, onSelectedTopicIdsChange } =
-    useTopicFilter(subjectId)
-  const { selectedSources, onSelectedSourcesChange } = useSourceFilter()
-
-  const excludedIds = selectedQuestions.map((q) => q.id)
-
-  const availableQuestionsQuery = api.question.getPaginated.useQuery({
-    subjectId: subjectId,
-    topicIds: selectedTopicIds,
-    search: debouncedSearch,
-    sources: selectedSources,
-    page: currentPage,
-    limit: 5,
-    excludeIds: excludedIds,
-  })
-
-  const availableQuestions = availableQuestionsQuery.data?.items ?? []
-
   const addQuestionControl = (question: Question) => (
     <Button
       size="sm"
@@ -73,8 +81,8 @@ export function QuestionPicker({
   const pagination = (
     <Pagination
       currentPage={currentPage}
-      totalPages={availableQuestionsQuery.data?.totalPages}
-      onChangePage={setCurrentPage}
+      totalPages={totalPages}
+      onChangePage={onPageChange}
       className="self-center"
     />
   )
@@ -99,10 +107,10 @@ export function QuestionPicker({
           {pagination}
           <QuestionList
             questions={availableQuestions}
-            isLoading={availableQuestionsQuery.isLoading}
+            isLoading={isLoadingAvailable}
             cardControls={addQuestionControl}
           />
-          {!availableQuestionsQuery.isFetching && pagination}
+          {!isLoadingAvailable && pagination}
         </Stack>
       </Stack>
 

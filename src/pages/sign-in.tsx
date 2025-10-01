@@ -4,9 +4,9 @@ import { useRouter } from "next/router"
 import Head from "next/head"
 import Link from "next/link"
 
-import { Button, Container, Input, Paper, Row, Stack } from "@/ui"
+import { Button, Container, Input, Paper, Row, Spinner, Stack } from "@/ui"
 import DefaultLayout from "@/layouts/DefaultLayout"
-import { isTutor } from "@/utils/permissions"
+import { isStudent, isTutor } from "@/utils/permissions"
 
 export default function SignInPage() {
   const [name, setName] = useState("")
@@ -20,8 +20,10 @@ export default function SignInPage() {
       const permissions = session.user.permissions ?? 0
       if (isTutor(permissions)) {
         void router.push("/tutor/questions")
-      } else {
+      } else if (isStudent(permissions)) {
         void router.push("/student/assignments")
+      } else {
+        // TODO add no permissions page
       }
     }
   }, [status, session, router])
@@ -30,7 +32,7 @@ export default function SignInPage() {
     return (
       <DefaultLayout>
         <Container className="my-auto text-center">
-          <p>Аутентификация...</p>
+          <Spinner />
         </Container>
       </DefaultLayout>
     )

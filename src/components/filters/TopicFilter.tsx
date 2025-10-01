@@ -7,19 +7,39 @@ type TopicFilterProps = {
   subjectId: string
   selectedTopicIds: string[]
   onSelectedTopicIdsChange: (ids: string[]) => void
+  allowedTopicIds?: string[]
 }
 
 export function TopicFilter({
   subjectId,
   selectedTopicIds,
   onSelectedTopicIdsChange,
+  allowedTopicIds,
 }: TopicFilterProps) {
   const topicsQuery = api.topic.getAllBySubject.useQuery({ subjectId })
 
   const topicOptions = useMemo(() => {
     if (!topicsQuery.data) return []
 
-    const topics = topicsQuery.data
+    let topics = topicsQuery.data
+
+    if (allowedTopicIds && allowedTopicIds.length > 0) {
+      const topicsById = new Map(topics.map((topic) => [topic.id, topic]))
+      const visibleTopicIds = new Set<string>()
+
+      for (const topicId of allowedTopicIds) {
+        let currentTopic = topicsById.get(topicId)
+        while (currentTopic) {
+          if (visibleTopicIds.has(currentTopic.id)) break
+          visibleTopicIds.add(currentTopic.id)
+          currentTopic = currentTopic.parentId
+            ? topicsById.get(currentTopic.parentId)
+            : undefined
+        }
+      }
+      topics = topics.filter((t) => visibleTopicIds.has(t.id))
+    }
+
     const rootTopics = topics.filter((t) => !t.parentId)
     const childTopicsMap = new Map<string, typeof topics>()
 
@@ -55,7 +75,7 @@ export function TopicFilter({
     })
 
     return options
-  }, [topicsQuery.data])
+  }, [topicsQuery.data, allowedTopicIds])
 
   const selectedOptions = useMemo(
     () =>
@@ -76,7 +96,11 @@ export function TopicFilter({
   }
 
   if (!topicOptions || topicOptions.length === 0) {
-    return <p className="text-sm text-secondary">Темы не найдены.</p>
+    return (
+      <p className="text-sm text-secondary">
+        {allowedTopicIds ? "Нет тем для этого задания." : "Темы не найдены."}
+      </p>
+    )
   }
 
   return (
