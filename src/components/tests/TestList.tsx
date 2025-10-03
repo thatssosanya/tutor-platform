@@ -12,10 +12,16 @@ type Test = RouterOutputs["test"]["getAllBySubject"][number] & {
 type TestListProps = {
   tests: Test[]
   isLoading: boolean
-  cardControls: (test: Test) => React.ReactNode
+  cardControls?: (test: Test) => React.ReactNode
+  cardFooter?: (test: Test) => React.ReactNode
 }
 
-export function TestList({ tests, isLoading, cardControls }: TestListProps) {
+export function TestList({
+  tests,
+  isLoading,
+  cardControls,
+  cardFooter,
+}: TestListProps) {
   if (isLoading) {
     return <p>Загрузка тестов...</p>
   }
@@ -27,7 +33,12 @@ export function TestList({ tests, isLoading, cardControls }: TestListProps) {
   return (
     <Stack className="gap-4">
       {tests.map((test) => (
-        <TestCard key={test.id} test={test} controls={cardControls} />
+        <TestCard
+          key={test.id}
+          test={test}
+          controls={cardControls}
+          footer={cardFooter}
+        />
       ))}
     </Stack>
   )

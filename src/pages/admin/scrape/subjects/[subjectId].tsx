@@ -5,10 +5,11 @@ import React, { Fragment, useCallback, useEffect, useState } from "react"
 
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import DefaultLayout from "@/layouts/DefaultLayout"
-import { Button, Container, Paper, Stack } from "@/ui"
+import { Button, Container, Paper, Spinner, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { Markdown } from "@/components/Markdown"
-import { Check } from "lucide-react"
+import { Check, X } from "lucide-react"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 type Question = RouterOutputs["question"]["getWithOffset"]["items"][number]
 
@@ -216,13 +217,13 @@ const ScrapeSubjectPage: NextPage = () => {
         >
           {question.verified ? (
             <>
-              <Check className="h-4 w-4 text-success mr-4" />
-              Verified
+              <Check className="h-6 w-6 text-success mr-4" />
+              Подтвержден
             </>
           ) : (
             <>
-              <Check className="h-4 w-4 text-danger mr-4" />
-              Unverified
+              <X className="h-6 w-6 text-danger mr-4" />
+              Неподтвержден
             </>
           )}
         </Button>
@@ -266,13 +267,7 @@ const ScrapeSubjectPage: NextPage = () => {
   }
 
   if (!router.isReady || isLoadingSubject) {
-    return (
-      <DefaultLayout>
-        <Container>
-          <p>Loading...</p>
-        </Container>
-      </DefaultLayout>
-    )
+    return <SpinnerScreen />
   }
 
   if (!subject) {
@@ -297,13 +292,13 @@ const ScrapeSubjectPage: NextPage = () => {
       <Container className="py-8">
         <Stack className="gap-6">
           <h1 className="text-2xl font-bold">
-            Scraping for: {subject.name} ({subject.id})
+            {subject.name} ({subject.id})
           </h1>
 
-          {isLoadingTopics && <p>Loading topics...</p>}
+          {isLoadingTopics && <p>Загрузка тем...</p>}
           {!isLoadingTopics && (!topics || topics.length === 0) && (
             <div>
-              <p>No topics found. Scrape them first.</p>
+              <p>Темы не найдены.</p>
               <Button
                 onClick={handleScrapeTopics}
                 disabled={
@@ -311,8 +306,8 @@ const ScrapeSubjectPage: NextPage = () => {
                 }
               >
                 {scrapeTopicsMutation.isPending
-                  ? "Scraping Topics..."
-                  : "Scrape Topics"}
+                  ? "Темы скрейпятся..."
+                  : "Скрейпить темы"}
               </Button>
             </div>
           )}
@@ -321,14 +316,14 @@ const ScrapeSubjectPage: NextPage = () => {
             <Fragment>
               {isAutoScraping && (
                 <p className="font-bold text-blue-500">
-                  Auto-scraping page {page} of {targetPage}... Do not navigate
-                  away.
+                  Авто-скрейпинг страницы {page} из {targetPage}... Не
+                  закрывайте вкладку.
                 </p>
               )}
               {isAutoEnriching && (
                 <p className="font-bold text-green-500">
-                  Auto-enriching page {page} of {targetPage}... Do not navigate
-                  away.
+                  Авто-решение страницы {page} из {targetPage}... Не закрывайте
+                  вкладку.
                 </p>
               )}
 
@@ -348,9 +343,7 @@ const ScrapeSubjectPage: NextPage = () => {
                 </div>
               )}
 
-              <h2 className="text-xl font-semibold">Page {page}</h2>
-
-              {isLoadingQuestions && <p>Loading questions...</p>}
+              {isLoadingQuestions && <p>Загрузка вопросов...</p>}
               {!isLoadingQuestions && (
                 <Stack className="gap-4">
                   <div className="flex flex-wrap items-center gap-4 rounded-lg border border-primary bg-paper p-4">
@@ -359,18 +352,18 @@ const ScrapeSubjectPage: NextPage = () => {
                       disabled={isAnyAutomationRunning}
                     >
                       {scrapePageMutation.isPending && !isAutoScraping
-                        ? `Scraping Page ${page}...`
-                        : `Scrape Page ${page}`}
+                        ? `Страница ${page} скрейпится...`
+                        : `Скрейпить страницу ${page}`}
                     </Button>
                     <Button
                       onClick={handleEnrichPage}
                       disabled={isAnyAutomationRunning}
                     >
                       {enrichManyMutation.isPending && !isAutoEnriching
-                        ? "Enriching Page..."
-                        : "Enrich Page " + page}
+                        ? `Страница ${page} решается...`
+                        : "Решить страницу " + page}
                     </Button>
-                    <span>OR</span>
+                    <span>/</span>
                     <input
                       type="number"
                       value={targetPage}
@@ -379,7 +372,7 @@ const ScrapeSubjectPage: NextPage = () => {
                           e.target.value === "" ? "" : Number(e.target.value)
                         )
                       }
-                      placeholder="Scrape/Enrich until page..."
+                      placeholder="до страницы..."
                       min={page + 1}
                       disabled={isAnyAutomationRunning}
                       className="w-48 rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
@@ -388,13 +381,17 @@ const ScrapeSubjectPage: NextPage = () => {
                       onClick={handleAutoScrape}
                       disabled={isAnyAutomationRunning || !targetPage}
                     >
-                      {isAutoScraping ? "Scraping..." : "Start Auto-Scrape"}
+                      {isAutoScraping
+                        ? "Авто-скрейпится..."
+                        : "Начать авто-скрейпинг"}
                     </Button>
                     <Button
                       onClick={handleAutoEnrich}
                       disabled={isAnyAutomationRunning || !targetPage}
                     >
-                      {isAutoEnriching ? "Enriching..." : "Start Auto-Enrich"}
+                      {isAutoEnriching
+                        ? "Авто-решается..."
+                        : "Начать авто-решение"}
                     </Button>
                   </div>
                 </Stack>

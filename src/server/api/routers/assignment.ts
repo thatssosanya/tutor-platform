@@ -184,6 +184,11 @@ export const assignmentRouter = createTRPCRouter({
               },
             },
           },
+          answers: {
+            select: {
+              isCorrect: true,
+            },
+          },
         },
       })
     }),

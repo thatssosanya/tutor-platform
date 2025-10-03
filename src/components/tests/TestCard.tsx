@@ -9,10 +9,11 @@ type Test = RouterOutputs["test"]["getAllBySubject"][number] & {
 
 type TestCardProps = {
   test: Test
-  controls: (test: Test) => React.ReactNode
+  controls?: (test: Test) => React.ReactNode
+  footer?: (test: Test) => React.ReactNode
 }
 
-export function TestCard({ test, controls }: TestCardProps) {
+export function TestCard({ test, controls, footer }: TestCardProps) {
   return (
     <Paper data-id={test.id}>
       <Row className="items-center justify-between">
@@ -22,8 +23,9 @@ export function TestCard({ test, controls }: TestCardProps) {
             {test._count.questions} вопросов
           </p>
         </Stack>
-        <Row className="gap-2">{controls(test)}</Row>
+        {controls && <Row className="gap-2">{controls(test)}</Row>}
       </Row>
+      {footer && footer(test)}
     </Paper>
   )
 }

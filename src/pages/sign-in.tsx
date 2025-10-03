@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Button, Container, Input, Paper, Row, Spinner, Stack } from "@/ui"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import { isStudent, isTutor } from "@/utils/permissions"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 export default function SignInPage() {
   const [name, setName] = useState("")
@@ -29,13 +30,7 @@ export default function SignInPage() {
   }, [status, session, router])
 
   if (status === "authenticated") {
-    return (
-      <DefaultLayout>
-        <Container className="my-auto text-center">
-          <Spinner />
-        </Container>
-      </DefaultLayout>
-    )
+    return <SpinnerScreen />
   }
 
   const handleSignIn = async (e: React.FormEvent) => {

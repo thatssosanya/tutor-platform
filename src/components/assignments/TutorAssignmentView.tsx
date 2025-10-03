@@ -11,6 +11,7 @@ import { skipToken } from "@tanstack/react-query"
 import { TopicFilter } from "../filters/TopicFilter"
 import { Row } from "@/ui/Row"
 import { useRouter } from "next/router"
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type TutorAssignmentViewProps = {
   assignmentId: string | null
@@ -90,11 +91,7 @@ export function TutorAssignmentView({
   }, [questions, correctnessFilter, selectedTopicIds, studentAnswersMap])
 
   if (assignmentQuery.isLoading) {
-    return (
-      <Container className="flex items-center justify-center">
-        <Spinner />
-      </Container>
-    )
+    return <SpinnerScreen />
   }
 
   if (!assignmentQuery.data) {
@@ -118,13 +115,13 @@ export function TutorAssignmentView({
     }
   }
 
-  const totalQuestions = questions.length
+  const totalAnswers = answers.length
   const correctAnswersCount = answers.filter((a) => a.isCorrect).length
-  const incorrectAnswersCount = totalQuestions - correctAnswersCount
+  const incorrectAnswersCount = totalAnswers - correctAnswersCount
   const correctPercentage =
-    totalQuestions > 0 ? (correctAnswersCount / totalQuestions) * 100 : 0
+    totalAnswers > 0 ? (correctAnswersCount / totalAnswers) * 100 : 0
   const incorrectPercentage =
-    totalQuestions > 0 ? (incorrectAnswersCount / totalQuestions) * 100 : 0
+    totalAnswers > 0 ? (incorrectAnswersCount / totalAnswers) * 100 : 0
 
   return (
     <>

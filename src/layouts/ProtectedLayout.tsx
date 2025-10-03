@@ -6,6 +6,7 @@ import { Container, Spinner } from "@/ui"
 import { hasPermission, type PermissionBit } from "@/utils/permissions"
 
 import DefaultLayout from "./DefaultLayout"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 interface ProtectedLayoutProps {
   children: React.ReactNode
@@ -42,13 +43,7 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({
     return <DefaultLayout fullscreen={fullscreen}>{children}</DefaultLayout>
   }
 
-  return (
-    <div className="flex h-screen w-full items-center justify-center bg-primary">
-      <Container className="flex items-center justify-center">
-        <Spinner />
-      </Container>
-    </div>
-  )
+  return <SpinnerScreen />
 }
 
 export default ProtectedLayout

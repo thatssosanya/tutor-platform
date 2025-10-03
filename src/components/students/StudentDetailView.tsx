@@ -1,8 +1,18 @@
 // src/components/students/StudentDetailView.tsx
-import { ArrowLeft, ExternalLink, Eye, Save } from "lucide-react"
+import {
+  ArrowLeft,
+  Calendar,
+  CalendarCheck,
+  Check,
+  ExternalLink,
+  Eye,
+  Save,
+  X,
+} from "lucide-react"
 import React, { useEffect, useMemo, useState } from "react"
 
 import {
+  Box,
   Button,
   CheckboxGroup,
   Dialog,
@@ -16,6 +26,7 @@ import { api, type RouterOutputs } from "@/utils/api"
 import { useSubjects } from "@/utils/subjects"
 import { TestList } from "../tests/TestList"
 import { skipToken } from "@tanstack/react-query"
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type Test =
   RouterOutputs["assignment"]["getStudentAssignments"][number]["test"] & {
@@ -58,16 +69,86 @@ export function StudentDetailView({
     }))
   }, [assignmentsQuery.data])
 
-  const assignmentCardControls = (test: Test) =>
-    onViewAssignment && (
-      <Button
-        size="sm"
-        variant="primary-paper"
-        onClick={() => onViewAssignment(test.assignmentId!)}
-      >
-        <ExternalLink className="h-4 w-4" />
-      </Button>
+  const assignmentCardControls = (test: Test) => (
+    <>
+      {onViewAssignment && test.assignmentId && (
+        <Button
+          size="sm"
+          variant="primary-paper"
+          onClick={() => onViewAssignment(test.assignmentId!)}
+        >
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+      )}
+    </>
+  )
+
+  const assignmentCardFooter = (test: Test) => {
+    const assignment = assignmentsQuery.data?.find(
+      (a) => a.id === test.assignmentId
     )
+    if (!assignment) {
+      return null
+    }
+    const totalAnswers = assignment.answers.length
+    const correctAnswersCount = assignment.answers.filter(
+      (a) => a.isCorrect
+    ).length
+    const incorrectAnswersCount = totalAnswers - correctAnswersCount
+    const correctPercentage =
+      totalAnswers > 0 ? (correctAnswersCount / totalAnswers) * 100 : 0
+    const incorrectPercentage =
+      totalAnswers > 0 ? (incorrectAnswersCount / totalAnswers) * 100 : 0
+    return (
+      <Row className="mt-2 gap-2 text-secondary text-sm">
+        {assignment.completedAt ? (
+          <>
+            <CalendarCheck className="h-4 w-4 text-success" />
+            <Box>
+              Выполнено{" "}
+              <span className="text-primary">
+                {new Date(assignment.completedAt).toLocaleString("ru-RU", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              :{" "}
+            </Box>
+            <Row className="gap-1">
+              <Check className="inline-block h-[1em] w-[1em] text-success" />
+              <span className="text-primary">
+                {correctAnswersCount} ({correctPercentage.toFixed(0)}%)
+              </span>{" "}
+              правильно
+            </Row>
+            <Row className="gap-1">
+              <X className="inline-block h-[1em] w-[1em] text-danger" />
+              <span className="text-primary">
+                {incorrectAnswersCount} ({incorrectPercentage.toFixed(0)}%)
+              </span>
+              неправильно
+            </Row>
+          </>
+        ) : (
+          assignment.dueAt && (
+            <>
+              <Calendar className="h-4 w-4 text-primary text-sm" />
+              <Box>
+                {new Date(assignment.dueAt).toLocaleString("ru-RU", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </Box>
+            </>
+          )
+        )}
+      </Row>
+    )
+  }
 
   const updateStudentMutation = api.user.updateStudent.useMutation({
     onSuccess: () => {
@@ -99,7 +180,7 @@ export function StudentDetailView({
     label: s.name,
   }))
 
-  if (studentQuery.isLoading) return <p>Загрузка данных ученика...</p>
+  if (studentQuery.isLoading) return <SpinnerScreen />
   if (!student) return <p>Ученик не найден.</p>
 
   const isBcryptHash = /^\$2[abxy]\$.{56}$/.test(student.password)
@@ -158,6 +239,7 @@ export function StudentDetailView({
               tests={assignmentsAsTests}
               isLoading={assignmentsQuery.isLoading}
               cardControls={assignmentCardControls}
+              cardFooter={assignmentCardFooter}
             />
           ) : (
             <p className="text-secondary">У этого ученика нет заданий.</p>

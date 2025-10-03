@@ -10,6 +10,7 @@ import { useRouter } from "next/router"
 import { Container, Spinner } from "@/ui"
 import dynamic from "next/dynamic"
 import React, { type PropsWithChildren } from "react"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 const geist = Geist({
   subsets: ["latin"],
@@ -32,13 +33,7 @@ const MyApp: AppType<{ session: Session | null }> = ({
     <SessionProvider session={session}>
       <div className={geist.className}>
         <NoSsr>
-          {router.isReady ? (
-            <Component {...pageProps} />
-          ) : (
-            <Container className="flex h-screen w-screen items-center justify-center">
-              <Spinner />
-            </Container>
-          )}
+          {router.isReady ? <Component {...pageProps} /> : <SpinnerScreen />}
         </NoSsr>
       </div>
     </SessionProvider>
