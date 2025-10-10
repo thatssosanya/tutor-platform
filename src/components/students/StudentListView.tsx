@@ -8,12 +8,12 @@ import { SubjectFilter } from "../filters/SubjectFilter"
 
 type StudentListViewProps = {
   cardControls: (studentId: string) => React.ReactNode
-  isCreateAllowed?: boolean
+  allowCreate?: boolean
 }
 
 export function StudentListView({
   cardControls,
-  isCreateAllowed = false,
+  allowCreate = false,
 }: StudentListViewProps) {
   const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter({
     isStorageSyncEnabled: true,
@@ -47,7 +47,7 @@ export function StudentListView({
             isLoading={studentsQuery.isLoading}
             cardControls={cardControls}
           />
-          <StudentCreateForm isCreateAllowed={isCreateAllowed} />
+          <StudentCreateForm allowCreate={allowCreate} />
         </Stack>
       </div>
     </div>

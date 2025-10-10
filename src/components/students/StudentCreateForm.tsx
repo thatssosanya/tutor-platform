@@ -7,11 +7,11 @@ import { api } from "@/utils/api"
 import { useSubjects } from "@/utils/subjects"
 
 type StudentCreateFormProps = {
-  isCreateAllowed?: boolean
+  allowCreate?: boolean
 }
 
 export function StudentCreateForm({
-  isCreateAllowed = false,
+  allowCreate = false,
 }: StudentCreateFormProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [newStudentDisplayName, setNewStudentDisplayName] = useState("")
@@ -52,7 +52,7 @@ export function StudentCreateForm({
     label: s.name,
   }))
 
-  if (!isCreateAllowed) {
+  if (!allowCreate) {
     return null
   }
 

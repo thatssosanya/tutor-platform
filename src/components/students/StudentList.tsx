@@ -4,6 +4,7 @@ import { Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 
 import { StudentCard } from "./StudentCard"
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type Student = RouterOutputs["user"]["getStudents"][number]
 
@@ -19,7 +20,7 @@ export function StudentList({
   cardControls,
 }: StudentListProps) {
   if (isLoading) {
-    return <p>Загрузка учеников...</p>
+    return <SpinnerScreen />
   }
 
   if (!students || students.length === 0) {

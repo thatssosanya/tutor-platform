@@ -96,9 +96,12 @@ model Question {
     body            String?
     solutionPostfix String?
     work            String?
+    hint            String?
     solution        String?
     solutionType    SolutionType
     source          QuestionSource @default(FIPI)
+    sourcePosition  Int?
+    examPosition    Int?
 
     creatorId String?
     creator   User?   @relation(fields: [creatorId], references: [id])
@@ -141,7 +144,8 @@ model Option {
 model Test {
     id String @id @default(cuid())
 
-    name String
+    name         String
+    disableHints Boolean @default(false)
 
     creatorId String
     creator   User   @relation(fields: [creatorId], references: [id])

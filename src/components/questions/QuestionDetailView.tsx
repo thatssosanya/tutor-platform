@@ -15,6 +15,7 @@ import {
 } from "@/ui"
 import { api } from "@/utils/api"
 import { skipToken } from "@tanstack/react-query"
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type QuestionDetailViewProps = {
   questionId: string
@@ -137,7 +138,7 @@ export function QuestionDetailView({
 
   // --- Render Logic ---
   if (questionQuery.isLoading) {
-    return <p>Загрузка вопроса...</p>
+    return <SpinnerScreen />
   }
   if (!question) {
     return <p>Вопрос не найден.</p>

@@ -108,7 +108,7 @@ export function TutorAssignmentView({
   const handleBack = () => {
     if (from === "test" && assignmentQuery.data?.testId) {
       void router.push(
-        `/tutor/tests?subjectId=${test.subjectId}&testId=${assignmentQuery.data.testId}`
+        `/tutor/tests?subject=${test.subjectId}&testId=${assignmentQuery.data.testId}`
       )
     } else {
       onBack()

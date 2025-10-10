@@ -34,7 +34,7 @@ export function QuestionCard({
         <Chip title={"#" + question.name} variant="primary" />
         {controls && <Row className="ml-auto">{controls(question)}</Row>}
       </Row>
-      <Stack className="items-start md:flex-row md:items-center md:min-h-80">
+      <Stack className="items-start md:flex-row md:items-center md:min-h-40">
         <Stack className={cn("text-lg")}>
           <Markdown>{question.body}</Markdown>
         </Stack>

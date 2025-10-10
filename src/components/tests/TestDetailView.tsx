@@ -9,6 +9,7 @@ import { api, type RouterOutputs } from "@/utils/api"
 
 import { QuestionPicker } from "../questions/QuestionPicker"
 import { TestAssignmentManager } from "./TestAssignmentManager"
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type TestQuestion = Exclude<
   RouterOutputs["test"]["getById"],
@@ -24,11 +25,9 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
   const [testName, setTestName] = useState("")
   const utils = api.useUtils()
 
-  // --- Data Queries ---
   const testQuery = api.test.getById.useQuery({ id: testId })
   const test = testQuery.data
 
-  // --- State and Hooks for Question Picker (lifted from QuestionPicker) ---
   const [currentPage, setCurrentPage] = useState(1)
   const { search, debouncedSearch, onSearchChange } = useSearchFilter()
   const { selectedTopicIds, onSelectedTopicIdsChange } = useTopicFilter(
@@ -36,7 +35,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
   )
   const { selectedSources, onSelectedSourcesChange } = useSourceFilter()
 
-  const availableQuestionsQueryVars = {
+  const availableQuestionsQueryParams = {
     subjectId: test?.subjectId ?? "",
     topicIds: selectedTopicIds,
     search: debouncedSearch,
@@ -45,7 +44,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
     limit: 10,
   }
   const availableQuestionsQuery = api.question.getPaginated.useQuery(
-    availableQuestionsQueryVars,
+    availableQuestionsQueryParams,
     { enabled: !!test?.subjectId, placeholderData: (prev) => prev }
   )
 
@@ -59,11 +58,11 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
   const toggleQuestionMutation = api.test.toggleQuestion.useMutation({
     onMutate: async ({ questionId }) => {
       await utils.test.getById.cancel({ id: testId })
-      await utils.question.getPaginated.cancel(availableQuestionsQueryVars)
+      await utils.question.getPaginated.cancel(availableQuestionsQueryParams)
 
       const previousTestData = utils.test.getById.getData({ id: testId })
       const previousAvailableData = utils.question.getPaginated.getData(
-        availableQuestionsQueryVars
+        availableQuestionsQueryParams
       )
 
       if (!previousTestData || !previousAvailableData) return
@@ -89,7 +88,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
               }
         )
         utils.question.getPaginated.setData(
-          availableQuestionsQueryVars,
+          availableQuestionsQueryParams,
           (oldData) =>
             !oldData
               ? undefined
@@ -105,7 +104,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
         if (!questionToMove) return
 
         utils.question.getPaginated.setData(
-          availableQuestionsQueryVars,
+          availableQuestionsQueryParams,
           (oldData) =>
             !oldData
               ? undefined
@@ -142,7 +141,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
       }
       if (context?.previousAvailableData) {
         utils.question.getPaginated.setData(
-          availableQuestionsQueryVars,
+          availableQuestionsQueryParams,
           context.previousAvailableData
         )
       }
@@ -185,7 +184,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
   const isNameChanged = testName !== test?.name
 
   if (testQuery.isLoading) {
-    return <p>Загрузка данных теста...</p>
+    return <SpinnerScreen />
   }
   if (!test) {
     return <p>Тест не найден.</p>
@@ -221,20 +220,16 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
       </Paper>
 
       <QuestionPicker
-        // Data and state
         subjectId={test.subjectId}
         availableQuestions={availableQuestions}
         selectedQuestions={selectedQuestions}
         isLoadingAvailable={availableQuestionsQuery.isLoading}
         isLoadingSelected={testQuery.isFetching}
-        // Pagination
         currentPage={currentPage}
         totalPages={availableQuestionsQuery.data?.totalPages}
         onPageChange={setCurrentPage}
-        // Actions
         onAdd={handleToggleQuestion}
         onRemove={handleToggleQuestion}
-        // Filters
         search={search}
         onSearchChange={onSearchChange}
         selectedSources={selectedSources}

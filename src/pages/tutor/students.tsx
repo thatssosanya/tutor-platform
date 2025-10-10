@@ -75,7 +75,7 @@ export default function TutorStudentsPage() {
           >
             <StudentListView
               cardControls={studentCardControls}
-              isCreateAllowed={true}
+              allowCreate={true}
             />
           </Transition>
           <Transition

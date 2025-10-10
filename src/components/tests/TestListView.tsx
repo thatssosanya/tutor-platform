@@ -11,12 +11,12 @@ type Test = RouterOutputs["test"]["getAllBySubject"][number]
 
 type TestListViewProps = {
   cardControls: (test: Test) => React.ReactNode
-  isCreateAllowed?: boolean
+  allowCreate?: boolean
 }
 
 export function TestListView({
   cardControls,
-  isCreateAllowed = false,
+  allowCreate = false,
 }: TestListViewProps) {
   const { selectedSubjectId, onSelectedSubjectIdChange } = useSubjectFilter({
     isStorageSyncEnabled: true,
@@ -53,9 +53,7 @@ export function TestListView({
               isLoading={testsQuery.isLoading}
               cardControls={cardControls}
             />
-            {isCreateAllowed && (
-              <TestCreateForm subjectId={selectedSubjectId} />
-            )}
+            {allowCreate && <TestCreateForm subjectId={selectedSubjectId} />}
           </Stack>
         ) : (
           <p className="text-secondary">

@@ -12,6 +12,7 @@ import { Box, Button, Container, Input, Paper, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 import { AssignmentSolutionBlock } from "@/components/assignments/AssignmentSolutionBlock"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -35,6 +36,7 @@ function AnswerSolutionBlock({
   onSubmit,
   isSubmitting,
 }: AnswerSolutionBlockProps) {
+  const [showHint, setShowHint] = useState(false)
   const isAnswered = !!studentAnswer
 
   if (question.solutionType !== SolutionType.SHORT) {
@@ -54,6 +56,9 @@ function AnswerSolutionBlock({
   // Otherwise, show the input to submit an answer.
   return (
     <Stack className="w-full justify-center gap-4">
+      {showHint && (
+        <AssignmentSolutionBlock question={question} showControls showHint />
+      )}
       <p className="font-semibold">{question.prompt}</p>
       <Input
         placeholder="Ответ"
@@ -71,13 +76,18 @@ function AnswerSolutionBlock({
         }
       />
       <Stack className="justify-evenly mt-4 gap-4 md:flex-row">
-        <Button size="lg" className="gap-4" disabled>
-          <Eye />
-          Подсказка
-        </Button>
-        <Button size="lg" className="gap-4" disabled>
+        <Button size="lg" className="gap-4 flex-grow" disabled>
           <Eye />
           Решение
+        </Button>
+        <Button
+          size="lg"
+          className="gap-4 flex-grow"
+          onClick={() => setShowHint((prev) => !prev)}
+          disabled={!question.hint}
+        >
+          {showHint ? <EyeOff /> : <Eye />}
+          Подсказка
         </Button>
       </Stack>
     </Stack>
@@ -256,13 +266,7 @@ export default function AssignmentPage() {
   const canComplete = answeredQuestionsCount === answerableQuestions
 
   if (assignmentQuery.isLoading) {
-    return (
-      <ProtectedLayout>
-        <Container>
-          <p>Загрузка задания...</p>
-        </Container>
-      </ProtectedLayout>
-    )
+    return <SpinnerScreen />
   }
 
   if (!assignmentQuery.data || !currentQuestion) {

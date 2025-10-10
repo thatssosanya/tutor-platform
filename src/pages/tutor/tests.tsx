@@ -65,10 +65,7 @@ export default function TutorTestsPage() {
             leaveFrom="translate-x-0"
             leaveTo="-translate-x-full"
           >
-            <TestListView
-              cardControls={testCardControls}
-              isCreateAllowed={true}
-            />
+            <TestListView cardControls={testCardControls} allowCreate={true} />
           </Transition>
           <Transition
             show={!!activeTestId}

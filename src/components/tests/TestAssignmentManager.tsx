@@ -80,7 +80,7 @@ export function TestAssignmentManager({
               as="a"
               onClick={() => {
                 router.push(
-                  `/tutor/students?subjectId=${subjectId}&studentId=${assignment.assignedToId}&assignmentId=${assignment.id}&from=test`
+                  `/tutor/students?subject=${subjectId}&studentId=${assignment.assignedToId}&assignmentId=${assignment.id}&from=test`
                 )
               }}
             />

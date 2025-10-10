@@ -4,7 +4,7 @@ import { Transition } from "@headlessui/react"
 import { useSourceFilter } from "@/hooks/useSourceFilter"
 import { useSubjectFilter } from "@/hooks/useSubjectFilter"
 import { useTopicFilter } from "@/hooks/useTopicFilter"
-import { Box, Pagination, Spinner, Stack } from "@/ui"
+import { Box, Pagination, Row, Spinner, Stack, Button } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { useSearchFilter } from "@/hooks/useSearchFilter"
 
@@ -14,17 +14,21 @@ import { SubjectFilter } from "../filters/SubjectFilter"
 import { SearchFilter } from "../filters/SearchFilter"
 import { SourceFilter } from "../filters/SourceFilter"
 import { TopicFilter } from "../filters/TopicFilter"
+import { usePermissions } from "@/utils/permissions"
+import { ThumbsDown, Trash2, ExternalLink } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { AssignmentSolutionBlock } from "../assignments/AssignmentSolutionBlock"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
 type QuestionListViewProps = {
-  cardControls: (question: Question) => React.ReactNode
-  isCreateAllowed?: boolean
+  allowCreate?: boolean
+  onSelect?: (questionId: string) => void
 }
 
 export function QuestionListView({
-  cardControls,
-  isCreateAllowed = false,
+  allowCreate = false,
+  onSelect,
 }: QuestionListViewProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [isPaginating, setIsPaginating] = useState(false)
@@ -45,21 +49,96 @@ export function QuestionListView({
     isQueryParamSyncEnabled: true,
   })
 
+  const { data: session } = useSession()
+  const { isAdmin } = usePermissions()
+  const utils = api.useUtils()
+
+  const questionsQueryParams = {
+    subjectId: selectedSubjectId!,
+    topicIds: selectedTopicIds,
+    search: debouncedSearch ?? undefined,
+    sources: selectedSources,
+    page: currentPage,
+    limit: 10,
+  }
+
   const questionsQuery = api.question.getPaginated.useQuery(
+    questionsQueryParams,
     {
-      subjectId: selectedSubjectId!,
-      topicIds: selectedTopicIds,
-      search: debouncedSearch ?? undefined,
-      sources: selectedSources,
-      page: currentPage,
-      limit: 10,
-    },
-    { enabled: !!selectedSubjectId, placeholderData: (prev) => prev }
+      enabled: !!selectedSubjectId,
+      placeholderData: (prev) => prev,
+    }
   )
 
+  const updateVerificationMutation =
+    api.question.updateVerifications.useMutation({
+      onMutate: async (input) => {
+        await utils.question.getPaginated.cancel(questionsQueryParams)
+
+        const previousData =
+          utils.question.getPaginated.getData(questionsQueryParams)
+
+        if (previousData) {
+          const questionIdsToUnverify = Object.keys(input.updates)
+
+          const newData = {
+            ...previousData,
+            items: previousData.items.filter(
+              (question) => !questionIdsToUnverify.includes(question.id)
+            ),
+          }
+
+          utils.question.getPaginated.setData(questionsQueryParams, newData)
+        }
+
+        return { previousData }
+      },
+      onError: (err, input, context) => {
+        if (context?.previousData) {
+          utils.question.getPaginated.setData(
+            questionsQueryParams,
+            context.previousData
+          )
+        }
+      },
+      onSettled: () => {
+        utils.question.getPaginated.invalidate(questionsQueryParams)
+      },
+    })
+
+  const deleteMutation = api.question.delete.useMutation({
+    onMutate: async ({ id: questionIdToDelete }) => {
+      await utils.question.getPaginated.cancel(questionsQueryParams)
+
+      const previousData =
+        utils.question.getPaginated.getData(questionsQueryParams)
+
+      if (previousData) {
+        const newData = {
+          ...previousData,
+          items: previousData.items.filter(
+            (question) => question.id !== questionIdToDelete
+          ),
+        }
+        utils.question.getPaginated.setData(questionsQueryParams, newData)
+      }
+
+      return { previousData }
+    },
+    onError: (err, input, context) => {
+      if (context?.previousData) {
+        utils.question.getPaginated.setData(
+          questionsQueryParams,
+          context.previousData
+        )
+      }
+    },
+    onSettled: () => {
+      utils.question.getPaginated.invalidate(questionsQueryParams)
+    },
+  })
+
   useEffect(() => {
-    // When the new data has arrived, turn off pagination mode.
-    // This will trigger the fade-in of the new content.
     if (!questionsQuery.isFetching) {
       setIsPaginating(false)
     }
@@ -69,9 +148,55 @@ export function QuestionListView({
     if (newPage === currentPage || isPaginating) return
 
     setSlideDirection(newPage > currentPage ? "left" : "right")
-    setIsPaginating(true) // Triggers slide-out and spinner fade-in
-    setCurrentPage(newPage) // Triggers the data fetch immediately
+    setIsPaginating(true)
+    setCurrentPage(newPage)
   }
+
+  const handleDelete = (questionId: string) => {
+    if (window.confirm("Вы уверены, что хотите удалить этот вопрос?")) {
+      deleteMutation.mutate({ id: questionId })
+    }
+  }
+
+  const cardControls = (question: Question) => (
+    <Row className="items-center gap-2">
+      {isAdmin && (
+        <Button
+          size="sm"
+          variant="primary-paper"
+          onClick={() =>
+            updateVerificationMutation.mutate({
+              updates: { [question.id]: false },
+            })
+          }
+        >
+          <ThumbsDown className="h-4 w-4" />
+        </Button>
+      )}
+      {question.creatorId === session?.user?.id && (
+        <Button
+          size="sm"
+          variant="primary-paper"
+          onClick={() => handleDelete(question.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
+      {onSelect && (
+        <Button
+          size="sm"
+          variant="primary-paper"
+          onClick={() => onSelect(question.id)}
+        >
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+      )}
+    </Row>
+  )
+
+  const cardFooter = (question: Question) => (
+    <AssignmentSolutionBlock question={question} showAnswer={false} />
+  )
 
   const pagination = (
     <Pagination
@@ -131,7 +256,6 @@ export function QuestionListView({
 
             <Transition
               show={!isPaginating}
-              // Slide out animation
               as="div"
               leave="transition-transform duration-300 ease-in absolute inset-0 w-full"
               leaveFrom="translate-x-0"
@@ -140,7 +264,6 @@ export function QuestionListView({
                   ? "-translate-x-full"
                   : "translate-x-full"
               }
-              // Fade in animation
               enter="transition-opacity duration-300 ease-out"
               enterFrom="opacity-0"
               enterTo="opacity-100"
@@ -149,11 +272,12 @@ export function QuestionListView({
                 questions={questions}
                 isLoading={questionsQuery.isLoading && !isPaginating}
                 cardControls={cardControls}
+                cardFooter={cardFooter}
               />
             </Transition>
           </div>
           {!isPaginating && pagination}
-          {!isPaginating && isCreateAllowed && (
+          {!isPaginating && allowCreate && (
             <QuestionCreateForm subjectId={selectedSubjectId} />
           )}
         </Stack>

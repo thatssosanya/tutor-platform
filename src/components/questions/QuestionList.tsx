@@ -4,6 +4,7 @@ import { Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 
 import { QuestionCard } from "./QuestionCard"
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -21,7 +22,7 @@ export function QuestionList({
   cardFooter,
 }: QuestionListProps) {
   if (isLoading) {
-    return <p>Загрузка вопросов...</p>
+    return <SpinnerScreen />
   }
 
   if (!questions || questions.length === 0) {

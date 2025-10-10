@@ -4,6 +4,7 @@ import { type RouterOutputs } from "@/utils/api"
 
 import { TestCard } from "./TestCard"
 import { Stack } from "@/ui"
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type Test = RouterOutputs["test"]["getAllBySubject"][number] & {
   assignmentId?: string
@@ -23,7 +24,7 @@ export function TestList({
   cardFooter,
 }: TestListProps) {
   if (isLoading) {
-    return <p>Загрузка тестов...</p>
+    return <SpinnerScreen />
   }
 
   if (!tests || tests.length === 0) {

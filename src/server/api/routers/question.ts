@@ -60,7 +60,10 @@ export const questionRouter = createTRPCRouter({
       })
     }),
 
-  getWithOffset: createProtectedProcedure([PermissionBit.TUTOR])
+  getWithOffset: createProtectedProcedure([
+    PermissionBit.TUTOR,
+    PermissionBit.ADMIN,
+  ])
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(10),
@@ -68,19 +71,61 @@ export const questionRouter = createTRPCRouter({
         subjectId: z.string().optional(),
         topicIds: z.array(z.string()).optional(),
         source: z.nativeEnum(QuestionSource).optional(),
+        verified: z.boolean().nullable().optional(),
+        hasExamPosition: z.boolean().nullable().optional(),
+        hasSolution: z.boolean().nullable().optional(),
+        hasWork: z.boolean().nullable().optional(),
+        hasHint: z.boolean().nullable().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { limit, page, subjectId, topicIds, source } = input
+      const {
+        limit,
+        page,
+        subjectId,
+        topicIds,
+        source,
+        verified,
+        hasExamPosition,
+        hasSolution,
+        hasWork,
+        hasHint,
+      } = input
       const skip = (page - 1) * limit
 
-      const whereClause = {
+      const whereClause: Prisma.QuestionWhereInput = {
         subjectId: subjectId,
         source: source,
         topics:
           topicIds && topicIds.length > 0
             ? { some: { topicId: { in: topicIds } } }
             : undefined,
+        verified:
+          verified === null || verified === undefined ? undefined : verified,
+        examPosition:
+          hasExamPosition === null || hasExamPosition === undefined
+            ? undefined
+            : hasExamPosition
+              ? { not: null }
+              : { equals: null },
+        solution:
+          hasSolution === null || hasSolution === undefined
+            ? undefined
+            : hasSolution
+              ? { not: null }
+              : { equals: null },
+        work:
+          hasWork === null || hasWork === undefined
+            ? undefined
+            : hasWork
+              ? { not: null }
+              : { equals: null },
+        hint:
+          hasHint === null || hasHint === undefined
+            ? undefined
+            : hasHint
+              ? { not: null }
+              : { equals: null },
       }
 
       const [items, totalCount] = await ctx.db.$transaction([
@@ -217,6 +262,20 @@ export const questionRouter = createTRPCRouter({
     }),
 
   // --- FOR ADMINS ---
+
+  updateExamPosition: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(
+      z.object({
+        id: z.string(),
+        examPosition: z.number().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.question.update({
+        where: { id: input.id },
+        data: { examPosition: input.examPosition },
+      })
+    }),
 
   enrichOne: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ id: z.string() }))

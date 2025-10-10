@@ -233,7 +233,7 @@ export function StudentDetailView({
         <Stack className="gap-4">
           <h2 className="text-xl font-semibold">Задания</h2>
           {assignmentsQuery.isLoading ? (
-            <p>Загрузка заданий...</p>
+            <SpinnerScreen />
           ) : assignmentsAsTests.length > 0 ? (
             <TestList
               tests={assignmentsAsTests}
