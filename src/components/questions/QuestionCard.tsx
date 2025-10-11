@@ -33,7 +33,6 @@ export function QuestionCard({
     >
       <Row>
         <Chip
-          title={"#" + question.name}
           variant="primary"
           {...(question.source === QuestionSource.FIPI
             ? {
@@ -42,7 +41,9 @@ export function QuestionCard({
                 target: "_blank",
               }
             : null)}
-        />
+        >
+          {"#" + question.name}
+        </Chip>
         {controls && <Row className="ml-auto">{controls(question)}</Row>}
       </Row>
       <Stack className="items-start md:flex-row md:items-center md:min-h-40">

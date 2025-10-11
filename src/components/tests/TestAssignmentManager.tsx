@@ -61,36 +61,35 @@ export function TestAssignmentManager({
           {assignments.map((assignment) => (
             <Chip
               key={assignment.id}
-              title={assignment.assignedTo.displayName}
               variant={assignment.completedAt ? "success" : "primary"}
-              content={
-                assignment.dueAt ? (
-                  <>
-                    {formatDateToString(assignment.dueAt)}
-                    <button
-                      onClick={() => handleDelete(assignment.id)}
-                      className="-mr-1.5 rounded-full p-0.5 hover:bg-black/10 cursor-pointer"
-                      aria-label="Удалить"
-                    >
-                      <X className="h-[1em] w-[1em]" />
-                    </button>
-                  </>
-                ) : undefined
-              }
               as="a"
-              onClick={() => {
-                router.push(
-                  `/tutor/students?subject=${subjectId}&studentId=${assignment.assignedToId}&assignmentId=${assignment.id}&from=test`
-                )
-              }}
-            />
+              href={`/tutor/students?subject=${subjectId}&studentId=${assignment.assignedToId}&assignmentId=${assignment.id}&from=test`}
+            >
+              {assignment.assignedTo.displayName}
+              {assignment.dueAt ? (
+                <>
+                  {" "}
+                  {formatDateToString(assignment.dueAt)}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleDelete(assignment.id)
+                    }}
+                    className="-mr-1.5 rounded-full p-0.5 hover:bg-black/10 cursor-pointer"
+                    aria-label="Удалить"
+                  >
+                    <X className="h-[1em] w-[1em]" />
+                  </button>
+                </>
+              ) : undefined}
+            </Chip>
           ))}
           <Chip
-            title="Задать"
             className="cursor-pointer hover:bg-muted-highlight"
-            content={<Plus className="h-[1em] w-[1em]" />}
             onClick={() => setAssignDialogOpen(true)}
-          />
+          >
+            {<Plus className="h-[1em] w-[1em]" />}
+          </Chip>
         </Row>
       </LabelBox>
 

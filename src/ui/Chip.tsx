@@ -23,17 +23,14 @@ const chipVariants = cva(
 
 export type ChipProps<E extends ElementType = typeof defaultBoxElement> =
   VariantProps<typeof chipVariants> & {
-    title: string
     className?: string
-    content?: React.ReactNode
     onClick?: () => void
   } & BoxProps<E>
 
 export function Chip<E extends ElementType = typeof defaultBoxElement>({
+  children,
   className,
   variant,
-  title,
-  content,
   onClick,
   as,
   ...props
@@ -45,12 +42,10 @@ export function Chip<E extends ElementType = typeof defaultBoxElement>({
         (onClick || as === "a") && "cursor-pointer"
       )}
       onClick={onClick}
-      aria-label={title}
       as={as ?? (onClick ? "button" : "div")}
       {...props}
     >
-      <span>{title}</span>
-      {content}
+      {children}
     </Box>
   )
 }

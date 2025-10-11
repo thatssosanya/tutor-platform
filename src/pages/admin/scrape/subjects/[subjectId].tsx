@@ -1,25 +1,27 @@
 import { SolutionType } from "@prisma/client"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
-import React, { Fragment, useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import {
   Button,
   Container,
-  Paper,
-  Row,
-  Spinner,
-  Stack,
   RadioGroup,
   type RadioOption,
+  Row,
+  Stack,
   Box,
 } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { Markdown } from "@/components/Markdown"
 import { Check, X } from "lucide-react"
 import { SpinnerScreen } from "@/components/SpinnerScreen"
+import { useSearchFilter } from "@/hooks/useSearchFilter"
+import { useTopicFilter } from "@/hooks/useTopicFilter"
+import { SearchFilter } from "@/components/filters/SearchFilter"
+import { TopicFilter } from "@/components/filters/TopicFilter"
 
 type Question = RouterOutputs["question"]["getWithOffset"]["items"][number]
 type BooleanFilterState = "all" | "yes" | "no"
@@ -99,6 +101,11 @@ const ScrapeSubjectPage: NextPage = () => {
   const [isAutoScraping, setIsAutoScraping] = useState(false)
   const [isAutoEnriching, setIsAutoEnriching] = useState(false)
 
+  // Filter hooks
+  const { search, debouncedSearch, onSearchChange } = useSearchFilter()
+  const { selectedTopicIds, onSelectedTopicIdsChange } =
+    useTopicFilter(fipiSubjectId)
+
   // Filter states
   const [verifiedFilter, setVerifiedFilter] =
     useState<BooleanFilterState>("all")
@@ -130,6 +137,8 @@ const ScrapeSubjectPage: NextPage = () => {
     subjectId: fipiSubjectId,
     page,
     limit: 10,
+    search: debouncedSearch || undefined,
+    topicIds: selectedTopicIds,
     verified: verifiedFilter === "all" ? null : verifiedFilter === "yes",
     solutionType: solutionTypeFilter === "all" ? undefined : solutionTypeFilter,
     hasExamPosition:
@@ -157,6 +166,8 @@ const ScrapeSubjectPage: NextPage = () => {
     solutionFilter,
     workFilter,
     hintFilter,
+    debouncedSearch,
+    JSON.stringify(selectedTopicIds),
   ])
 
   const scrapeTopicsMutation = api.scraper.scrapeTopics.useMutation({
@@ -452,7 +463,7 @@ const ScrapeSubjectPage: NextPage = () => {
   }
 
   const paginationButtons = totalPages
-    ? Array.from({ length: totalPages + 1 }, (_, i) => i + 1)
+    ? Array.from({ length: totalPages }, (_, i) => i + 1)
     : []
   const isScrapingInProgress = scrapePageMutation.isPending || isAutoScraping
   const isEnrichingInProgress = enrichManyMutation.isPending || isAutoEnriching
@@ -539,6 +550,14 @@ const ScrapeSubjectPage: NextPage = () => {
           <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-[1fr_3fr]">
             <Stack className="gap-4">
               <h2 className="text-xl font-bold">Фильтры</h2>
+              <SearchFilter search={search} onSearchChange={onSearchChange} />
+              {fipiSubjectId && (
+                <TopicFilter
+                  subjectId={fipiSubjectId}
+                  selectedTopicIds={selectedTopicIds}
+                  onSelectedTopicIdsChange={onSelectedTopicIdsChange}
+                />
+              )}
               <VerifiedFilterGroup
                 value={verifiedFilter}
                 onChange={setVerifiedFilter}

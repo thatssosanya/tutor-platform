@@ -69,6 +69,7 @@ export const questionRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(10),
         page: z.number().min(1).default(1),
         subjectId: z.string().optional(),
+        search: z.string().optional(),
         topicIds: z.array(z.string()).optional(),
         source: z.nativeEnum(QuestionSource).optional(),
         verified: z.boolean().nullable().optional(),
@@ -84,6 +85,7 @@ export const questionRouter = createTRPCRouter({
         limit,
         page,
         subjectId,
+        search,
         topicIds,
         source,
         verified,
@@ -129,6 +131,15 @@ export const questionRouter = createTRPCRouter({
             : hasHint
               ? { not: null }
               : { equals: null },
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { prompt: { contains: search, mode: "insensitive" } },
+                { body: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : undefined),
       }
 
       const [items, totalCount] = await ctx.db.$transaction([
