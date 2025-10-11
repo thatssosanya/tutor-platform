@@ -46,6 +46,26 @@ const BooleanFilterGroup: React.FC<{
   )
 }
 
+const SolutionTypeFilterGroup: React.FC<{
+  value: SolutionType | "all"
+  onChange: (value: SolutionType | "all") => void
+}> = ({ value, onChange }) => {
+  const options: RadioOption<SolutionType | "all">[] = [
+    { value: "all", label: "Все" },
+    { value: SolutionType.SHORT, label: "Краткий" },
+    { value: SolutionType.LONG, label: "Развернутый" },
+  ]
+  return (
+    <RadioGroup
+      label="Тип ответа"
+      options={options}
+      value={value}
+      onChange={onChange}
+      variant="button"
+    />
+  )
+}
+
 const VerifiedFilterGroup: React.FC<{
   value: BooleanFilterState
   onChange: (value: BooleanFilterState) => void
@@ -81,6 +101,9 @@ const ScrapeSubjectPage: NextPage = () => {
   // Filter states
   const [verifiedFilter, setVerifiedFilter] =
     useState<BooleanFilterState>("all")
+  const [solutionTypeFilter, setSolutionTypeFilter] = useState<
+    SolutionType | "all"
+  >("all")
   const [examPositionFilter, setExamPositionFilter] =
     useState<BooleanFilterState>("all")
   const [solutionFilter, setSolutionFilter] =
@@ -107,6 +130,7 @@ const ScrapeSubjectPage: NextPage = () => {
     page,
     limit: 10,
     verified: verifiedFilter === "all" ? null : verifiedFilter === "yes",
+    solutionType: solutionTypeFilter === "all" ? undefined : solutionTypeFilter,
     hasExamPosition:
       examPositionFilter === "all" ? null : examPositionFilter === "yes",
     hasSolution: solutionFilter === "all" ? null : solutionFilter === "yes",
@@ -125,6 +149,7 @@ const ScrapeSubjectPage: NextPage = () => {
   useEffect(() => {
     setPage(1)
   }, [
+    solutionTypeFilter,
     fipiSubjectId,
     verifiedFilter,
     examPositionFilter,
@@ -424,7 +449,7 @@ const ScrapeSubjectPage: NextPage = () => {
   }
 
   const paginationButtons = totalPages
-    ? Array.from({ length: totalPages }, (_, i) => i + 1)
+    ? Array.from({ length: totalPages + 1 }, (_, i) => i + 1)
     : []
   const isScrapingInProgress = scrapePageMutation.isPending || isAutoScraping
   const isEnrichingInProgress = enrichManyMutation.isPending || isAutoEnriching
@@ -514,6 +539,10 @@ const ScrapeSubjectPage: NextPage = () => {
               <VerifiedFilterGroup
                 value={verifiedFilter}
                 onChange={setVerifiedFilter}
+              />
+              <SolutionTypeFilterGroup
+                value={solutionTypeFilter}
+                onChange={setSolutionTypeFilter}
               />
               <BooleanFilterGroup
                 label="Номер вопроса"

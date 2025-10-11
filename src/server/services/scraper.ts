@@ -24,7 +24,8 @@ export type ParsedIBlock = {
   topicIds: string[]
 }
 
-export type ParsedQuestion = ParsedQBlock & ParsedIBlock
+export type ParsedQuestion = ParsedQBlock &
+  ParsedIBlock & { sourcePosition: number }
 
 export function parseIBlockFromHtml(iblockHtml: string): ParsedIBlock | null {
   const $ = cheerio.load(iblockHtml)
@@ -395,7 +396,7 @@ export async function scrapePage(
   const $ = cheerio.load(html)
 
   const parsedQuestions = $(".qblock")
-    .map((_, el) => {
+    .map((i, el) => {
       console.log("parsing question")
       const qblock = $(el)
       const iblock = qblock.next()
@@ -410,7 +411,11 @@ export async function scrapePage(
         console.log("parsed iblock", iblockData)
 
         if (qblockData && iblockData) {
-          return { ...qblockData, ...iblockData }
+          return {
+            ...qblockData,
+            ...iblockData,
+            sourcePosition: (page - 1) * 10 + i,
+          }
         }
       }
       return null
@@ -448,6 +453,7 @@ export async function scrapePage(
         attachments: {
           create: attachments.map((url) => ({ url })),
         },
+        sourcePosition: data.sourcePosition,
       },
     })
   }

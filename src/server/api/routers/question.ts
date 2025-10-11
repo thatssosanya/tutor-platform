@@ -72,6 +72,7 @@ export const questionRouter = createTRPCRouter({
         topicIds: z.array(z.string()).optional(),
         source: z.nativeEnum(QuestionSource).optional(),
         verified: z.boolean().nullable().optional(),
+        solutionType: z.nativeEnum(SolutionType).optional(),
         hasExamPosition: z.boolean().nullable().optional(),
         hasSolution: z.boolean().nullable().optional(),
         hasWork: z.boolean().nullable().optional(),
@@ -86,6 +87,7 @@ export const questionRouter = createTRPCRouter({
         topicIds,
         source,
         verified,
+        solutionType,
         hasExamPosition,
         hasSolution,
         hasWork,
@@ -96,6 +98,7 @@ export const questionRouter = createTRPCRouter({
       const whereClause: Prisma.QuestionWhereInput = {
         subjectId: subjectId,
         source: source,
+        solutionType: solutionType,
         topics:
           topicIds && topicIds.length > 0
             ? { some: { topicId: { in: topicIds } } }
@@ -355,8 +358,9 @@ export const questionRouter = createTRPCRouter({
         return ctx.db.question.update({
           where: { id: question.id },
           data: {
-            work: aiEnrichment.work,
             solution: aiEnrichment.solution,
+            work: aiEnrichment.work,
+            hint: aiEnrichment.hint,
             verified,
           },
         })
