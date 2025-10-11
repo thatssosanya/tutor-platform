@@ -14,6 +14,7 @@ import {
   Stack,
   RadioGroup,
   type RadioOption,
+  Box,
 } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { Markdown } from "@/components/Markdown"
@@ -367,18 +368,20 @@ const ScrapeSubjectPage: NextPage = () => {
         question.work && question.solution ? (
           <Stack className="gap-2 text-sm">
             <h4 className="font-semibold text-primary">Ответ:</h4>
-            <p className="font-mono rounded-md bg-muted p-2 text-primary">
-              {question.solution ?? "Нет ответа"}
-            </p>
-            <h4 className="font-semibold text-primary">Решение:</h4>
+            <Box className="text-lg">{question.solution ?? "Нет ответа"}</Box>
+            <h4 className="font-semibold text-primary mt-2">Решение:</h4>
             {question.work ? (
-              <Markdown>{question.work}</Markdown>
+              <Box className="text-lg">
+                <Markdown>{question.work}</Markdown>
+              </Box>
             ) : (
               "Нет решения"
             )}
-            <h4 className="font-semibold text-primary">Подсказка:</h4>
+            <h4 className="font-semibold text-primary mt-2">Подсказка:</h4>
             {question.hint ? (
-              <Markdown>{question.hint}</Markdown>
+              <Box className="text-lg">
+                <Markdown>{question.hint}</Markdown>
+              </Box>
             ) : (
               "Нет подсказки"
             )}

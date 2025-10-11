@@ -4,6 +4,7 @@ import { Chip, Paper, Row, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 import { cn } from "@/styles"
 import { Markdown } from "../Markdown"
+import { QuestionSource } from "@prisma/client"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -31,7 +32,17 @@ export function QuestionCard({
       )}
     >
       <Row>
-        <Chip title={"#" + question.name} variant="primary" />
+        <Chip
+          title={"#" + question.name}
+          variant="primary"
+          {...(question.source === QuestionSource.FIPI
+            ? {
+                as: "a",
+                href: `https://ege.fipi.ru/bank/index.php?proj=${question.subjectId}&qid=${question.name}`,
+                target: "_blank",
+              }
+            : null)}
+        />
         {controls && <Row className="ml-auto">{controls(question)}</Row>}
       </Row>
       <Stack className="items-start md:flex-row md:items-center md:min-h-40">
