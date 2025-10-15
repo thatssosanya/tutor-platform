@@ -2,13 +2,17 @@ import { Agent, fetch, FormData, type RequestInit } from "undici"
 import { env } from "@/env"
 import tls from "node:tls"
 
-const FIPI_BASE_URL = "https://ege.fipi.ru"
+export const FIPI_EGE_URL = "https://ege.fipi.ru"
+export const FIPI_OGE_URL = "https://oge.fipi.ru"
 
 export const fetchFipi = async (
   path: string,
-  options: Partial<RequestInit> = {}
+  options: Partial<RequestInit> = {},
+  grade: string = "11"
 ) => {
-  const fullPath = path.startsWith("http") ? path : FIPI_BASE_URL + path
+  const fullPath = path.startsWith("http")
+    ? path
+    : (grade === "9" ? FIPI_OGE_URL : FIPI_EGE_URL) + path
 
   const fipiAgent = new Agent({
     connect: {
@@ -45,8 +49,8 @@ export const fetchFipi = async (
   return response
 }
 
-export const fetchFipiPage = async (path: string) => {
-  const response = await fetchFipi(path)
+export const fetchFipiPage = async (path: string, grade?: string) => {
+  const response = await fetchFipi(path, undefined, grade)
 
   const buffer = await response.arrayBuffer()
   const decoder = new TextDecoder("windows-1251")
@@ -115,4 +119,3 @@ export const verifyQuestion = async (
 
 export const FIPI_SHOW_PICTURE_Q_REGEX = /ShowPictureQ\('(.*?)'\)/g
 export const FIPI_ID_REGEX = /^\s*\d+(\.\d+)*\s*/
-export const FIPI_URL = FIPI_BASE_URL

@@ -12,11 +12,11 @@ import { PermissionBit } from "@/utils/permissions"
 export const scraperRouter = createTRPCRouter({
   // --- FOR ADMINS ---
 
-  scrapeSubjects: createProtectedProcedure([PermissionBit.ADMIN]).mutation(
-    async ({ ctx }) => {
-      return scrapeSubjects(ctx.db)
-    }
-  ),
+  scrapeSubjects: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(z.object({ grade: z.string().default("11") }))
+    .mutation(async ({ ctx, input }) => {
+      return scrapeSubjects(ctx.db, input.grade)
+    }),
 
   scrapeTopics: createProtectedProcedure([PermissionBit.ADMIN])
     .input(z.object({ subjectId: z.string() }))

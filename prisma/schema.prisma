@@ -51,7 +51,8 @@ model User {
 model Subject {
     id String @id @unique @default(cuid())
 
-    name String
+    name  String
+    grade String?
 
     questions Question[]
     topics    Topic[]
@@ -135,7 +136,8 @@ model Attachment {
 model Option {
     id String @id @unique @default(cuid())
 
-    body String
+    order String
+    body  String
 
     questionId String
     question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)

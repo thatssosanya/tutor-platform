@@ -29,14 +29,19 @@ export function SourceFilter({
   )
 
   const selectedSourceOptions = useMemo(
-    () => sourceOptions.filter((o) => selectedSources.includes(o.value)),
+    () =>
+      sourceOptions.filter(
+        (o) => o.value !== null && selectedSources.includes(o.value)
+      ),
     [sourceOptions, selectedSources]
   )
 
   const handleSourceChange = (
     newSelectedOptions: ListboxOptionType<QuestionSource>[]
   ) => {
-    onSelectedSourcesChange(newSelectedOptions.map((option) => option.value))
+    onSelectedSourcesChange(
+      newSelectedOptions.map((option) => option.value).filter((v) => v !== null)
+    )
   }
 
   return (

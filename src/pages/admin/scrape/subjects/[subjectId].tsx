@@ -101,6 +101,10 @@ const ScrapeSubjectPage: NextPage = () => {
   const [isAutoScraping, setIsAutoScraping] = useState(false)
   const [isAutoEnriching, setIsAutoEnriching] = useState(false)
 
+  const [localChanges, setLocalChanges] = useState<{
+    [id: string]: Partial<Pick<Question, "body" | "solution" | "work" | "hint">>
+  }>({})
+
   // Filter hooks
   const { search, debouncedSearch, onSearchChange } = useSearchFilter()
   const { selectedTopicIds, onSelectedTopicIdsChange } =
@@ -170,6 +174,10 @@ const ScrapeSubjectPage: NextPage = () => {
     JSON.stringify(selectedTopicIds),
   ])
 
+  useEffect(() => {
+    setLocalChanges({})
+  }, [page])
+
   const scrapeTopicsMutation = api.scraper.scrapeTopics.useMutation({
     onSuccess: () => {
       void apiUtils.topic.getAllBySubject.invalidate()
@@ -219,6 +227,27 @@ const ScrapeSubjectPage: NextPage = () => {
     onError: (error) => {
       ;(setIsAutoEnriching(false),
         alert(`Error enriching page: ${error.message}. Stopping automation.`))
+    },
+  })
+
+  const updateContentMutation = api.question.updateContent.useMutation({
+    onMutate: async ({ id, ...data }) => {
+      await apiUtils.question.getWithOffset.cancel(queryKey)
+      const previousData = apiUtils.question.getWithOffset.getData(queryKey)
+      apiUtils.question.getWithOffset.setData(queryKey, (oldData) => {
+        if (!oldData) return
+        return {
+          ...oldData,
+          items: oldData.items.map((q) =>
+            q.id === id ? { ...q, ...data } : q
+          ),
+        }
+      })
+      return { previousData }
+    },
+    onError: (err, _, context) => {
+      apiUtils.question.getWithOffset.setData(queryKey, context?.previousData)
+      alert(`Failed to update content: ${err.message}`)
     },
   })
 
@@ -336,13 +365,40 @@ const ScrapeSubjectPage: NextPage = () => {
     enrichManyMutation.isPending,
   ])
 
+  const handleFieldChange = (
+    questionId: string,
+    field: "body" | "solution" | "work" | "hint",
+    value: string
+  ) => {
+    setLocalChanges((prev) => ({
+      ...prev,
+      [questionId]: {
+        ...prev[questionId],
+        [field]: value,
+      },
+    }))
+  }
+
+  const handleFieldBlur = (
+    question: Question,
+    field: "body" | "solution" | "work" | "hint"
+  ) => {
+    const changedValue = localChanges[question.id]?.[field]
+    if (changedValue !== undefined && changedValue !== question[field]) {
+      updateContentMutation.mutate({
+        id: question.id,
+        [field]: changedValue,
+      })
+    }
+  }
+
   const cardControls = (question: Question) => {
     const isUpdatingThis =
       updateVerificationsMutation.isPending &&
       updateVerificationsMutation.variables?.updates[question.id] !== undefined
 
     return (
-      <div className="p-2">
+      <Stack className="gap-4 p-2">
         <Button
           size="lg"
           variant="primary-paper"
@@ -365,7 +421,7 @@ const ScrapeSubjectPage: NextPage = () => {
             </>
           )}
         </Button>
-      </div>
+      </Stack>
     )
   }
 
@@ -373,45 +429,94 @@ const ScrapeSubjectPage: NextPage = () => {
     const isEnrichingOne =
       enrichOneMutation.isPending &&
       enrichOneMutation.variables?.id === question.id
+    const isUpdatingContent =
+      updateContentMutation.isPending &&
+      updateContentMutation.variables?.id === question.id
+
+    const solutionValue =
+      localChanges[question.id]?.solution ?? question.solution
+    const workValue = localChanges[question.id]?.work ?? question.work
+    const hintValue = localChanges[question.id]?.hint ?? question.hint
 
     const enrichmentUI =
       question.solutionType === SolutionType.SHORT ? (
-        question.work && question.solution ? (
-          <Stack className="gap-2 text-sm">
-            <h4 className="font-semibold text-primary">Ответ:</h4>
-            <Box className="text-lg">{question.solution ?? "Нет ответа"}</Box>
-            <h4 className="font-semibold text-primary mt-2">Решение:</h4>
-            {question.work ? (
-              <Box className="text-lg">
-                <Markdown>{question.work}</Markdown>
-              </Box>
-            ) : (
-              "Нет решения"
-            )}
-            <h4 className="font-semibold text-primary mt-2">Подсказка:</h4>
-            {question.hint ? (
-              <Box className="text-lg">
-                <Markdown>{question.hint}</Markdown>
-              </Box>
-            ) : (
-              "Нет подсказки"
-            )}
+        <Stack className="gap-4">
+          <Stack>
+            <label className="text-sm font-semibold text-secondary">
+              Тело вопроса
+            </label>
+            <textarea
+              value={localChanges[question.id]?.body ?? question.body ?? ""}
+              onChange={(e) =>
+                handleFieldChange(question.id, "body", e.target.value)
+              }
+              onBlur={() => handleFieldBlur(question, "body")}
+              className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+              disabled={isUpdatingContent}
+            />
           </Stack>
-        ) : (
-          <div>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => enrichOneMutation.mutate({ id: question.id })}
-              disabled={isEnrichingOne}
-            >
-              {isEnrichingOne ? "Обработка..." : "Дополнить с помощью ИИ"}
-            </Button>
-          </div>
-        )
+          <Stack className="gap-1">
+            <h4 className="font-semibold text-primary">Ответ:</h4>
+            <Box className="text-lg">{solutionValue ?? "Нет ответа"}</Box>
+            <textarea
+              value={solutionValue ?? ""}
+              onChange={(e) =>
+                handleFieldChange(question.id, "solution", e.target.value)
+              }
+              onBlur={() => handleFieldBlur(question, "solution")}
+              className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+              disabled={isUpdatingContent}
+            />
+          </Stack>
+
+          <Stack className="gap-1">
+            <h4 className="font-semibold text-primary">Решение:</h4>
+            <Box className="text-lg">
+              {workValue ? <Markdown>{workValue}</Markdown> : "Нет решения"}
+            </Box>
+            <textarea
+              value={workValue ?? ""}
+              onChange={(e) =>
+                handleFieldChange(question.id, "work", e.target.value)
+              }
+              onBlur={() => handleFieldBlur(question, "work")}
+              className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+              disabled={isUpdatingContent}
+            />
+          </Stack>
+
+          <Stack className="gap-1">
+            <h4 className="font-semibold text-primary">Подсказка:</h4>
+            <Box className="text-lg">
+              {hintValue ? <Markdown>{hintValue}</Markdown> : "Нет подсказки"}
+            </Box>
+            <textarea
+              value={hintValue ?? ""}
+              onChange={(e) =>
+                handleFieldChange(question.id, "hint", e.target.value)
+              }
+              onBlur={() => handleFieldBlur(question, "hint")}
+              className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+              disabled={isUpdatingContent}
+            />
+          </Stack>
+
+          {!(question.work && question.solution) && (
+            <div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => enrichOneMutation.mutate({ id: question.id })}
+                disabled={isEnrichingOne}
+              >
+                {isEnrichingOne ? "Обработка..." : "Дополнить с помощью ИИ"}
+              </Button>
+            </div>
+          )}
+        </Stack>
       ) : null
 
-    const examPositionButtons = Array.from({ length: 26 }, (_, i) => i).slice(1)
+    const examPositionButtons = Array.from({ length: 25 }, (_, i) => i + 1)
     const handleExamPositionClick = (pos: number) => {
       updateExamPositionMutation.mutate({
         id: question.id,

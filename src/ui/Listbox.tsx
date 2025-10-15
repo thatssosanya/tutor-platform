@@ -28,7 +28,7 @@ const listboxButtonVariants = cva(
 )
 
 export type ListboxOptionType<T> = {
-  value: T
+  value: T | null
   label: string
   disabled?: boolean
 }

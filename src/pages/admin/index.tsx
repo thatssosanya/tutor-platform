@@ -8,7 +8,8 @@ import { api } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 
 export default function AdminIndexPage() {
-  const { data: subjects, isLoading } = api.subject.getAll.useQuery()
+  const { data: subjectsByGrade, isLoading } =
+    api.subject.getAllByGrade.useQuery()
 
   return (
     <>
@@ -36,20 +37,28 @@ export default function AdminIndexPage() {
                   Скрейпинг по предметам:
                 </h2>
                 {isLoading && <p>Загрузка предметов...</p>}
-                {subjects && (
-                  <ul className="list-disc list-inside">
-                    {subjects.map((subject) => (
-                      <li key={subject.id}>
-                        <Link
-                          href={`/admin/scrape/subjects/${subject.id}`}
-                          className="text-accent hover:underline"
-                        >
-                          {subject.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {(["9", "11"] as const).map((grade) => {
+                  const subjects = subjectsByGrade?.[grade]
+                  return (
+                    <>
+                      <h1>{grade === "9" ? "ОГЭ" : "ЕГЭ"}</h1>
+                      {subjects && (
+                        <ul className="list-disc list-inside">
+                          {subjects.map((subject) => (
+                            <li key={subject.id}>
+                              <Link
+                                href={`/admin/scrape/subjects/${subject.id}`}
+                                className="text-accent hover:underline"
+                              >
+                                {subject.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )
+                })}
               </Stack>
             </Stack>
           </Paper>

@@ -112,7 +112,11 @@ export function QuestionDetailView({
     newSelectedOptions: ListboxOptionType<string>[]
   ) => {
     setSelectedTestIds(
-      new Set(newSelectedOptions.map((option) => option.value))
+      new Set(
+        newSelectedOptions
+          .map((option) => option.value)
+          .filter((value) => value != null)
+      )
     )
   }
 
@@ -155,8 +159,8 @@ export function QuestionDetailView({
       label: test.name,
     })) ?? []
 
-  const selectedTestOptions = testOptions.filter((option) =>
-    selectedTestIds.has(option.value)
+  const selectedTestOptions = testOptions.filter(
+    (option) => option.value !== null && selectedTestIds.has(option.value)
   )
 
   const getTestListboxText = (value: ListboxOptionType<string>[]) => {

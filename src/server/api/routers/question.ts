@@ -177,6 +177,7 @@ export const questionRouter = createTRPCRouter({
         topicIds: z.array(z.string()).optional(),
         sources: z.array(z.nativeEnum(QuestionSource)).optional(),
         search: z.string().optional(),
+        examPosition: z.number().optional(),
         includeUnverified: z.boolean().default(false),
         excludeIds: z.array(z.string()).optional(),
       })
@@ -189,6 +190,7 @@ export const questionRouter = createTRPCRouter({
         topicIds,
         sources,
         search,
+        examPosition,
         includeUnverified,
         excludeIds,
       } = input
@@ -200,6 +202,7 @@ export const questionRouter = createTRPCRouter({
             ? { notIn: excludeIds }
             : undefined,
         subjectId: subjectId,
+        examPosition: examPosition,
         verified: includeUnverified ? undefined : true,
         source: sources && sources.length > 0 ? { in: sources } : undefined,
         topics:
@@ -288,6 +291,24 @@ export const questionRouter = createTRPCRouter({
       return ctx.db.question.update({
         where: { id: input.id },
         data: { examPosition: input.examPosition },
+      })
+    }),
+
+  updateContent: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(
+      z.object({
+        id: z.string(),
+        body: z.string().optional(),
+        solution: z.string().optional(),
+        work: z.string().optional(),
+        hint: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input
+      return ctx.db.question.update({
+        where: { id },
+        data: data,
       })
     }),
 

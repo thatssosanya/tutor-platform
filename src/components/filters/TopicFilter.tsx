@@ -79,12 +79,17 @@ export function TopicFilter({
 
   const selectedOptions = useMemo(
     () =>
-      topicOptions.filter((option) => selectedTopicIds.includes(option.value)),
+      topicOptions.filter(
+        (option) =>
+          option.value !== null && selectedTopicIds.includes(option.value)
+      ),
     [topicOptions, selectedTopicIds]
   )
 
   const handleOnChange = (newSelectedOptions: ListboxOptionType<string>[]) => {
-    onSelectedTopicIdsChange(newSelectedOptions.map((option) => option.value))
+    onSelectedTopicIdsChange(
+      newSelectedOptions.map((option) => option.value).filter((v) => v !== null)
+    )
   }
 
   const getButtonText = (value: ListboxOptionType<string>[]) => {

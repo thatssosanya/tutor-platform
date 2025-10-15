@@ -4,9 +4,10 @@ import type { PrismaClient } from "@prisma/client"
 
 import {
   fetchFipiPage,
+  FIPI_EGE_URL,
   FIPI_ID_REGEX,
+  FIPI_OGE_URL,
   FIPI_SHOW_PICTURE_Q_REGEX,
-  FIPI_URL,
 } from "@/server/lib/fipi"
 import type { AnyNode, Element } from "domhandler"
 import { convertMathmlToLatex } from "@/utils/latex"
@@ -198,7 +199,10 @@ function parseNode(
   return ""
 }
 
-export function parseQBlockFromHtml(qblockHtml: string): ParsedQBlock | null {
+export function parseQBlockFromHtml(
+  qblockHtml: string,
+  grade?: string
+): ParsedQBlock | null {
   const $ = cheerio.load(
     qblockHtml
       .replaceAll("<m:", "<")
@@ -269,15 +273,17 @@ export function parseQBlockFromHtml(qblockHtml: string): ParsedQBlock | null {
     const scriptContent = $(scriptEl).html() ?? ""
     const matches = scriptContent.matchAll(FIPI_SHOW_PICTURE_Q_REGEX)
     for (const match of matches) {
-      attachments.push(`${FIPI_URL}/${match[1]}`)
+      attachments.push(
+        `${grade === "9" ? FIPI_OGE_URL : FIPI_EGE_URL}/${match[1]}`
+      )
     }
   })
 
   return { id: guid, prompt, body, attachments }
 }
 
-export async function scrapeSubjects(db: PrismaClient) {
-  const html = await fetchFipiPage("/bank/index.php")
+export async function scrapeSubjects(db: PrismaClient, grade: string) {
+  const html = await fetchFipiPage("/bank/index.php", grade)
 
   const $ = cheerio.load(html)
 
@@ -287,7 +293,7 @@ export async function scrapeSubjects(db: PrismaClient) {
       const id = element.attr("id")?.replace("p_", "")
       const name = element.text().trim()
       if (!id || !name) return null
-      return { id, name }
+      return { id, name, grade }
     })
     .get()
     .filter(Boolean)
@@ -300,7 +306,13 @@ export async function scrapeSubjects(db: PrismaClient) {
 }
 
 export async function scrapeTopics(db: PrismaClient, subjectId: string) {
-  const html = await fetchFipiPage(`/bank/index.php?proj=${subjectId}`)
+  const subject = await db.subject.findUnique({
+    where: { id: subjectId },
+    select: { grade: true },
+  })
+  const grade = subject?.grade ?? undefined
+
+  const html = await fetchFipiPage(`/bank/index.php?proj=${subjectId}`, grade)
 
   const $ = cheerio.load(html)
 
@@ -387,11 +399,17 @@ export async function scrapePage(
   page: number,
   user?: { id: string }
 ) {
+  const subject = await db.subject.findUnique({
+    where: { id: subjectId },
+    select: { grade: true },
+  })
+  const grade = subject?.grade ?? undefined
+
   const path = `/bank/questions.php?proj=${subjectId}&page=${
     page - 1
   }&pagesize=10&rfsh=${encodeURIComponent(new Date().toString())}`
 
-  const html = await fetchFipiPage(path)
+  const html = await fetchFipiPage(path, grade)
 
   const $ = cheerio.load(html)
 
@@ -402,7 +420,8 @@ export async function scrapePage(
       const iblock = qblock.next()
       if (iblock.length > 0) {
         const qblockData = parseQBlockFromHtml(
-          '<div class="qblock">' + qblock.html() + "</div>"
+          '<div class="qblock">' + qblock.html() + "</div>",
+          grade
         )
         console.log("parsed qblock", qblockData)
         const iblockData = parseIBlockFromHtml(

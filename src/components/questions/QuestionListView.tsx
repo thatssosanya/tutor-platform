@@ -18,6 +18,8 @@ import { usePermissions } from "@/utils/permissions"
 import { ThumbsDown, Trash2, ExternalLink } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { AssignmentSolutionBlock } from "../assignments/AssignmentSolutionBlock"
+import { useExamPositionFilter } from "@/hooks/useExamPositionFilter"
+import { ExamPositionFilter } from "../filters/ExamPositionFilter"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -41,6 +43,10 @@ export function QuestionListView({
     isStorageSyncEnabled: true,
     isQueryParamSyncEnabled: true,
   })
+  const { selectedExamPosition, onSelectedExamPositionChange } =
+    useExamPositionFilter({
+      isQueryParamSyncEnabled: true,
+    })
   const { selectedTopicIds, onSelectedTopicIdsChange } = useTopicFilter(
     selectedSubjectId,
     { isQueryParamSyncEnabled: true }
@@ -57,6 +63,7 @@ export function QuestionListView({
     subjectId: selectedSubjectId!,
     topicIds: selectedTopicIds,
     search: debouncedSearch ?? undefined,
+    examPosition: selectedExamPosition ?? undefined,
     sources: selectedSources,
     page: currentPage,
     limit: 10,
@@ -224,6 +231,10 @@ export function QuestionListView({
           onSelectedSubjectIdChange={onSelectedSubjectIdChange}
         />
         <SearchFilter search={search} onSearchChange={onSearchChange} />
+        <ExamPositionFilter
+          selectedPosition={selectedExamPosition}
+          onSelectedPositionChange={onSelectedExamPositionChange}
+        />
         <SourceFilter
           selectedSources={selectedSources}
           onSelectedSourcesChange={onSelectedSourcesChange}

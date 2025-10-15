@@ -17,6 +17,20 @@ export const subjectRouter = createTRPCRouter({
     })
   }),
 
+  getAllByGrade: publicProcedure.query(async ({ ctx }) => {
+    const subjects = await ctx.db.subject.findMany({
+      orderBy: { name: "asc" },
+    })
+    const subjectsByGrade = subjects.reduce(
+      (a, s) => {
+        a[s.grade === "9" || s.grade === "11" ? s.grade : "undefined"]?.push(s)
+        return a
+      },
+      { "9": [], "11": [], undefined: [] } as Record<string, typeof subjects>
+    )
+    return subjectsByGrade
+  }),
+
   // --- PROTECTED ---
 
   getById: protectedProcedure
