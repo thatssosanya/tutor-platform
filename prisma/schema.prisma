@@ -72,12 +72,12 @@ model Topic {
     parent   Topic?  @relation("TopicHierarchy", fields: [parentId, subjectId], references: [id, subjectId])
     children Topic[] @relation("TopicHierarchy")
 
-    questions QuestionOnTopic[]
+    questions QuestionToTopic[]
 
     @@id([id, subjectId])
 }
 
-model QuestionOnTopic {
+model QuestionToTopic {
     questionId String
     question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
@@ -109,12 +109,12 @@ model Question {
     subjectId String
     subject   Subject @relation(fields: [subjectId], references: [id])
 
-    topics QuestionOnTopic[]
+    topics QuestionToTopic[]
 
     attachments Attachment[]
     options     Option[]
 
-    testEntries    TestQuestion[]
+    testEntries    QuestionToTest[]
     studentAnswers StudentAnswer[]
 
     verified Boolean @default(false)
@@ -153,7 +153,7 @@ model Test {
     subjectId String
     subject   Subject @relation(fields: [subjectId], references: [id])
 
-    questions TestQuestion[]
+    questions QuestionToTest[]
 
     assignments Assignment[]
 
@@ -161,7 +161,7 @@ model Test {
     updatedAt DateTime @updatedAt
 }
 
-model TestQuestion {
+model QuestionToTest {
     id String @id @default(cuid())
 
     order Float

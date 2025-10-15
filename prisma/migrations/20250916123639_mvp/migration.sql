@@ -37,12 +37,12 @@ CREATE TABLE "public"."Topic" (
 );
 
 -- CreateTable
-CREATE TABLE "public"."QuestionOnTopic" (
+CREATE TABLE "public"."QuestionToTopic" (
     "questionId" TEXT NOT NULL,
     "topicId" TEXT NOT NULL,
     "subjectId" TEXT NOT NULL,
 
-    CONSTRAINT "QuestionOnTopic_pkey" PRIMARY KEY ("questionId","topicId","subjectId")
+    CONSTRAINT "QuestionToTopic_pkey" PRIMARY KEY ("questionId","topicId","subjectId")
 );
 
 -- CreateTable
@@ -96,13 +96,13 @@ CREATE TABLE "public"."Test" (
 );
 
 -- CreateTable
-CREATE TABLE "public"."TestQuestion" (
+CREATE TABLE "public"."QuestionToTest" (
     "id" TEXT NOT NULL,
     "order" DOUBLE PRECISION NOT NULL,
     "testId" TEXT NOT NULL,
     "questionId" TEXT NOT NULL,
 
-    CONSTRAINT "TestQuestion_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "QuestionToTest_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -159,10 +159,10 @@ CREATE UNIQUE INDEX "Attachment_id_key" ON "public"."Attachment"("id");
 CREATE UNIQUE INDEX "Option_id_key" ON "public"."Option"("id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TestQuestion_testId_questionId_key" ON "public"."TestQuestion"("testId", "questionId");
+CREATE UNIQUE INDEX "QuestionToTest_testId_questionId_key" ON "public"."QuestionToTest"("testId", "questionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TestQuestion_testId_order_key" ON "public"."TestQuestion"("testId", "order");
+CREATE UNIQUE INDEX "QuestionToTest_testId_order_key" ON "public"."QuestionToTest"("testId", "order");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "StudentAnswer_assignmentId_questionId_key" ON "public"."StudentAnswer"("assignmentId", "questionId");
@@ -180,10 +180,10 @@ ALTER TABLE "public"."Topic" ADD CONSTRAINT "Topic_subjectId_fkey" FOREIGN KEY (
 ALTER TABLE "public"."Topic" ADD CONSTRAINT "Topic_parentId_subjectId_fkey" FOREIGN KEY ("parentId", "subjectId") REFERENCES "public"."Topic"("id", "subjectId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."QuestionOnTopic" ADD CONSTRAINT "QuestionOnTopic_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "public"."Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."QuestionToTopic" ADD CONSTRAINT "QuestionToTopic_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "public"."Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."QuestionOnTopic" ADD CONSTRAINT "QuestionOnTopic_topicId_subjectId_fkey" FOREIGN KEY ("topicId", "subjectId") REFERENCES "public"."Topic"("id", "subjectId") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."QuestionToTopic" ADD CONSTRAINT "QuestionToTopic_topicId_subjectId_fkey" FOREIGN KEY ("topicId", "subjectId") REFERENCES "public"."Topic"("id", "subjectId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Question" ADD CONSTRAINT "Question_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -204,10 +204,10 @@ ALTER TABLE "public"."Test" ADD CONSTRAINT "Test_creatorId_fkey" FOREIGN KEY ("c
 ALTER TABLE "public"."Test" ADD CONSTRAINT "Test_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "public"."Subject"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."TestQuestion" ADD CONSTRAINT "TestQuestion_testId_fkey" FOREIGN KEY ("testId") REFERENCES "public"."Test"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."QuestionToTest" ADD CONSTRAINT "QuestionToTest_testId_fkey" FOREIGN KEY ("testId") REFERENCES "public"."Test"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."TestQuestion" ADD CONSTRAINT "TestQuestion_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "public"."Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."QuestionToTest" ADD CONSTRAINT "QuestionToTest_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "public"."Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Assignment" ADD CONSTRAINT "Assignment_testId_fkey" FOREIGN KEY ("testId") REFERENCES "public"."Test"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
