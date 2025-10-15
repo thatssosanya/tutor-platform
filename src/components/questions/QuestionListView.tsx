@@ -232,8 +232,8 @@ export function QuestionListView({
         />
         <SearchFilter search={search} onSearchChange={onSearchChange} />
         <ExamPositionFilter
-          selectedPosition={selectedExamPosition}
-          onSelectedPositionChange={onSelectedExamPositionChange}
+          selectedExamPosition={selectedExamPosition}
+          onSelectedExamPositionChange={onSelectedExamPositionChange}
         />
         <SourceFilter
           selectedSources={selectedSources}

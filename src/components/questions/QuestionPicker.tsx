@@ -9,6 +9,7 @@ import { Button, Pagination, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 import type { QuestionSource } from "@prisma/client"
 import { AssignmentSolutionBlock } from "../assignments/AssignmentSolutionBlock"
+import { ExamPositionFilter } from "../filters/ExamPositionFilter"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -25,6 +26,8 @@ type TestQuestionPickerProps = {
   // Filters
   search: string
   onSearchChange: (value: string) => void
+  selectedExamPosition: number | null
+  onSelectedExamPositionChange: (position: number | null) => void
   selectedSources: QuestionSource[]
   onSelectedSourcesChange: (sources: QuestionSource[]) => void
   selectedTopicIds: string[]
@@ -48,6 +51,8 @@ export function QuestionPicker({
   // Filters
   search,
   onSearchChange,
+  selectedExamPosition,
+  onSelectedExamPositionChange,
   selectedSources,
   onSelectedSourcesChange,
   selectedTopicIds,
@@ -98,6 +103,10 @@ export function QuestionPicker({
         <h3 className="text-lg font-semibold">Доступные вопросы</h3>
         <Stack className="gap-4">
           <SearchFilter search={search} onSearchChange={onSearchChange} />
+          <ExamPositionFilter
+            selectedExamPosition={selectedExamPosition}
+            onSelectedExamPositionChange={onSelectedExamPositionChange}
+          />
           <SourceFilter
             selectedSources={selectedSources}
             onSelectedSourcesChange={onSelectedSourcesChange}

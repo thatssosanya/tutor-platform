@@ -10,6 +10,7 @@ import { api, type RouterOutputs } from "@/utils/api"
 import { QuestionPicker } from "../questions/QuestionPicker"
 import { TestAssignmentManager } from "./TestAssignmentManager"
 import { SpinnerScreen } from "../SpinnerScreen"
+import { useExamPositionFilter } from "@/hooks/useExamPositionFilter"
 
 type TestQuestion = Exclude<
   RouterOutputs["test"]["getById"],
@@ -30,6 +31,10 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
 
   const [currentPage, setCurrentPage] = useState(1)
   const { search, debouncedSearch, onSearchChange } = useSearchFilter()
+  const { selectedExamPosition, onSelectedExamPositionChange } =
+    useExamPositionFilter({
+      isQueryParamSyncEnabled: true,
+    })
   const { selectedTopicIds, onSelectedTopicIdsChange } = useTopicFilter(
     test?.subjectId ?? null
   )
@@ -232,6 +237,8 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
         onRemove={handleToggleQuestion}
         search={search}
         onSearchChange={onSearchChange}
+        selectedExamPosition={selectedExamPosition}
+        onSelectedExamPositionChange={onSelectedExamPositionChange}
         selectedSources={selectedSources}
         onSelectedSourcesChange={onSelectedSourcesChange}
         selectedTopicIds={selectedTopicIds}

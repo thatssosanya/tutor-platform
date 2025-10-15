@@ -5,13 +5,13 @@ import { Listbox, type ListboxOptionType } from "@/ui"
 const EXAM_POSITIONS = Array.from({ length: 25 }, (_, i) => i + 1)
 
 type ExamPositionFilterProps = {
-  selectedPosition: number | null
-  onSelectedPositionChange: (position: number | null) => void
+  selectedExamPosition: number | null
+  onSelectedExamPositionChange: (position: number | null) => void
 }
 
 export function ExamPositionFilter({
-  selectedPosition,
-  onSelectedPositionChange,
+  selectedExamPosition,
+  onSelectedExamPositionChange,
 }: ExamPositionFilterProps) {
   const positionOptions: ListboxOptionType<number>[] = useMemo(
     () => [
@@ -26,16 +26,16 @@ export function ExamPositionFilter({
 
   const selectedPositionOptions = useMemo(() => {
     const foundOption = positionOptions.find(
-      (o) => o.value === selectedPosition
+      (o) => o.value === selectedExamPosition
     )
     return foundOption ? foundOption : null
-  }, [positionOptions, selectedPosition])
+  }, [positionOptions, selectedExamPosition])
 
   const handlePositionChange = (
     newSelectedOption: ListboxOptionType<number>
   ) => {
     const newPosition = newSelectedOption?.value ?? null
-    onSelectedPositionChange(newPosition)
+    onSelectedExamPositionChange(newPosition)
   }
 
   return (
