@@ -6,7 +6,6 @@ import { api } from "@/utils/api"
 import { formatDateToString } from "@/utils/date"
 
 import { TestAssignDialog } from "./TestAssignDialog"
-import { useRouter } from "next/router"
 
 type TestAssignmentManagerProps = {
   subjectId: string
@@ -17,7 +16,6 @@ export function TestAssignmentManager({
   subjectId,
   testId,
 }: TestAssignmentManagerProps) {
-  const router = useRouter()
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false)
   const utils = api.useUtils()
 

@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react"
+
 import { useQueryParam } from "./useQueryParam"
 
 type UseQueryParamArrayOptions = {

@@ -1,10 +1,11 @@
 import { Input as HeadlessInput } from "@headlessui/react"
+import { cva, type VariantProps } from "class-variance-authority"
 import React from "react"
 
 import { cn } from "@/styles"
-import { cva, type VariantProps } from "class-variance-authority"
-import { withLabel } from "./withLabel"
+
 import { Row } from "./Row"
+import { withLabel } from "./withLabel"
 
 const inputVariants = cva(
   "w-full rounded-md bg-input px-3 py-2 shadow-primary shadow-sm inset-shadow-2xs focus:outline-none focus:ring-2 focus:ring-accent data-disabled:cursor-not-allowed data-disabled:opacity-50",

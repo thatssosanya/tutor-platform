@@ -1,3 +1,4 @@
+import type { VariantProps } from "class-variance-authority"
 import {
   ChevronLeft,
   ChevronRight,
@@ -5,9 +6,9 @@ import {
   ChevronsRight,
 } from "lucide-react"
 import React from "react"
-import type { VariantProps } from "class-variance-authority"
 
 import { cn } from "@/styles"
+
 import { Button, buttonVariants } from "./Button"
 import { Row } from "./Row"
 

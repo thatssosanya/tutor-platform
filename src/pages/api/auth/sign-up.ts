@@ -1,5 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from "next"
 import bcrypt from "bcryptjs"
+import type { NextApiRequest, NextApiResponse } from "next"
 
 import { db } from "@/server/db"
 import { createPermissions, PermissionBit } from "@/utils/permissions"

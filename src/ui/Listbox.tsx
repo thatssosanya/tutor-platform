@@ -3,13 +3,13 @@ import {
   ListboxButton,
   ListboxOption,
   ListboxOptions,
-  Portal,
 } from "@headlessui/react"
+import { cva, type VariantProps } from "class-variance-authority"
 import { Check, ChevronsUpDown } from "lucide-react"
 import React, { useEffect, useRef } from "react"
 
 import { cn } from "@/styles"
-import { cva, type VariantProps } from "class-variance-authority"
+
 import { withLabel, type WithLabelProps } from "./withLabel"
 
 const listboxButtonVariants = cva(

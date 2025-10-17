@@ -1,7 +1,9 @@
+import { Prisma } from "@prisma/client"
+import { TRPCError } from "@trpc/server"
+import bcrypt from "bcryptjs"
 import { humanId } from "human-id"
 import { customAlphabet } from "nanoid"
 import { z } from "zod"
-import bcrypt from "bcryptjs"
 
 import {
   createProtectedProcedure,
@@ -9,8 +11,6 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc"
 import { createPermissions, PermissionBit } from "@/utils/permissions"
-import { Prisma } from "@prisma/client"
-import { TRPCError } from "@trpc/server"
 
 const generateStudentName = () => {
   return humanId({

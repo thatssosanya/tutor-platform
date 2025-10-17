@@ -7,7 +7,6 @@ import {
   Input,
   Paper,
   RadioGroup,
-  type RadioOption,
   Row,
   Stack,
 } from "@/ui"

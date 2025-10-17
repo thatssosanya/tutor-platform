@@ -1,5 +1,6 @@
 import { useSession } from "next-auth/react"
 import { useEffect, useMemo, useState } from "react"
+
 import { LOCAL_STORAGE_PREFIX } from "./consts"
 
 const LOCAL_STORAGE_KEY = LOCAL_STORAGE_PREFIX + "selectedSubjectId"

@@ -1,8 +1,8 @@
-import { signOut, useSession } from "next-auth/react"
 import Head from "next/head"
+import { signOut, useSession } from "next-auth/react"
 
-import { Button, Container, Paper, Stack } from "@/ui"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
+import { Button, Container, Paper, Stack } from "@/ui"
 
 export default function Home() {
   const { data: session } = useSession()

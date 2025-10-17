@@ -1,11 +1,12 @@
+import { QuestionSource } from "@prisma/client"
 import React from "react"
 
+import { cn } from "@/styles"
 import { Chip, Paper, Row, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
-import { cn } from "@/styles"
-import { Markdown } from "../Markdown"
-import { QuestionSource } from "@prisma/client"
 import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
+
+import { Markdown } from "../Markdown"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 

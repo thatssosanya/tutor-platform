@@ -1,4 +1,5 @@
 // src/components/students/StudentDetailView.tsx
+import { skipToken } from "@tanstack/react-query"
 import {
   ArrowLeft,
   Calendar,
@@ -24,9 +25,9 @@ import {
 } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { useSubjects } from "@/utils/subjects"
-import { TestList } from "../tests/TestList"
-import { skipToken } from "@tanstack/react-query"
+
 import { SpinnerScreen } from "../SpinnerScreen"
+import { TestList } from "../tests/TestList"
 
 type Test =
   RouterOutputs["assignment"]["getStudentAssignments"][number]["test"] & {

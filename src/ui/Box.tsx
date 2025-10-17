@@ -1,9 +1,10 @@
-import { cn } from "@/styles"
 import React, {
   type ComponentPropsWithoutRef,
   type ElementType,
   type PropsWithChildren,
 } from "react"
+
+import { cn } from "@/styles"
 
 type PolymorphicAsProp<E extends ElementType> = {
   as?: E

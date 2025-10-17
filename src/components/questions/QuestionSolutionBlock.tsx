@@ -44,7 +44,7 @@ export function QuestionSolutionBlock({
       content += `# Подсказка\n\n${question.hint}`
     }
     return content
-  }, [question.hint, question.work, showControls, hasAnswer])
+  }, [question.hint, question.work, question.solution, showControls, hasAnswer])
 
   const AnswerDisplay = () => (
     <Row className="items-center gap-2">

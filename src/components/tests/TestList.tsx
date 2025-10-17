@@ -1,10 +1,10 @@
 import React from "react"
 
+import { Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 
-import { TestCard } from "./TestCard"
-import { Stack } from "@/ui"
 import { SpinnerScreen } from "../SpinnerScreen"
+import { TestCard } from "./TestCard"
 
 type Test = RouterOutputs["test"]["getAllBySubject"][number] & {
   assignmentId?: string

@@ -3,8 +3,8 @@ import React from "react"
 import { Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 
-import { StudentCard } from "./StudentCard"
 import { SpinnerScreen } from "../SpinnerScreen"
+import { StudentCard } from "./StudentCard"
 
 type Student = RouterOutputs["user"]["getStudents"][number]
 

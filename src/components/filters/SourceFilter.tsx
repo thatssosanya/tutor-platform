@@ -1,8 +1,8 @@
 import { QuestionSource } from "@prisma/client"
 import React, { useMemo } from "react"
 
-import { ALL_QUESTION_SOURCES } from "@/utils/consts"
 import { Listbox, type ListboxOptionType } from "@/ui"
+import { ALL_QUESTION_SOURCES } from "@/utils/consts"
 
 type SourceFilterProps = {
   selectedSources: QuestionSource[]

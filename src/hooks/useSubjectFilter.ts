@@ -1,6 +1,8 @@
 import { useSession } from "next-auth/react"
 import { useCallback, useEffect, useMemo } from "react"
+
 import { LOCAL_STORAGE_PREFIX } from "@/utils/consts"
+
 import { useQueryParam } from "./useQueryParam"
 
 const SESSION_STORAGE_KEY = LOCAL_STORAGE_PREFIX + "selectedSubjectId"

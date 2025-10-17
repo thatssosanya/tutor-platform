@@ -1,15 +1,15 @@
-import * as cheerio from "cheerio"
-import { QuestionSource, SolutionType } from "@prisma/client"
 import type { PrismaClient } from "@prisma/client"
+import { QuestionSource, SolutionType } from "@prisma/client"
+import * as cheerio from "cheerio"
+import type { AnyNode, Element } from "domhandler"
 
 import {
   fetchFipiPage,
   FIPI_ID_REGEX,
   FIPI_SHOW_PICTURE_Q_REGEX,
 } from "@/server/lib/fipi"
-import type { AnyNode, Element } from "domhandler"
-import { convertMathmlToLatex } from "@/utils/latex"
 import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
+import { convertMathmlToLatex } from "@/utils/latex"
 
 export type ParsedQBlock = {
   id: string
@@ -380,7 +380,7 @@ export function parseQBlockFromHtml(
         values.push(optionElement.attribs.value)
       })
 
-    let heading = selectHeadings[i]
+    const heading = selectHeadings[i]
       ? parseNode(selectHeadings[i]!)
       : (i + 1).toString()
 

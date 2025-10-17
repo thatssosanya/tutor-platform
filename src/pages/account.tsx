@@ -1,7 +1,8 @@
-import { signOut } from "next-auth/react"
 import Head from "next/head"
+import { signOut } from "next-auth/react"
 import React, { useEffect, useState } from "react"
 
+import ProtectedLayout from "@/layouts/ProtectedLayout"
 import {
   Button,
   CheckboxGroup,
@@ -13,7 +14,6 @@ import {
   Stack,
 } from "@/ui"
 import { api } from "@/utils/api"
-import ProtectedLayout from "@/layouts/ProtectedLayout"
 
 export default function AccountPage() {
   const [displayName, setDisplayName] = useState("")

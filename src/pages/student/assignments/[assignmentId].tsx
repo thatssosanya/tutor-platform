@@ -6,13 +6,13 @@ import React, { useEffect, useMemo, useState } from "react"
 
 import { Markdown } from "@/components/Markdown"
 import { QuestionCard } from "@/components/questions/QuestionCard"
+import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBlock"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { cn } from "@/styles"
 import { Box, Button, Container, Input, Paper, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
-import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBlock"
-import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 

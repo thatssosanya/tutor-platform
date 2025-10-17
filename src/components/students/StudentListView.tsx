@@ -1,10 +1,12 @@
-import { useSubjectFilter } from "@/hooks/useSubjectFilter"
 import React from "react"
-import { api } from "@/utils/api"
+
+import { useSubjectFilter } from "@/hooks/useSubjectFilter"
 import { Stack } from "@/ui"
+import { api } from "@/utils/api"
+
+import { SubjectFilter } from "../filters/SubjectFilter"
 import { StudentCreateForm } from "./StudentCreateForm"
 import { StudentList } from "./StudentList"
-import { SubjectFilter } from "../filters/SubjectFilter"
 
 type StudentListViewProps = {
   cardControls: (studentId: string) => React.ReactNode

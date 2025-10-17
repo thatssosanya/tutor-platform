@@ -1,16 +1,15 @@
+import "@/styles/globals.css"
+
+import { type AppType } from "next/app"
+import dynamic from "next/dynamic"
+import { Geist } from "next/font/google"
+import { useRouter } from "next/router"
 import { type Session } from "next-auth"
 import { SessionProvider } from "next-auth/react"
-import { type AppType } from "next/app"
-import { Geist } from "next/font/google"
-
-import { api } from "@/utils/api"
-
-import "@/styles/globals.css"
-import { useRouter } from "next/router"
-import { Container, Spinner } from "@/ui"
-import dynamic from "next/dynamic"
 import React, { type PropsWithChildren } from "react"
+
 import { SpinnerScreen } from "@/components/SpinnerScreen"
+import { api } from "@/utils/api"
 
 const geist = Geist({
   subsets: ["latin"],

@@ -1,5 +1,6 @@
-import type { RadioOption } from "@/ui"
 import { QuestionSource, SolutionType } from "@prisma/client"
+
+import type { RadioOption } from "@/ui"
 
 export const LOCAL_STORAGE_PREFIX = "TutorPlatform."
 

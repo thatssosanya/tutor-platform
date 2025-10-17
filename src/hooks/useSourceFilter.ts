@@ -1,7 +1,9 @@
-import { useCallback, useMemo } from "react"
-import { useQueryParamArray } from "./useQueryParamArray"
-import { ALL_QUESTION_SOURCES } from "@/utils/consts"
 import type { QuestionSource } from "@prisma/client"
+import { useCallback, useMemo } from "react"
+
+import { ALL_QUESTION_SOURCES } from "@/utils/consts"
+
+import { useQueryParamArray } from "./useQueryParamArray"
 
 type UseSourceFilterOptions = {
   isQueryParamSyncEnabled?: boolean

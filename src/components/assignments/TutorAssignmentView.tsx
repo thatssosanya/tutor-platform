@@ -1,16 +1,16 @@
+import { skipToken } from "@tanstack/react-query"
 import { ArrowLeft, Check, X } from "lucide-react"
 import Head from "next/head"
+import { useRouter } from "next/router"
 import React, { useMemo, useState } from "react"
 
 import { QuestionList } from "@/components/questions/QuestionList"
-import { Button, Container, Paper, RadioGroup, Spinner, Stack } from "@/ui"
+import { Button, Container, RadioGroup, Stack } from "@/ui"
+import { Row } from "@/ui/Row"
 import { api } from "@/utils/api"
 
-import { QuestionSolutionBlock } from "../questions/QuestionSolutionBlock"
-import { skipToken } from "@tanstack/react-query"
 import { TopicFilter } from "../filters/TopicFilter"
-import { Row } from "@/ui/Row"
-import { useRouter } from "next/router"
+import { QuestionSolutionBlock } from "../questions/QuestionSolutionBlock"
 import { SpinnerScreen } from "../SpinnerScreen"
 
 type TutorAssignmentViewProps = {
@@ -102,8 +102,7 @@ export function TutorAssignmentView({
     )
   }
 
-  const { test, answers, assignedToId, assignedTo, dueAt, completedAt } =
-    assignmentQuery.data
+  const { test, answers, assignedTo, dueAt, completedAt } = assignmentQuery.data
 
   const handleBack = () => {
     if (from === "test" && assignmentQuery.data?.testId) {

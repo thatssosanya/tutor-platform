@@ -1,22 +1,22 @@
 import { SolutionType } from "@prisma/client"
+import { skipToken } from "@tanstack/react-query"
 import { ArrowLeft, Save } from "lucide-react"
 import React, { useEffect, useState } from "react"
 
 import {
   Button,
   Input,
-  Paper,
-  RadioGroup,
-  type RadioOption,
-  Row,
-  Stack,
   Listbox,
   type ListboxOptionType,
+  Paper,
+  RadioGroup,
+  Row,
+  Stack,
 } from "@/ui"
 import { api } from "@/utils/api"
-import { skipToken } from "@tanstack/react-query"
-import { SpinnerScreen } from "../SpinnerScreen"
 import { SOLUTION_TYPE_OPTIONS } from "@/utils/consts"
+
+import { SpinnerScreen } from "../SpinnerScreen"
 
 type QuestionDetailViewProps = {
   questionId: string

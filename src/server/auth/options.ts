@@ -1,6 +1,7 @@
+import bcrypt from "bcryptjs"
 import { type NextAuthConfig } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import bcrypt from "bcryptjs"
+
 import { db } from "@/server/db"
 import type { CustomUser } from "@/types/next-auth"
 

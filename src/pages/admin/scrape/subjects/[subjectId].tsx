@@ -1,27 +1,27 @@
 import { QuestionSource, SolutionType } from "@prisma/client"
+import { Check, X } from "lucide-react"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
 import React, { useCallback, useEffect, useState } from "react"
 
+import { SearchFilter } from "@/components/filters/SearchFilter"
+import { TopicFilter } from "@/components/filters/TopicFilter"
+import { Markdown } from "@/components/Markdown"
 import { QuestionCard } from "@/components/questions/QuestionCard"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
+import { useSearchFilter } from "@/hooks/useSearchFilter"
+import { useTopicFilter } from "@/hooks/useTopicFilter"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import {
+  Box,
   Button,
   Container,
   RadioGroup,
   type RadioOption,
   Row,
   Stack,
-  Box,
 } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
-import { Markdown } from "@/components/Markdown"
-import { Check, X } from "lucide-react"
-import { SpinnerScreen } from "@/components/SpinnerScreen"
-import { useSearchFilter } from "@/hooks/useSearchFilter"
-import { useTopicFilter } from "@/hooks/useTopicFilter"
-import { SearchFilter } from "@/components/filters/SearchFilter"
-import { TopicFilter } from "@/components/filters/TopicFilter"
 import {
   SOLUTION_TYPE_OPTIONS,
   UNENRICHABLE_SOLUTION_TYPES,
@@ -128,11 +128,10 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const apiUtils = api.useUtils()
 
-  const { data: subject, isLoading: isLoadingSubject } =
-    api.subject.getById.useQuery(
-      { id: fipiSubjectId },
-      { enabled: !!fipiSubjectId }
-    )
+  const { data: subject } = api.subject.getById.useQuery(
+    { id: fipiSubjectId },
+    { enabled: !!fipiSubjectId }
+  )
 
   const { data: topics, isLoading: isLoadingTopics } =
     api.topic.getAllBySubject.useQuery(
@@ -229,8 +228,8 @@ const ScrapeSubjectPage: NextPage = () => {
       }
     },
     onError: (error) => {
-      ;(setIsAutoEnriching(false),
-        alert(`Error enriching page: ${error.message}. Stopping automation.`))
+      setIsAutoEnriching(false)
+      alert(`Error enriching page: ${error.message}. Stopping automation.`)
     },
   })
 

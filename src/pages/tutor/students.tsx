@@ -1,8 +1,9 @@
+import { Transition } from "@headlessui/react"
 import { ExternalLink, Trash2 } from "lucide-react"
 import Head from "next/head"
 import React, { useState } from "react"
-import { Transition } from "@headlessui/react"
 
+import { TutorAssignmentView } from "@/components/assignments/TutorAssignmentView"
 import { StudentDetailView } from "@/components/students/StudentDetailView"
 import { StudentListView } from "@/components/students/StudentListView"
 import { useQueryParam } from "@/hooks/useQueryParam"
@@ -10,7 +11,6 @@ import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container } from "@/ui"
 import { api } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
-import { TutorAssignmentView } from "@/components/assignments/TutorAssignmentView"
 
 export default function TutorStudentsPage() {
   const [activeStudentId, setActiveStudentId] = useQueryParam("studentId")

@@ -1,4 +1,5 @@
 import React, { type ElementType } from "react"
+
 import { LabelBox } from "./LabelBox"
 
 export type WithLabelProps = {

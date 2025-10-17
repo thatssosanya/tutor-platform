@@ -1,6 +1,6 @@
+import { Transition } from "@headlessui/react"
 import Head from "next/head"
 import React from "react"
-import { Transition } from "@headlessui/react"
 
 import { QuestionDetailView } from "@/components/questions/QuestionDetailView"
 import { QuestionListView } from "@/components/questions/QuestionListView"

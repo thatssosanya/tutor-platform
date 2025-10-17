@@ -2,9 +2,9 @@ import {
   Popover as HeadlessPopover,
   PopoverButton as HeadlessPopoverButton,
   PopoverPanel as HeadlessPopoverPanel,
+  type PopoverPanelProps as HeadlessPopoverPanelProps,
   Portal,
   Transition,
-  type PopoverPanelProps as HeadlessPopoverPanelProps,
 } from "@headlessui/react"
 import React, { Fragment } from "react"
 

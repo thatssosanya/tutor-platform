@@ -1,16 +1,16 @@
-import { z } from "zod"
 import { Prisma, QuestionSource, SolutionType } from "@prisma/client"
+import { TRPCError } from "@trpc/server"
+import { z } from "zod"
 
 import {
   createProtectedProcedure,
   createTRPCRouter,
   protectedProcedure,
 } from "@/server/api/trpc"
-import { TRPCError } from "@trpc/server"
-import { enrichQuestionWithAI } from "@/server/services/ai"
-import { PermissionBit } from "@/utils/permissions"
 import { verifyQuestion } from "@/server/lib/fipi"
+import { enrichQuestionWithAI } from "@/server/services/ai"
 import { UNENRICHABLE_SOLUTION_TYPES } from "@/utils/consts"
+import { PermissionBit } from "@/utils/permissions"
 
 const questionInputSchema = z.object({
   name: z.string().min(1),

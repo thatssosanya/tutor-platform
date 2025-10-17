@@ -1,4 +1,5 @@
 import React, { type ElementType, type PropsWithChildren } from "react"
+
 import { Stack } from "./Stack"
 
 function LabelBoxComponent({

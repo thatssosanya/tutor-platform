@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+
 import { useQueryParamArray } from "./useQueryParamArray"
 
 type UseTopicFilterOptions = {

@@ -1,12 +1,11 @@
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/router"
+import { useSession } from "next-auth/react"
 import React, { useEffect } from "react"
 
-import { Container, Spinner } from "@/ui"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 import { hasPermission, type PermissionBit } from "@/utils/permissions"
 
 import DefaultLayout from "./DefaultLayout"
-import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 interface ProtectedLayoutProps {
   children: React.ReactNode

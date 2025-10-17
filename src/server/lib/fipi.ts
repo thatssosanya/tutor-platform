@@ -1,6 +1,8 @@
-import { Agent, fetch, FormData, type RequestInit } from "undici"
-import { env } from "@/env"
 import tls from "node:tls"
+
+import { Agent, fetch, FormData, type RequestInit } from "undici"
+
+import { env } from "@/env"
 import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
 
 export const fetchFipi = async (

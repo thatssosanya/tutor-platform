@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+
 import { useQueryParam } from "./useQueryParam"
 
 type UseSearchFilterOptions = {

@@ -1,6 +1,8 @@
-import { cn } from "@/styles"
 import React, { type ElementType } from "react"
-import { Box, defaultBoxElement, type BoxProps } from "./Box"
+
+import { cn } from "@/styles"
+
+import { Box, type BoxProps,defaultBoxElement } from "./Box"
 
 export function Row<E extends ElementType = typeof defaultBoxElement>({
   className = "",

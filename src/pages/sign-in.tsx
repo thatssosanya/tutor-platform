@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react"
-import { signIn, useSession } from "next-auth/react"
-import { useRouter } from "next/router"
 import Head from "next/head"
 import Link from "next/link"
+import { useRouter } from "next/router"
+import { signIn, useSession } from "next-auth/react"
+import { useEffect, useState } from "react"
 
-import { Button, Container, Input, Paper, Row, Spinner, Stack } from "@/ui"
-import DefaultLayout from "@/layouts/DefaultLayout"
-import { isStudent, isTutor } from "@/utils/permissions"
 import { SpinnerScreen } from "@/components/SpinnerScreen"
+import DefaultLayout from "@/layouts/DefaultLayout"
+import { Button, Container, Input, Paper, Row, Stack } from "@/ui"
+import { isStudent, isTutor } from "@/utils/permissions"
 
 export default function SignInPage() {
   const [name, setName] = useState("")

@@ -1,11 +1,13 @@
-import { env } from "@/env"
 import { SolutionType } from "@prisma/client"
 import OpenAI from "openai"
-import z from "zod"
 import { zodResponseFormat } from "openai/helpers/zod"
-import { fetchFipi } from "../lib/fipi"
 import { type Response } from "undici"
+import z from "zod"
+
+import { env } from "@/env"
 import type { RouterOutputs } from "@/utils/api"
+
+import { fetchFipi } from "../lib/fipi"
 
 const openai = new OpenAI({
   apiKey: env.ENRICHMENT_AI_API_KEY,

@@ -1,6 +1,7 @@
-import { cn } from "@/styles"
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react"
 import React from "react"
+
+import { cn } from "@/styles"
 
 export type TabItem = {
   id: string | number
