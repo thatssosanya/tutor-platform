@@ -10,6 +10,7 @@ import { TRPCError } from "@trpc/server"
 import { enrichQuestionWithAI } from "@/server/services/ai"
 import { PermissionBit } from "@/utils/permissions"
 import { verifyQuestion } from "@/server/lib/fipi"
+import { UNENRICHABLE_SOLUTION_TYPES } from "@/utils/consts"
 
 const questionInputSchema = z.object({
   name: z.string().min(1),
@@ -60,114 +61,6 @@ export const questionRouter = createTRPCRouter({
       })
     }),
 
-  getWithOffset: createProtectedProcedure([
-    PermissionBit.TUTOR,
-    PermissionBit.ADMIN,
-  ])
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(10),
-        page: z.number().min(1).default(1),
-        subjectId: z.string().optional(),
-        search: z.string().optional(),
-        topicIds: z.array(z.string()).optional(),
-        source: z.nativeEnum(QuestionSource).optional(),
-        verified: z.boolean().nullable().optional(),
-        solutionType: z.nativeEnum(SolutionType).optional(),
-        hasExamPosition: z.boolean().nullable().optional(),
-        hasSolution: z.boolean().nullable().optional(),
-        hasWork: z.boolean().nullable().optional(),
-        hasHint: z.boolean().nullable().optional(),
-      })
-    )
-    .query(async ({ ctx, input }) => {
-      const {
-        limit,
-        page,
-        subjectId,
-        search,
-        topicIds,
-        source,
-        verified,
-        solutionType,
-        hasExamPosition,
-        hasSolution,
-        hasWork,
-        hasHint,
-      } = input
-      const skip = (page - 1) * limit
-
-      const whereClause: Prisma.QuestionWhereInput = {
-        subjectId: subjectId,
-        source: source,
-        solutionType: solutionType,
-        topics:
-          topicIds && topicIds.length > 0
-            ? { some: { topicId: { in: topicIds } } }
-            : undefined,
-        verified:
-          verified === null || verified === undefined ? undefined : verified,
-        examPosition:
-          hasExamPosition === null || hasExamPosition === undefined
-            ? undefined
-            : hasExamPosition
-              ? { not: null }
-              : { equals: null },
-        solution:
-          hasSolution === null || hasSolution === undefined
-            ? undefined
-            : hasSolution
-              ? { not: null }
-              : { equals: null },
-        work:
-          hasWork === null || hasWork === undefined
-            ? undefined
-            : hasWork
-              ? { not: null }
-              : { equals: null },
-        hint:
-          hasHint === null || hasHint === undefined
-            ? undefined
-            : hasHint
-              ? { not: null }
-              : { equals: null },
-        ...(search
-          ? {
-              OR: [
-                { name: { contains: search, mode: "insensitive" } },
-                { prompt: { contains: search, mode: "insensitive" } },
-                { body: { contains: search, mode: "insensitive" } },
-              ],
-            }
-          : undefined),
-      }
-
-      const [items, totalCount] = await ctx.db.$transaction([
-        ctx.db.question.findMany({
-          take: limit,
-          skip,
-          where: whereClause,
-          include: {
-            attachments: true,
-          },
-          orderBy: {
-            createdAt: "asc",
-          },
-        }),
-        ctx.db.question.count({
-          where: whereClause,
-        }),
-      ])
-
-      const totalPages = Math.ceil(totalCount / limit)
-
-      return {
-        items,
-        totalPages,
-        currentPage: page,
-      }
-    }),
-
   getPaginated: createProtectedProcedure([PermissionBit.TUTOR])
     .input(
       z.object({
@@ -177,8 +70,15 @@ export const questionRouter = createTRPCRouter({
         topicIds: z.array(z.string()).optional(),
         sources: z.array(z.nativeEnum(QuestionSource)).optional(),
         search: z.string().optional(),
-        examPosition: z.number().optional(),
-        includeUnverified: z.boolean().default(false),
+        examPosition: z
+          .union([z.boolean(), z.number(), z.null()])
+          .optional()
+          .default(null),
+        verified: z.boolean().nullable().optional().default(null),
+        solutionType: z.nativeEnum(SolutionType).optional(),
+        hasSolution: z.boolean().nullable().optional(),
+        hasWork: z.boolean().nullable().optional(),
+        hasHint: z.boolean().nullable().optional(),
         excludeIds: z.array(z.string()).optional(),
       })
     )
@@ -191,7 +91,11 @@ export const questionRouter = createTRPCRouter({
         sources,
         search,
         examPosition,
-        includeUnverified,
+        verified,
+        solutionType,
+        hasSolution,
+        hasWork,
+        hasHint,
         excludeIds,
       } = input
       const skip = (page - 1) * limit
@@ -202,13 +106,40 @@ export const questionRouter = createTRPCRouter({
             ? { notIn: excludeIds }
             : undefined,
         subjectId: subjectId,
-        examPosition: examPosition,
-        verified: includeUnverified ? undefined : true,
         source: sources && sources.length > 0 ? { in: sources } : undefined,
+        solutionType: solutionType,
         topics:
           topicIds && topicIds.length > 0
             ? { some: { topicId: { in: topicIds } } }
             : undefined,
+        verified:
+          verified === null || verified === undefined ? undefined : verified,
+        examPosition:
+          examPosition === null || examPosition === undefined
+            ? undefined
+            : typeof examPosition === "boolean"
+              ? examPosition
+                ? { not: null }
+                : null
+              : { equals: examPosition },
+        solution:
+          hasSolution === null || hasSolution === undefined
+            ? undefined
+            : hasSolution
+              ? { not: null }
+              : null,
+        work:
+          hasWork === null || hasWork === undefined
+            ? undefined
+            : hasWork
+              ? { not: null }
+              : null,
+        hint:
+          hasHint === null || hasHint === undefined
+            ? undefined
+            : hasHint
+              ? { not: null }
+              : null,
         ...(search
           ? {
               OR: [
@@ -226,7 +157,13 @@ export const questionRouter = createTRPCRouter({
           skip,
           where: whereClause,
           include: {
+            subject: {
+              select: {
+                grade: true,
+              },
+            },
             attachments: true,
+            options: true,
           },
           orderBy: {
             createdAt: "asc",
@@ -317,12 +254,14 @@ export const questionRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const question = await ctx.db.question.findUnique({
         where: { id: input.id },
-        select: {
-          id: true,
-          subjectId: true,
-          body: true,
-          solutionType: true,
+        include: {
+          subject: {
+            select: {
+              grade: true,
+            },
+          },
           attachments: true,
+          options: true,
         },
       })
 
@@ -333,10 +272,10 @@ export const questionRouter = createTRPCRouter({
         })
       }
 
-      if (question.solutionType !== SolutionType.SHORT) {
+      if (UNENRICHABLE_SOLUTION_TYPES.includes(question.solutionType)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Enrichment is only available for SHORT answer questions.",
+          message: `Enrichment is not available for ${UNENRICHABLE_SOLUTION_TYPES}.`,
         })
       }
 
@@ -364,15 +303,19 @@ export const questionRouter = createTRPCRouter({
       const questionsToEnrich = await ctx.db.question.findMany({
         where: {
           id: { in: input.ids },
-          solutionType: SolutionType.SHORT,
-          work: null, // Only enrich those that need it
+          solutionType: {
+            notIn: UNENRICHABLE_SOLUTION_TYPES,
+          },
+          OR: [{ solution: null }, { work: null }, { hint: null }],
         },
-        select: {
-          id: true,
-          subjectId: true,
-          body: true,
-          solutionType: true,
+        include: {
+          subject: {
+            select: {
+              grade: true,
+            },
+          },
           attachments: true,
+          options: true,
         },
       })
 
@@ -382,11 +325,13 @@ export const questionRouter = createTRPCRouter({
 
       const enrichmentPromises = questionsToEnrich.map(async (question) => {
         const aiEnrichment = await enrichQuestionWithAI(question)
+
         const verified = await verifyQuestion(
           question.id,
           question.subjectId,
           aiEnrichment.solution
         )
+
         return ctx.db.question.update({
           where: { id: question.id },
           data: {

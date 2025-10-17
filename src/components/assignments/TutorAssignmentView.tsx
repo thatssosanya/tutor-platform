@@ -6,7 +6,7 @@ import { QuestionList } from "@/components/questions/QuestionList"
 import { Button, Container, Paper, RadioGroup, Spinner, Stack } from "@/ui"
 import { api } from "@/utils/api"
 
-import { AssignmentSolutionBlock } from "./AssignmentSolutionBlock"
+import { QuestionSolutionBlock } from "../questions/QuestionSolutionBlock"
 import { skipToken } from "@tanstack/react-query"
 import { TopicFilter } from "../filters/TopicFilter"
 import { Row } from "@/ui/Row"
@@ -206,7 +206,7 @@ export function TutorAssignmentView({
             cardFooter={(question) => {
               const studentAnswer = studentAnswersMap.get(question.id)
               return (
-                <AssignmentSolutionBlock
+                <QuestionSolutionBlock
                   question={question}
                   studentAnswer={studentAnswer}
                 />

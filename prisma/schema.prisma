@@ -136,7 +136,7 @@ model Attachment {
 model Option {
     id String @id @unique @default(cuid())
 
-    order String
+    order String?
     body  String
 
     questionId String

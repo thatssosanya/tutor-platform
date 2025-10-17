@@ -11,7 +11,7 @@ import { cn } from "@/styles"
 import { Box, Button, Container, Input, Paper, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
-import { AssignmentSolutionBlock } from "@/components/assignments/AssignmentSolutionBlock"
+import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBlock"
 import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
@@ -45,7 +45,7 @@ function AnswerSolutionBlock({
 
   if (isAnswered || isCompleted) {
     return (
-      <AssignmentSolutionBlock
+      <QuestionSolutionBlock
         question={question}
         studentAnswer={studentAnswer}
         showControls
@@ -57,7 +57,7 @@ function AnswerSolutionBlock({
   return (
     <Stack className="w-full justify-center gap-4">
       {showHint && (
-        <AssignmentSolutionBlock question={question} showControls showHint />
+        <QuestionSolutionBlock question={question} showControls showHint />
       )}
       <p className="font-semibold">{question.prompt}</p>
       <Input

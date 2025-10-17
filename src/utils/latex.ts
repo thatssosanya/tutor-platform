@@ -1,13 +1,10 @@
-// matches leftXright. or left.rightX and captures X
-
 import { MathMLToLaTeX } from "mathml-to-latex"
 
+// matches leftXright. or left.rightX and captures X
 // the actual side command is unreliable so it's not captured
 export const sidedDelimiterRegex =
   /\s*(?:\\left([\(\)\[\]\{\}])\\right\.|\\left\.\\right([\(\[\{\)\]\}]))\s*/g
-
 export const openingDelimiters = "([{"
-
 export function fixSidedDelimiters(input: string) {
   const output = input.replaceAll(sidedDelimiterRegex, (_, g1, g2) => {
     const delimiter = g1 || g2
@@ -23,12 +20,12 @@ export function fixSidedDelimiters(input: string) {
 // pipes are always left|right.
 // handle left.right| just in case
 export const pipeRegex = /\s*(?:\\left\|\\right\.|\\left\.\\right\.)\s*/g
-
 export function fixPipeDelimiters(input: string) {
   const output = input.replaceAll(pipeRegex, "|")
   return output
 }
 
+// cases is malformed as a hanging opening brace
 function fixCases(input: string): string {
   const stack: number[] = [] // storing i for opening \left{
 
@@ -66,8 +63,14 @@ function fixCases(input: string): string {
   return processedLatex
 }
 
+// prefer dfrac
 export function fixFrac(input: string) {
   const output = input.replaceAll("\\frac", "\\dfrac")
+  return output
+}
+
+export function fixEmptySubsAndSupers(input: string) {
+  const output = input.replaceAll(/[\_\^]\{\}/g, "")
   return output
 }
 
@@ -75,10 +78,13 @@ export function fixMalformedLatex(input?: string | null) {
   if (!input) {
     return input
   }
-  return [fixFrac, fixSidedDelimiters, fixPipeDelimiters, fixCases].reduce(
-    (acc, fn) => fn(acc),
-    input
-  )
+  return [
+    fixFrac,
+    fixSidedDelimiters,
+    fixPipeDelimiters,
+    fixCases,
+    fixEmptySubsAndSupers,
+  ].reduce((acc, fn) => fn(acc), input)
 }
 
 export function convertMathmlToLatex(input: string) {

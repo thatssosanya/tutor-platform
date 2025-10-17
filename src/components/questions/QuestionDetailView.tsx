@@ -16,6 +16,7 @@ import {
 import { api } from "@/utils/api"
 import { skipToken } from "@tanstack/react-query"
 import { SpinnerScreen } from "../SpinnerScreen"
+import { SOLUTION_TYPE_OPTIONS } from "@/utils/consts"
 
 type QuestionDetailViewProps = {
   questionId: string
@@ -148,11 +149,6 @@ export function QuestionDetailView({
     return <p>Вопрос не найден.</p>
   }
 
-  const solutionTypeOptions: RadioOption<SolutionType>[] = [
-    { value: SolutionType.SHORT, label: "Краткий ответ" },
-    { value: SolutionType.LONG, label: "Развернутый ответ" },
-  ]
-
   const testOptions: ListboxOptionType<string>[] =
     testsQuery.data?.map((test) => ({
       value: test.id,
@@ -214,11 +210,12 @@ export function QuestionDetailView({
           </Stack>
           <RadioGroup
             label="Тип решения"
-            options={solutionTypeOptions}
+            options={SOLUTION_TYPE_OPTIONS}
             value={formState.solutionType}
             onChange={(v) => handleFormChange("solutionType", v)}
             variant="button-paper"
           />
+          {/* TODO add other types */}
           {formState.solutionType === SolutionType.SHORT && (
             <>
               <Input

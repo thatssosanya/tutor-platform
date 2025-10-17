@@ -1,4 +1,4 @@
-import { SolutionType } from "@prisma/client"
+import { QuestionSource, SolutionType } from "@prisma/client"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
 import React, { useCallback, useEffect, useState } from "react"
@@ -22,8 +22,12 @@ import { useSearchFilter } from "@/hooks/useSearchFilter"
 import { useTopicFilter } from "@/hooks/useTopicFilter"
 import { SearchFilter } from "@/components/filters/SearchFilter"
 import { TopicFilter } from "@/components/filters/TopicFilter"
+import {
+  SOLUTION_TYPE_OPTIONS,
+  UNENRICHABLE_SOLUTION_TYPES,
+} from "@/utils/consts"
 
-type Question = RouterOutputs["question"]["getWithOffset"]["items"][number]
+type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 type BooleanFilterState = "all" | "yes" | "no"
 
 // --- Helper Filter Components ---
@@ -55,8 +59,7 @@ const SolutionTypeFilterGroup: React.FC<{
 }> = ({ value, onChange }) => {
   const options: RadioOption<SolutionType | "all">[] = [
     { value: "all", label: "Все" },
-    { value: SolutionType.SHORT, label: "Краткий" },
-    { value: SolutionType.LONG, label: "Развернутый" },
+    ...SOLUTION_TYPE_OPTIONS,
   ]
   return (
     <RadioGroup
@@ -141,6 +144,7 @@ const ScrapeSubjectPage: NextPage = () => {
     subjectId: fipiSubjectId,
     page,
     limit: 10,
+    sources: [QuestionSource.FIPI],
     search: debouncedSearch || undefined,
     topicIds: selectedTopicIds,
     verified: verifiedFilter === "all" ? null : verifiedFilter === "yes",
@@ -152,7 +156,7 @@ const ScrapeSubjectPage: NextPage = () => {
     hasHint: hintFilter === "all" ? null : hintFilter === "yes",
   }
   const { data: paginatedData, isLoading: isLoadingQuestions } =
-    api.question.getWithOffset.useQuery(queryKey, {
+    api.question.getPaginated.useQuery(queryKey, {
       enabled: !!fipiSubjectId && !!topics && topics.length > 0,
       refetchOnWindowFocus: !isAutoScraping && !isAutoEnriching,
     })
@@ -171,7 +175,7 @@ const ScrapeSubjectPage: NextPage = () => {
     workFilter,
     hintFilter,
     debouncedSearch,
-    JSON.stringify(selectedTopicIds),
+    selectedTopicIds,
   ])
 
   useEffect(() => {
@@ -187,7 +191,7 @@ const ScrapeSubjectPage: NextPage = () => {
   const scrapePageMutation = api.scraper.scrapePage.useMutation({
     onSuccess: (data, variables) => {
       const finishedPage = variables.page
-      void apiUtils.question.getWithOffset.invalidate({
+      void apiUtils.question.getPaginated.invalidate({
         subjectId: fipiSubjectId,
         page: finishedPage,
       })
@@ -207,13 +211,13 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const enrichOneMutation = api.question.enrichOne.useMutation({
     onSuccess: () => {
-      void apiUtils.question.getWithOffset.invalidate(queryKey)
+      void apiUtils.question.getPaginated.invalidate(queryKey)
     },
   })
 
   const enrichManyMutation = api.question.enrichMany.useMutation({
     onSuccess: (data) => {
-      void apiUtils.question.getWithOffset.invalidate(queryKey)
+      void apiUtils.question.getPaginated.invalidate(queryKey)
 
       if (isAutoEnriching && targetPage && page < targetPage) {
         setPage((prevPage) => prevPage + 1)
@@ -232,9 +236,9 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const updateContentMutation = api.question.updateContent.useMutation({
     onMutate: async ({ id, ...data }) => {
-      await apiUtils.question.getWithOffset.cancel(queryKey)
-      const previousData = apiUtils.question.getWithOffset.getData(queryKey)
-      apiUtils.question.getWithOffset.setData(queryKey, (oldData) => {
+      await apiUtils.question.getPaginated.cancel(queryKey)
+      const previousData = apiUtils.question.getPaginated.getData(queryKey)
+      apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
         if (!oldData) return
         return {
           ...oldData,
@@ -246,7 +250,7 @@ const ScrapeSubjectPage: NextPage = () => {
       return { previousData }
     },
     onError: (err, _, context) => {
-      apiUtils.question.getWithOffset.setData(queryKey, context?.previousData)
+      apiUtils.question.getPaginated.setData(queryKey, context?.previousData)
       alert(`Failed to update content: ${err.message}`)
     },
   })
@@ -254,12 +258,12 @@ const ScrapeSubjectPage: NextPage = () => {
   const updateVerificationsMutation =
     api.question.updateVerifications.useMutation({
       onMutate: async ({ updates }) => {
-        await apiUtils.question.getWithOffset.cancel(queryKey)
-        const previousData = apiUtils.question.getWithOffset.getData(queryKey)
+        await apiUtils.question.getPaginated.cancel(queryKey)
+        const previousData = apiUtils.question.getPaginated.getData(queryKey)
         const questionId = Object.keys(updates)[0]
         const newStatus = updates[questionId!]
         if (!questionId) return { previousData }
-        apiUtils.question.getWithOffset.setData(queryKey, (oldData) => {
+        apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
           if (!oldData) return
           return {
             ...oldData,
@@ -271,20 +275,20 @@ const ScrapeSubjectPage: NextPage = () => {
         return { previousData }
       },
       onError: (err, newTodo, context) => {
-        apiUtils.question.getWithOffset.setData(queryKey, context?.previousData)
+        apiUtils.question.getPaginated.setData(queryKey, context?.previousData)
         alert(`Failed to update status: ${err.message}`)
       },
       onSettled: () => {
-        void apiUtils.question.getWithOffset.invalidate(queryKey)
+        void apiUtils.question.getPaginated.invalidate(queryKey)
       },
     })
 
   const updateExamPositionMutation =
     api.question.updateExamPosition.useMutation({
       onMutate: async ({ id, examPosition }) => {
-        await apiUtils.question.getWithOffset.cancel(queryKey)
-        const previousData = apiUtils.question.getWithOffset.getData(queryKey)
-        apiUtils.question.getWithOffset.setData(queryKey, (oldData) => {
+        await apiUtils.question.getPaginated.cancel(queryKey)
+        const previousData = apiUtils.question.getPaginated.getData(queryKey)
+        apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
           if (!oldData) return
           return {
             ...oldData,
@@ -296,11 +300,11 @@ const ScrapeSubjectPage: NextPage = () => {
         return { previousData }
       },
       onError: (err, _, context) => {
-        apiUtils.question.getWithOffset.setData(queryKey, context?.previousData)
+        apiUtils.question.getPaginated.setData(queryKey, context?.previousData)
         alert(`Failed to update exam position: ${err.message}`)
       },
       onSettled: () => {
-        void apiUtils.question.getWithOffset.invalidate(queryKey)
+        void apiUtils.question.getPaginated.invalidate(queryKey)
       },
     })
 
@@ -326,7 +330,7 @@ const ScrapeSubjectPage: NextPage = () => {
   const handleEnrichPage = useCallback(() => {
     if (!questions || questions.length === 0) return
     const idsToEnrich = questions
-      .filter((q) => q.solutionType === SolutionType.SHORT && !q.work)
+      .filter((q) => q.solutionType !== SolutionType.LONG && !q.work)
       .map((q) => q.id)
 
     if (idsToEnrich.length === 0) {
@@ -338,7 +342,9 @@ const ScrapeSubjectPage: NextPage = () => {
           alert("Auto-enrichment complete.")
         }
       } else {
-        alert("All SHORT answer questions on this page are already enriched.")
+        alert(
+          "All non-LONG answer questions on this page are already enriched."
+        )
       }
       return
     }
@@ -438,83 +444,84 @@ const ScrapeSubjectPage: NextPage = () => {
     const workValue = localChanges[question.id]?.work ?? question.work
     const hintValue = localChanges[question.id]?.hint ?? question.hint
 
-    const enrichmentUI =
-      question.solutionType === SolutionType.SHORT ? (
-        <Stack className="gap-4">
-          <Stack>
-            <label className="text-sm font-semibold text-secondary">
-              Тело вопроса
-            </label>
-            <textarea
-              value={localChanges[question.id]?.body ?? question.body ?? ""}
-              onChange={(e) =>
-                handleFieldChange(question.id, "body", e.target.value)
-              }
-              onBlur={() => handleFieldBlur(question, "body")}
-              className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-              disabled={isUpdatingContent}
-            />
-          </Stack>
-          <Stack className="gap-1">
-            <h4 className="font-semibold text-primary">Ответ:</h4>
-            <Box className="text-lg">{solutionValue ?? "Нет ответа"}</Box>
-            <textarea
-              value={solutionValue ?? ""}
-              onChange={(e) =>
-                handleFieldChange(question.id, "solution", e.target.value)
-              }
-              onBlur={() => handleFieldBlur(question, "solution")}
-              className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-              disabled={isUpdatingContent}
-            />
-          </Stack>
-
-          <Stack className="gap-1">
-            <h4 className="font-semibold text-primary">Решение:</h4>
-            <Box className="text-lg">
-              {workValue ? <Markdown>{workValue}</Markdown> : "Нет решения"}
-            </Box>
-            <textarea
-              value={workValue ?? ""}
-              onChange={(e) =>
-                handleFieldChange(question.id, "work", e.target.value)
-              }
-              onBlur={() => handleFieldBlur(question, "work")}
-              className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-              disabled={isUpdatingContent}
-            />
-          </Stack>
-
-          <Stack className="gap-1">
-            <h4 className="font-semibold text-primary">Подсказка:</h4>
-            <Box className="text-lg">
-              {hintValue ? <Markdown>{hintValue}</Markdown> : "Нет подсказки"}
-            </Box>
-            <textarea
-              value={hintValue ?? ""}
-              onChange={(e) =>
-                handleFieldChange(question.id, "hint", e.target.value)
-              }
-              onBlur={() => handleFieldBlur(question, "hint")}
-              className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-              disabled={isUpdatingContent}
-            />
-          </Stack>
-
-          {!(question.work && question.solution) && (
-            <div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => enrichOneMutation.mutate({ id: question.id })}
-                disabled={isEnrichingOne}
-              >
-                {isEnrichingOne ? "Обработка..." : "Дополнить с помощью ИИ"}
-              </Button>
-            </div>
-          )}
+    const enrichmentUI = (
+      <Stack className="gap-4">
+        <Stack>
+          <h4 className="font-semibold text-primary">Вопрос:</h4>
+          <textarea
+            value={localChanges[question.id]?.body ?? question.body ?? ""}
+            onChange={(e) =>
+              handleFieldChange(question.id, "body", e.target.value)
+            }
+            onBlur={() => handleFieldBlur(question, "body")}
+            className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+            disabled={isUpdatingContent}
+          />
         </Stack>
-      ) : null
+        {!UNENRICHABLE_SOLUTION_TYPES.includes(question.solutionType) ? (
+          <>
+            <Stack className="gap-1">
+              <h4 className="font-semibold text-primary">Ответ:</h4>
+              <Box className="text-lg">{solutionValue ?? "Нет ответа"}</Box>
+              <textarea
+                value={solutionValue ?? ""}
+                onChange={(e) =>
+                  handleFieldChange(question.id, "solution", e.target.value)
+                }
+                onBlur={() => handleFieldBlur(question, "solution")}
+                className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+                disabled={isUpdatingContent}
+              />
+            </Stack>
+
+            <Stack className="gap-1">
+              <h4 className="font-semibold text-primary">Решение:</h4>
+              <Box className="text-lg">
+                {workValue ? <Markdown>{workValue}</Markdown> : "Нет решения"}
+              </Box>
+              <textarea
+                value={workValue ?? ""}
+                onChange={(e) =>
+                  handleFieldChange(question.id, "work", e.target.value)
+                }
+                onBlur={() => handleFieldBlur(question, "work")}
+                className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+                disabled={isUpdatingContent}
+              />
+            </Stack>
+
+            <Stack className="gap-1">
+              <h4 className="font-semibold text-primary">Подсказка:</h4>
+              <Box className="text-lg">
+                {hintValue ? <Markdown>{hintValue}</Markdown> : "Нет подсказки"}
+              </Box>
+              <textarea
+                value={hintValue ?? ""}
+                onChange={(e) =>
+                  handleFieldChange(question.id, "hint", e.target.value)
+                }
+                onBlur={() => handleFieldBlur(question, "hint")}
+                className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+                disabled={isUpdatingContent}
+              />
+            </Stack>
+
+            {!(question.work && question.solution) && (
+              <div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => enrichOneMutation.mutate({ id: question.id })}
+                  disabled={isEnrichingOne}
+                >
+                  {isEnrichingOne ? "Обработка..." : "Дополнить с помощью ИИ"}
+                </Button>
+              </div>
+            )}
+          </>
+        ) : null}
+      </Stack>
+    )
 
     const examPositionButtons = Array.from({ length: 25 }, (_, i) => i + 1)
     const handleExamPositionClick = (pos: number) => {

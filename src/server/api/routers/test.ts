@@ -26,7 +26,9 @@ export const testRouter = createTRPCRouter({
             include: {
               question: {
                 include: {
+                  subject: { select: { grade: true } },
                   attachments: true,
+                  options: true,
                 },
               },
             },
@@ -55,7 +57,7 @@ export const testRouter = createTRPCRouter({
           },
         })
 
-        await prisma.testQuestion.createMany({
+        await prisma.questionToTest.createMany({
           data: input.questions.map((q) => ({
             testId: test.id,
             questionId: q.questionId,
@@ -109,11 +111,11 @@ export const testRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.$transaction(async (prisma) => {
-        await prisma.testQuestion.deleteMany({
+        await prisma.questionToTest.deleteMany({
           where: { testId: input.id },
         })
 
-        await prisma.testQuestion.createMany({
+        await prisma.questionToTest.createMany({
           data: input.questions.map((q) => ({
             testId: input.id,
             questionId: q.questionId,
@@ -140,12 +142,12 @@ export const testRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.$transaction(async (prisma) => {
-        await prisma.testQuestion.deleteMany({
+        await prisma.questionToTest.deleteMany({
           where: { testId: input.testId },
         })
 
         if (input.questionIds.length > 0) {
-          await prisma.testQuestion.createMany({
+          await prisma.questionToTest.createMany({
             data: input.questionIds.map((id, index) => ({
               testId: input.testId,
               questionId: id,
@@ -167,22 +169,22 @@ export const testRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { testId, questionId } = input
-      const existing = await ctx.db.testQuestion.findUnique({
+      const existing = await ctx.db.questionToTest.findUnique({
         where: {
           testId_questionId: { testId, questionId },
         },
       })
 
       if (existing) {
-        await ctx.db.testQuestion.delete({ where: { id: existing.id } })
+        await ctx.db.questionToTest.delete({ where: { id: existing.id } })
         return { status: "removed" }
       } else {
-        const maxOrder = await ctx.db.testQuestion.aggregate({
+        const maxOrder = await ctx.db.questionToTest.aggregate({
           _max: { order: true },
           where: { testId },
         })
         const newOrder = (maxOrder._max.order ?? -1) + 1
-        await ctx.db.testQuestion.create({
+        await ctx.db.questionToTest.create({
           data: { testId, questionId, order: newOrder },
         })
         return { status: "added" }
@@ -208,13 +210,13 @@ export const testRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { questionId, testIds: newTestIds } = input
 
-      const existingTestQuestions = await ctx.db.testQuestion.findMany({
+      const existingquestionToTests = await ctx.db.questionToTest.findMany({
         where: {
           questionId,
           test: { creatorId: ctx.session.user.id },
         },
       })
-      const existingTestIds = existingTestQuestions.map((tq) => tq.testId)
+      const existingTestIds = existingquestionToTests.map((tq) => tq.testId)
 
       const testIdsToDeleteFrom = existingTestIds.filter(
         (id) => !newTestIds.includes(id)
@@ -225,7 +227,7 @@ export const testRouter = createTRPCRouter({
 
       return ctx.db.$transaction(async (prisma) => {
         if (testIdsToDeleteFrom.length > 0) {
-          await prisma.testQuestion.deleteMany({
+          await prisma.questionToTest.deleteMany({
             where: {
               questionId,
               testId: { in: testIdsToDeleteFrom },
@@ -234,12 +236,12 @@ export const testRouter = createTRPCRouter({
         }
 
         for (const testId of testIdsToAddTo) {
-          const maxOrder = await prisma.testQuestion.aggregate({
+          const maxOrder = await prisma.questionToTest.aggregate({
             _max: { order: true },
             where: { testId },
           })
           const newOrder = (maxOrder._max.order ?? -1) + 1
-          await prisma.testQuestion.create({
+          await prisma.questionToTest.create({
             data: { testId, questionId, order: newOrder },
           })
         }

@@ -4,19 +4,19 @@ import type { PrismaClient } from "@prisma/client"
 
 import {
   fetchFipiPage,
-  FIPI_EGE_URL,
   FIPI_ID_REGEX,
-  FIPI_OGE_URL,
   FIPI_SHOW_PICTURE_Q_REGEX,
 } from "@/server/lib/fipi"
 import type { AnyNode, Element } from "domhandler"
 import { convertMathmlToLatex } from "@/utils/latex"
+import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
 
 export type ParsedQBlock = {
   id: string
   prompt: string
   body: string
   attachments: string[]
+  options: { order: string; body: string }[]
 }
 
 export type ParsedIBlock = {
@@ -54,9 +54,17 @@ export function parseIBlockFromHtml(iblockHtml: string): ParsedIBlock | null {
     solutionType = SolutionType.SHORT
   } else if (solutionTypeText === "Развернутый ответ") {
     solutionType = SolutionType.LONG
+  } else if (solutionTypeText === "Выбор ответа из предложенных вариантов") {
+    solutionType = SolutionType.MULTICHOICE
+  } else if (solutionTypeText === "Выбор ответов из предложенных вариантов") {
+    solutionType = SolutionType.MULTIRESPONSE
+  } else if (solutionTypeText === "Установление соответствия") {
+    solutionType = SolutionType.MULTICHOICEGROUP
   } else {
     solutionType = SolutionType.LONG
   }
+
+  const parseNode = getParseNode()
 
   const topicIds = Array.from(
     iblock
@@ -65,7 +73,7 @@ export function parseIBlockFromHtml(iblockHtml: string): ParsedIBlock | null {
       .next("td")
       .find("div")
       .map((_, n) => {
-        const text = parseNode(n, undefined, undefined, true).trim()
+        const text = parseNode(n).trim()
         if (!text) {
           return null
         }
@@ -82,121 +90,179 @@ export function parseIBlockFromHtml(iblockHtml: string): ParsedIBlock | null {
   return { name, solutionType, topicIds }
 }
 
-function parseNode(
-  node: AnyNode,
-  isMath = false,
-  isNonSemanticTable = false,
-  isUnescaped = false
-): string {
-  if (!node) {
-    return ""
-  }
-
-  if (node.type === "tag" || node.type === "script") {
-    const element = node as Element
-    if (
-      // skip presentation-related mathjax tags
-      element.attribs["class"]?.includes("MathJax") ||
-      element.attribs["class"]?.includes("MathJax_Preview")
-    ) {
+function getParseNode(grade?: string) {
+  // this is effectful - context values will be modified
+  function _parseNode(
+    node: AnyNode,
+    {
+      isMath = false,
+      isNonSemanticTable = false,
+      inlineAttachments = true,
+    }: {
+      isMath?: boolean
+      isNonSemanticTable?: boolean
+      inlineAttachments?: boolean
+    } = {
+      isMath: false,
+      isNonSemanticTable: false,
+      inlineAttachments: true,
+    },
+    context?: {
+      topLevelAttachments: string[]
+      inlineAttachmentsCount: number
+    }
+  ): string {
+    if (!node) {
       return ""
     }
 
-    const tagName = element.tagName.toLowerCase()
-
-    if (tagName === "table") {
-      const tbody = element.childNodes.find(
-        (n) => n.type === "tag" && n.tagName === "tbody"
-      )
-      if (!tbody || tbody.type !== "tag" || tbody.tagName !== "tbody") {
+    if (node.type === "tag" || node.type === "script") {
+      const element = node as Element
+      if (
+        // skip presentation-related mathjax tags
+        element.attribs.class?.includes("MathJax") ||
+        element.attribs.class?.includes("MathJax_Preview")
+      ) {
         return ""
       }
-      const rows = tbody.children
 
-      if (isNonSemanticTable) {
-        const tds = rows.flatMap((r) =>
+      const tagName = element.tagName.toLowerCase()
+
+      if (tagName === "table") {
+        const tbody = element.childNodes.find(
+          (n) => n.type === "tag" && n.tagName === "tbody"
+        )
+        if (!tbody || tbody.type !== "tag" || tbody.tagName !== "tbody") {
+          return ""
+        }
+        const rows = tbody.children
+
+        const rowsChildren = rows.map((r) =>
           r.type === "tag" && r.tagName === "tr" ? r.children : []
         )
-        const content = tds
-          .map((childNode) => parseNode(childNode))
-          .join("")
-          .trim()
-        return content
-      }
+        const isSingleColumn = rowsChildren.every((c) => c.length < 2)
 
-      const parsedRows = rows
-        .map((row) => {
-          if (row.type !== "tag" || row.tagName !== "tr") {
-            return null
-          }
-          const tds = row.children.filter(
-            (child) => child.type === "tag" && child.tagName === "td"
+        const isNonSemanticTableClass =
+          element.attribs.class?.includes("MsoTableGrid")
+
+        if (isSingleColumn || isNonSemanticTable || isNonSemanticTableClass) {
+          const tds = rowsChildren.flat()
+          const content = tds
+            .map((childNode) =>
+              // attachments in non-semantic tables are top level
+              _parseNode(childNode, { inlineAttachments: false }, context)
+            )
+            .join("")
+            .trim()
+          return content
+        }
+
+        const parsedRows = rows
+          .map((row) => {
+            if (row.type !== "tag" || row.tagName !== "tr") {
+              return null
+            }
+            const tds = row.children.filter(
+              (child) => child.type === "tag" && child.tagName === "td"
+            )
+            if (tds.length === 0) {
+              return null
+            }
+            const parsedTds = tds.map((td) =>
+              _parseNode(td, { inlineAttachments: true }, context)
+            )
+            return parsedTds
+          })
+          .filter(
+            (row): row is string[] =>
+              row !== null && row.some((v) => v.trim().length > 0)
           )
-          if (tds.length === 0) {
-            return null
-          }
-          const parsedTds = tds.map((td) => parseNode(td))
-          return parsedTds
-        })
-        .filter(
-          (row): row is string[] =>
-            row !== null && row.some((v) => v.trim().length > 0)
-        )
 
-      if (!parsedRows[0]) {
-        return ""
+        if (!parsedRows[0]) {
+          return ""
+        }
+
+        const header = "|   ".repeat(parsedRows[0].length) + "|"
+        const separator = "|---".repeat(parsedRows[0].length) + "|"
+
+        return `\n${header}\n${separator}\n${parsedRows
+          .map((row) => `| ${row.join(" | ")} |`)
+          .join("\n")}\n`
+      } else if (tagName === "script") {
+        const contentHtml = element.childNodes
+          .map((childNode) =>
+            _parseNode(childNode, { inlineAttachments }, context)
+          )
+          .join("")
+        const attachments = extractImages(contentHtml, grade)
+        if (inlineAttachments) {
+          const inlinedAttachments: string[] = []
+          attachments.forEach((a) => {
+            if (context !== undefined) {
+              context.inlineAttachmentsCount++
+            }
+            inlinedAttachments.push(
+              inlineImage(a, context?.inlineAttachmentsCount)
+            )
+          })
+          return inlinedAttachments.join("\n\n")
+        } else {
+          attachments.forEach((a) => context?.topLevelAttachments.push(a))
+          return ""
+        }
+      } else if (tagName === "math") {
+        const contentHtml = element.childNodes
+          .map((childNode) => _parseNode(childNode, { isMath: true }, context))
+          .join("")
+        const latex = convertMathmlToLatex("<math>" + contentHtml + "</math>")
+        return ` $${latex}$ `
+      } else if (
+        isMath ||
+        tagName === "td" ||
+        tagName === "div" ||
+        tagName === "p" ||
+        tagName === "span" ||
+        tagName === "i" ||
+        tagName === "b"
+      ) {
+        const content = element.childNodes
+          .map((childNode) =>
+            _parseNode(
+              childNode,
+              {
+                isMath,
+                inlineAttachments,
+              },
+              context
+            )
+          )
+          .join("")
+          .replaceAll(/ +/g, " ")
+          .replaceAll(/ ([\,\?]|\\\.|\\\!)/g, "$1")
+        // math elements with no text are still semantically valuable
+        if (!content && !isMath) {
+          return ""
+        }
+        const [prefix, suffix] = isMath
+          ? [`<${tagName}>`, `</${tagName}>`]
+          : content.startsWith("$")
+            ? ["", ""]
+            : tagName === "i"
+              ? [" *", "* "]
+              : tagName === "b"
+                ? [" **", "** "]
+                : ["", ""]
+        return prefix + content + suffix
+      } else if (tagName === "br") {
+        return " "
       }
-
-      const header = "|   ".repeat(parsedRows[0].length - 1) + "|"
-      const separator = "|---".repeat(parsedRows[0].length - 1) + "|"
-
-      return `\n${header}\n${separator}\n${parsedRows
-        .map((row) => `| ${row.join(" | ")} |`)
-        .join("\n")}\n`
-    } else if (tagName === "math") {
-      const contentHtml = element.childNodes
-        .map((childNode) => parseNode(childNode, true))
-        .join("")
-      const latex = convertMathmlToLatex("<math>" + contentHtml + "</math>")
-      return ` $${latex}$ `
-    } else if (
-      isMath ||
-      tagName === "td" ||
-      tagName === "div" ||
-      tagName === "p" ||
-      tagName === "span" ||
-      tagName === "i" ||
-      tagName === "b"
-    ) {
-      const content = element.childNodes
-        .map((childNode) =>
-          parseNode(childNode, isMath, undefined, isUnescaped)
-        )
-        .join("")
-        .replaceAll(/ +/g, " ")
-        .replaceAll(/ ([\,\?]|\\\.|\\\!)/g, "$1")
-      // math elements with no text are still semantically valuable
-      if (!content && !isMath) {
-        return ""
-      }
-      const [prefix, suffix] = isMath
-        ? [`<${tagName}>`, `</${tagName}>`]
-        : content.startsWith("$")
-          ? ["", ""]
-          : tagName === "i"
-            ? [" *", "* "]
-            : tagName === "b"
-              ? [" **", "** "]
-              : ["", ""]
-      return prefix + content + suffix
-    } else if (tagName === "br") {
-      return " "
+    } else if (node.type === "text") {
+      return node.data.trim() || ""
     }
-  } else if (node.type === "text") {
-    return node.data.trim() || ""
-  }
 
-  return ""
+    return ""
+  }
+  return _parseNode
 }
 
 export function parseQBlockFromHtml(
@@ -224,6 +290,7 @@ export function parseQBlockFromHtml(
   if (!guid) return null
 
   const allElements = qblock.find("td.cell_0").contents().toArray()
+
   const elementsMeta = allElements.map((element) => ({
     element,
     isTable: element.type === "tag" && element.tagName === "table",
@@ -236,12 +303,21 @@ export function parseQBlockFromHtml(
     .filter((item) => item.isTable)
     .map((item) => item.element)
 
-  const parsedNonTables = nonTableElements.map((element) => parseNode(element))
+  const parseNode = getParseNode(grade)
+  const parsingContext = { topLevelAttachments: [], inlineAttachmentsCount: 0 }
+
+  const parsedNonTables = nonTableElements.map((element) =>
+    parseNode(element, undefined, parsingContext)
+  )
   const hasNonTableContent = parsedNonTables.some(
-    (p) => p.replaceAll(/\s/g, "") !== ""
+    (t) => t.replaceAll(/\s/g, "") !== ""
   )
   const parsedTables = tableElements.map((element) =>
-    parseNode(element, false, !hasNonTableContent)
+    parseNode(
+      element,
+      { isNonSemanticTable: !hasNonTableContent },
+      parsingContext
+    )
   )
 
   const bodyParts: string[] = []
@@ -268,18 +344,75 @@ export function parseQBlockFromHtml(
     .filter((p) => p)
     .join("\n\n")
 
-  const attachments: string[] = []
-  qblock.find("script").each((_, scriptEl) => {
-    const scriptContent = $(scriptEl).html() ?? ""
-    const matches = scriptContent.matchAll(FIPI_SHOW_PICTURE_Q_REGEX)
-    for (const match of matches) {
-      attachments.push(
-        `${grade === "9" ? FIPI_OGE_URL : FIPI_EGE_URL}/${match[1]}`
+  const multiOptions: ParsedQBlock["options"] = []
+  qblock
+    .find(".distractors-table > tbody > tr > td:last-child")
+    .each((i, element) => {
+      const text = parseNode(
+        element,
+        { inlineAttachments: true },
+        parsingContext
       )
-    }
-  })
 
-  return { id: guid, prompt, body, attachments }
+      multiOptions.push({
+        order: (i + 1).toString(),
+        body: text,
+      })
+    })
+
+  const multiGroupOptions: ParsedQBlock["options"] = []
+  const selects = qblock.find(
+    ".answer-table > tbody > tr:last-child > td > select"
+  )
+  const selectHeadings = qblock.find(
+    ".answer-table > tbody > tr:first-child > td"
+  )
+  for (let i = 0; i < selects.length; i++) {
+    const selectElement = selects[i]
+
+    const values: string[] = []
+    $(selectElement)
+      .find("option")
+      .each((_, optionElement) => {
+        if (!optionElement.attribs.value) {
+          return
+        }
+        values.push(optionElement.attribs.value)
+      })
+
+    let heading = selectHeadings[i]
+      ? parseNode(selectHeadings[i]!)
+      : (i + 1).toString()
+
+    multiGroupOptions.push({
+      order: heading,
+      body: values.join("|"),
+    })
+  }
+
+  return {
+    id: guid,
+    prompt,
+    body,
+    attachments: parsingContext.topLevelAttachments,
+    options: [...multiOptions, ...multiGroupOptions],
+  }
+}
+
+function extractImages(html: string, grade?: string) {
+  const attachments: string[] = []
+  const matches = html.matchAll(FIPI_SHOW_PICTURE_Q_REGEX)
+  for (const match of matches) {
+    attachments.push(
+      `${grade === "9" ? FIPI_OGE_URL : FIPI_EGE_URL}/${match[1]}`
+    )
+  }
+  return attachments
+}
+
+function inlineImage(src: string, i?: number) {
+  const title = "Изображение" + (i !== undefined ? " " + i : "")
+  return `![${title}](${src} "${title}")`
 }
 
 export async function scrapeSubjects(db: PrismaClient, grade: string) {
@@ -350,21 +483,21 @@ export async function scrapeTopics(db: PrismaClient, subjectId: string) {
     })
 
   const oldRootTopics = await db.topic.findMany({
-    where: { subjectId: subjectId, parentId: null },
+    where: { subjectId, parentId: null },
     select: { id: true },
   })
   const oldRootTopicIds = new Set(oldRootTopics.map((t) => t.id))
 
   const newRootTopicsData = scrapedRootTopics
     .filter((t) => !oldRootTopicIds.has(t.id))
-    .map((t) => ({ ...t, subjectId: subjectId }))
+    .map((t) => ({ ...t, subjectId }))
 
   if (newRootTopicsData.length > 0) {
     await db.topic.createMany({ data: newRootTopicsData })
   }
 
   const allRootTopics = await db.topic.findMany({
-    where: { subjectId: subjectId, parentId: null },
+    where: { subjectId, parentId: null },
   })
 
   const subTopicsData = scrapedSubTopics
@@ -375,7 +508,7 @@ export async function scrapeTopics(db: PrismaClient, subjectId: string) {
         id,
         name,
         parentId,
-        subjectId: subjectId,
+        subjectId,
       }
     })
     .filter((t) => t !== null)
@@ -452,7 +585,7 @@ export async function scrapePage(
   const newQuestions = parsedQuestions.filter((q) => !existingIds.has(q.id))
 
   for (const question of newQuestions) {
-    const { topicIds, attachments, ...data } = question
+    const { topicIds, attachments, options, ...data } = question
 
     await db.question.create({
       data: {
@@ -469,6 +602,7 @@ export async function scrapePage(
             topic: { connect: { id_subjectId: { id, subjectId } } },
           })),
         },
+        options: { create: options },
         attachments: {
           create: attachments.map((url) => ({ url })),
         },

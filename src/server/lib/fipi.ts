@@ -1,9 +1,7 @@
 import { Agent, fetch, FormData, type RequestInit } from "undici"
 import { env } from "@/env"
 import tls from "node:tls"
-
-export const FIPI_EGE_URL = "https://ege.fipi.ru"
-export const FIPI_OGE_URL = "https://oge.fipi.ru"
+import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
 
 export const fetchFipi = async (
   path: string,
@@ -117,5 +115,5 @@ export const verifyQuestion = async (
   }
 }
 
-export const FIPI_SHOW_PICTURE_Q_REGEX = /ShowPictureQ\('(.*?)'\)/g
+export const FIPI_SHOW_PICTURE_Q_REGEX = /ShowPictureQ\(['"]([^'"]*?)['"].*\)/g
 export const FIPI_ID_REGEX = /^\s*\d+(\.\d+)*\s*/

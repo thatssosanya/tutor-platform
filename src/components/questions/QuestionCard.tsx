@@ -5,6 +5,7 @@ import { type RouterOutputs } from "@/utils/api"
 import { cn } from "@/styles"
 import { Markdown } from "../Markdown"
 import { QuestionSource } from "@prisma/client"
+import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -37,7 +38,11 @@ export function QuestionCard({
           {...(question.source === QuestionSource.FIPI
             ? {
                 as: "a",
-                href: `https://ege.fipi.ru/bank/index.php?proj=${question.subjectId}&qid=${question.name}`,
+                href:
+                  (question.subject.grade === "9"
+                    ? FIPI_OGE_URL
+                    : FIPI_EGE_URL) +
+                  `/bank/index.php?proj=${question.subjectId}&qid=${question.name}`,
                 target: "_blank",
               }
             : null)}
@@ -48,7 +53,12 @@ export function QuestionCard({
       </Row>
       <Stack className="items-start md:flex-row md:items-center md:min-h-40">
         <Stack className={cn("text-lg")}>
-          <Markdown>{question.body}</Markdown>
+          <Markdown>
+            {[
+              question.body,
+              ...question.options.map((o) => o.order + ") " + o.body),
+            ].join("\n\n")}
+          </Markdown>
         </Stack>
         <Stack className="ml-auto shrink-0">
           {question.attachments.map((a) => (

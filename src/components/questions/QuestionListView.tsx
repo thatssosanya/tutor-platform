@@ -17,7 +17,7 @@ import { TopicFilter } from "../filters/TopicFilter"
 import { usePermissions } from "@/utils/permissions"
 import { ThumbsDown, Trash2, ExternalLink } from "lucide-react"
 import { useSession } from "next-auth/react"
-import { AssignmentSolutionBlock } from "../assignments/AssignmentSolutionBlock"
+import { QuestionSolutionBlock } from "./QuestionSolutionBlock"
 import { useExamPositionFilter } from "@/hooks/useExamPositionFilter"
 import { ExamPositionFilter } from "../filters/ExamPositionFilter"
 
@@ -202,7 +202,7 @@ export function QuestionListView({
   )
 
   const cardFooter = (question: Question) => (
-    <AssignmentSolutionBlock question={question} showAnswer={false} />
+    <QuestionSolutionBlock question={question} showAnswer={false} />
   )
 
   const pagination = (

@@ -1,17 +1,22 @@
 import { env } from "@/env"
-import { SolutionType, type Question } from "@prisma/client"
+import { SolutionType } from "@prisma/client"
 import OpenAI from "openai"
 import z from "zod"
 import { zodResponseFormat } from "openai/helpers/zod"
 import { fetchFipi } from "../lib/fipi"
 import { type Response } from "undici"
+import type { RouterOutputs } from "@/utils/api"
 
 const openai = new OpenAI({
   apiKey: env.ENRICHMENT_AI_API_KEY,
   baseURL: "https://api.aitunnel.ru/v1/",
 })
 
-type EnrichQuestionInput = Pick<Question, "body" | "solutionType"> & {
+type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
+type EnrichQuestionInput = Pick<
+  Question,
+  "body" | "solutionType" | "subject" | "options"
+> & {
   attachments?: { url: string }[]
 }
 
@@ -24,51 +29,52 @@ type EnrichQuestionResponse = Partial<
   z.infer<typeof enrichQuestionResponseSchema>
 >
 
-const solutionTypeInstructions: Record<string, string> = {
-  [SolutionType.SHORT]:
-    'Поле "solution" должно быть строкой, содержащей только одно число или слово. В поле "solution" дроби записывай в десятичной форме. Десятичный разделитель — точка.',
-  [SolutionType.LONG]:
-    'Поле "solution" должно содержать подробный текстовый ответ.',
-  [SolutionType.MULTICHOICE]:
-    'Поле "solution" должно содержать номер правильного варианта ответа.',
-  [SolutionType.MULTIRESPONSE]:
-    'Поле "solution" должно содержать последовательность номеров правильных вариантов ответа без пробелов и разделителей.',
-  [SolutionType.MULTICHOICEGROUP]:
-    'Поле "solution" должно содержать последовательность номеров для каждой группы без пробелов и разделителей.',
-}
 const SOLUTION_TYPE_INSTRUCTION_MARKER = "%SOLUTION_TYPE_INSTRUCTION%"
-
-// New, shorter system prompt without hardcoded examples
+const GRADE_MARKER = "%GRADE%"
 const SYSTEM_PROMPT = `Ты — экспертный русскоязычный ИИ-ассистент для образовательной платформы.
 
-Твоя задача — решить предложенную задачу из экзамена способом, доступным для ученика 11 класса,
-и объяснить свое решение таким образом, чтобы ученик 11 класса мог его понять.
+Твоя задача — решить предложенную задачу из экзамена способом, доступным для ученика ${GRADE_MARKER} класса,
+и объяснить свое решение таким образом, чтобы ученик ${GRADE_MARKER} класса мог его понять.
 
-Твой ответ всегда должен быть в формате JSON и содержать три ключа: "hint", "work" и "solution".
+Твой ответ всегда должен быть в формате JSON и содержать три ключа: \`hint\`, \`work\` и \`solution\`.
 
-Предоставь свое решение на русском языке в поле "work".
-Начинай поле "work" сразу с решения, не добавляя общий заголовок или слово "решение" и не повторяя условие задачи.
+Предоставь свое решение на русском языке в поле \`work\`.
+Начинай поле \`work\` сразу с решения, не добавляя общий заголовок или слово "решение" и не повторяя условие задачи.
 Будь лаконичен в своем решении и не объясняй свои действия больше, чем следует.
 Включай проверку ответа в конце своего решения только если задача подразумевает область допустимых значений, например, для значения переменной под квадратным корнем.
 Если нет области допустимых значений, закончи свое решение как только достигнешь ответа.
+Достигнув ответа, не повторяй его в поле \`work\` — закончи свое решение последней операцией, которая приводит к ответу.
 
-В поле "hint" предоставь подсказку для ученика, которая поможет ему понять, как придти к нужному решению, не показывая само решение.
+В поле \`hint\` предоставь подсказку для ученика, которая поможет ему понять, как придти к нужному решению, не показывая само решение.
 В случае математики это будет теорема или свойство, которое нужно применить для решения.
 
-Для переноса строки используй два символа переноса строки подряд — \\n\\n вместо \\n.
-
-В полях "work" и "hint" можно использовать несколько rich text опций:
+В полях \`work\` и \`hint\` поддерживается подмножество функционала Github Flavored Markdown:
+перенос строки — используй два символа переноса строки подряд: \`\\n\\n\`\` вместо \`\\n\`;
 заголовки (строка начинается с #);
 курсив (сегмент начинается с * и заканчивается *);
 жирный текст (сегмент начинается с ** и заканчивается **);
-LaTeX (сегмент начинается с $ и заканчивается $) — используй для всех математических выражений, и всегда ограничивай LaTeX сегменты, когда используешь LaTeX команды.
-Текст задачи может включать некорректно сформированный LaTeX. Не опирайся на то, как LaTeX команды используются в тексте задачи — твои LaTeX сегменты должны содержать стандартный, корректный LaTeX.
-Все математические выражения должны быть ограничены символом $ с обеих сторон.
-В LaTeX сегментах не используй команду \\text для текста — просто пиши текст.
-LaTeX сегменты не могут содержать \\n. Разбивай LaTeX сегменты на несколько LaTeX сегментов, отдельно ограничивая каждый, если выражение нужно разбить на несколько строк.
+inline LaTeX (сегмент начинается с $ и заканчивается $) — используй для всех математических выражений, и всегда ограничивай LaTeX сегменты, когда используешь LaTeX команды.
 
-Предоставь конечный результат в поле "solution".
+Текст задачи может включать некорректно сформированный LaTeX. Не опирайся на то, как LaTeX команды используются в тексте задачи — твои LaTeX сегменты должны содержать стандартный, корректный LaTeX.
+Все математические выражения должны быть ограничены символом $ с обеих сторон. LaTeX, не ограниченный символом $ с обеих сторон, не будет обработан корректно — это критическая ошибка.
+Нельзя переносить строку (использовать \`\\n\`) внутри LaTeX сегментов. Если LaTeX сегмент нужно разбить на несколько строк, разбей его на несколько LaTeX сегментов, отдельно ограничивая каждый символом $ с обеих сторон, и переноси строку между ними.
+В LaTeX сегментах не используй команду \\text для текста — просто пиши текст. Если текст, являющийся аргументом для LaTeX команды, включает пробелы, используй команду \`\\space\`, например, \`_{с\\spaceпробелом}\`
+
+Предоставь конечный результат в поле \`solution\`.
 ${SOLUTION_TYPE_INSTRUCTION_MARKER}`
+
+const SOLUTION_TYPE_INSTRUCTIONS: Record<string, string> = {
+  [SolutionType.SHORT]:
+    "Поле \`solution\` должно быть строкой, содержащей только одно число или слово. В поле \`solution\` дроби записывай в десятичной форме. Десятичный разделитель — точка.",
+  [SolutionType.LONG]:
+    "Поле \`solution\` должно содержать подробный текстовый ответ.",
+  [SolutionType.MULTICHOICE]:
+    "Поле \`solution\` должно содержать \`order\` правильного варианта ответа.",
+  [SolutionType.MULTIRESPONSE]:
+    "Поле \`solution\` должно содержать один или более \`order\` правильных вариантов ответа, разделенных символом |.",
+  [SolutionType.MULTICHOICEGROUP]:
+    "Поле \`solution\` должно содержать последовательность значений, выбранных из предоставленных опций, по одному для каждой группы, разделенных символом |.",
+}
 
 const EXAMPLES = [
   {
@@ -117,6 +123,9 @@ const EXAMPLES = [
   },
 ]
 
+// group 1 = [alt], group 2 = url
+const INLINE_IMAGE_REGEX = /!(\[.*?\])\((.*?)\s(?:.*?)\)/g
+
 export async function enrichQuestionWithAI(
   question: EnrichQuestionInput
 ): Promise<EnrichQuestionResponse> {
@@ -126,29 +135,70 @@ export async function enrichQuestionWithAI(
     return defaultReturn
   }
 
-  const attachmentPromises = (question.attachments ?? []).map(async (a) => {
+  const systemPrompt = SYSTEM_PROMPT.replaceAll(
+    SOLUTION_TYPE_INSTRUCTION_MARKER,
+    SOLUTION_TYPE_INSTRUCTIONS[question.solutionType] ?? ""
+  ).replaceAll(GRADE_MARKER, question.subject.grade ?? "11")
+
+  const inlineImageUrls = [
+    question.body,
+    ...question.options.map((o) => o.body),
+  ]
+    .flatMap((s) => [...s.matchAll(INLINE_IMAGE_REGEX)].map((m) => m[2]))
+    .filter((url) => url !== undefined)
+  const attachmentPromises = [
+    ...inlineImageUrls,
+    ...(question.attachments?.map((a) => a.url) ?? []),
+  ].map(async (url) => {
     try {
-      const response = await fetchFipi(a.url)
+      const response = await fetchFipi(url)
       return responseToBase64DataURL(response)
     } catch (e) {
-      console.warn(`Error fetching attachment URL ${a.url}. Skipping.`, e)
+      console.warn(`Error fetching attachment URL ${url}. Skipping.`, e)
       return null
     }
   })
-
   const base64Urls = (await Promise.all(attachmentPromises)).filter(
     (url) => url !== null
   )
-
-  const systemPrompt = SYSTEM_PROMPT.replaceAll(
-    SOLUTION_TYPE_INSTRUCTION_MARKER,
-    solutionTypeInstructions[question.solutionType] ?? ""
-  )
-
   const imageMessageParts = base64Urls.map((base64Url) => ({
     type: "image_url" as const,
     image_url: { url: base64Url },
   }))
+
+  const options = (() => {
+    switch (question.solutionType) {
+      case SolutionType.MULTICHOICE:
+      case SolutionType.MULTIRESPONSE: {
+        return (
+          "\n\nВарианты ответа:\n" +
+          JSON.stringify(
+            question.options.map((o) => ({
+              order: o.order,
+              // replace inline images with alt
+              body: o.body.replaceAll(INLINE_IMAGE_REGEX, (_, g1) => g1),
+            }))
+          )
+        )
+      }
+      case SolutionType.MULTICHOICEGROUP: {
+        return (
+          "\n\nГруппы вариантов ответов:\n" +
+          JSON.stringify(
+            question.options.map((o, i) => ({
+              group: o.order ?? i.toString(),
+              options: o.body.split("|"),
+            }))
+          )
+        )
+      }
+      case SolutionType.SHORT:
+      case SolutionType.LONG:
+      default: {
+        return ""
+      }
+    }
+  })()
 
   const maxRetries = 3
   const initialDelay = 1000
@@ -173,12 +223,16 @@ export async function enrichQuestionWithAI(
       content: [
         {
           type: "text",
-          text: question.body,
+          text:
+            question.body.replaceAll(INLINE_IMAGE_REGEX, (_, g1) => g1) +
+            options,
         },
         ...imageMessageParts,
       ],
     },
   ]
+
+  console.dir(messages, { depth: null })
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -190,7 +244,7 @@ export async function enrichQuestionWithAI(
         reasoning: {
           effort: "medium",
         },
-        max_tokens: 8192,
+        max_completion_tokens: 8192,
         response_format: zodResponseFormat(
           enrichQuestionResponseSchema,
           "json_schema"
@@ -198,6 +252,7 @@ export async function enrichQuestionWithAI(
       })
 
       const content = response.choices[0]?.message?.content
+      console.dir(response.choices[0])
       if (!content) {
         throw new Error("AI enrichment failed: No content in response.")
       }
@@ -210,7 +265,7 @@ export async function enrichQuestionWithAI(
             ?.replaceAll("\\n", "\n")
             ?.replaceAll("LATEXSTART", "$")
             ?.replaceAll("LATEXEND", "$")
-            ?.replaceAll("\\frac", "\\dfrac") ?? "",
+            ?.replaceAll("\\frac", "\\dfrac") ?? ""?.replace(/^Ответ:.*$/m, ""),
         solution: parsed.solution ?? "",
         hint:
           parsed.hint

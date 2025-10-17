@@ -12,6 +12,7 @@ import {
   Stack,
 } from "@/ui"
 import { api } from "@/utils/api"
+import { SOLUTION_TYPE_OPTIONS } from "@/utils/consts"
 
 type QuestionCreateFormProps = {
   subjectId: string
@@ -60,11 +61,6 @@ export function QuestionCreateForm({ subjectId }: QuestionCreateFormProps) {
     })
   }
 
-  const solutionTypeOptions: RadioOption<SolutionType>[] = [
-    { value: SolutionType.SHORT, label: "Краткий ответ" },
-    { value: SolutionType.LONG, label: "Развернутый ответ" },
-  ]
-
   return (
     <div className="mt-2">
       {isCreating ? (
@@ -88,11 +84,12 @@ export function QuestionCreateForm({ subjectId }: QuestionCreateFormProps) {
                 onChange={(e) => setWork(e.target.value)}
               />
               <RadioGroup
-                options={solutionTypeOptions}
+                options={SOLUTION_TYPE_OPTIONS}
                 value={solutionType}
                 onChange={setSolutionType}
                 variant="button"
               />
+              {/* TODO add other types */}
               {solutionType === SolutionType.SHORT && (
                 <Input
                   placeholder="Ответ"

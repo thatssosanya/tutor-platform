@@ -8,7 +8,7 @@ import { type RouterOutputs } from "@/utils/api"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
-type AssignmentSolutionBlockProps = {
+type QuestionSolutionBlockProps = {
   question: Question
   studentAnswer?: StudentAnswer
   showControls?: boolean
@@ -16,13 +16,13 @@ type AssignmentSolutionBlockProps = {
   showHint?: boolean
 }
 
-export function AssignmentSolutionBlock({
+export function QuestionSolutionBlock({
   question,
   studentAnswer,
   showControls = false,
   showAnswer = true,
   showHint = false,
-}: AssignmentSolutionBlockProps) {
+}: QuestionSolutionBlockProps) {
   const [isOpen, setIsOpen] = useState(showHint)
 
   const hasAnswer = !!studentAnswer

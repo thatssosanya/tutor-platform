@@ -4,7 +4,7 @@ import rehypeKatex from "rehype-katex"
 import remarkGfm from "remark-gfm"
 import React from "react"
 import "katex/dist/katex.min.css"
-import { fixMalformedLatex } from "@/utils/latex"
+import { fixMarkdown } from "@/utils/markdown"
 
 function MarkdownComponent({ children }: { children: string | null }) {
   return (
@@ -28,9 +28,12 @@ function MarkdownComponent({ children }: { children: string | null }) {
         p: ({ node, ...rest }) => {
           return <p className="my-1 first:mt-0 last:mb-0" {...rest} />
         },
+        img: ({ node, ...rest }) => {
+          return <img className="inline-block" {...rest} />
+        },
       }}
     >
-      {fixMalformedLatex(children)}
+      {fixMarkdown(children)}
     </ReactMarkdown>
   )
 }

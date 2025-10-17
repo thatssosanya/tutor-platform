@@ -8,12 +8,12 @@ import { QuestionList } from "@/components/questions/QuestionList"
 import { Button, Pagination, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 import type { QuestionSource } from "@prisma/client"
-import { AssignmentSolutionBlock } from "../assignments/AssignmentSolutionBlock"
+import { QuestionSolutionBlock } from "./QuestionSolutionBlock"
 import { ExamPositionFilter } from "../filters/ExamPositionFilter"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
-type TestQuestionPickerProps = {
+type QuestionPickerProps = {
   subjectId: string
   // Selected questions
   selectedQuestions: Question[]
@@ -61,7 +61,7 @@ export function QuestionPicker({
   currentPage,
   totalPages,
   onPageChange,
-}: TestQuestionPickerProps) {
+}: QuestionPickerProps) {
   const addQuestionControl = (question: Question) => (
     <Button
       size="sm"
@@ -85,7 +85,7 @@ export function QuestionPicker({
   )
 
   const cardFooter = (question: Question) => (
-    <AssignmentSolutionBlock question={question} showAnswer={false} />
+    <QuestionSolutionBlock question={question} showAnswer={false} />
   )
 
   const pagination = (
