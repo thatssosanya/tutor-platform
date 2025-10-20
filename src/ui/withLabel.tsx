@@ -11,17 +11,16 @@ export const withLabel = <P extends object>(
   WrappedComponent: React.ComponentType<P>
 ) => {
   const WithLabelComponent: React.FC<P & WithLabelProps> = ({
-    label,
     labelAs,
     ...props
   }) => {
     const renderedComponent = <WrappedComponent {...(props as P)} />
-    if (!label) {
+    if (!props.label) {
       return renderedComponent
     }
 
     return (
-      <LabelBox label={label} labelAs={labelAs}>
+      <LabelBox label={props.label} labelAs={labelAs}>
         <WrappedComponent {...(props as P)} />
       </LabelBox>
     )

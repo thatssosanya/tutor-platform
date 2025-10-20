@@ -3,11 +3,13 @@ import React from "react"
 import { cn } from "@/styles"
 
 import { buttonVariants } from "./Button"
+import { Checkbox } from "./Checkbox"
 import { withLabel, type WithLabelProps } from "./withLabel"
 
 export type CheckboxOption<T> = {
   value: T
-  label: string
+  label: React.ReactNode
+  className?: string
 }
 
 type CheckboxGroupProps<T> = {
@@ -16,9 +18,8 @@ type CheckboxGroupProps<T> = {
   onChange: (value: T[]) => void
   className?: string
   variant?: "default" | "button" | "button-paper"
+  disabled?: boolean
 }
-
-// TODO add default rendering
 
 function CheckboxGroupComponent<T extends string | number>({
   options,
@@ -26,17 +27,24 @@ function CheckboxGroupComponent<T extends string | number>({
   onChange,
   className,
   variant = "default",
+  disabled = false,
 }: CheckboxGroupProps<T>) {
   const selectedValues = new Set(value)
 
   const handleToggle = (optionValue: T) => {
-    const newSelectedValues = new Set(selectedValues)
-    if (newSelectedValues.has(optionValue)) {
-      newSelectedValues.delete(optionValue)
-    } else {
-      newSelectedValues.add(optionValue)
-    }
-    onChange(Array.from(newSelectedValues))
+    if (disabled) return
+    const newSelectedValues = options.reduce((a, o) => {
+      const isToggling = o.value === optionValue
+      if (
+        (selectedValues.has(o.value) && !isToggling) ||
+        (!selectedValues.has(o.value) && isToggling)
+      ) {
+        return [...a, o.value]
+      } else {
+        return a
+      }
+    }, [] as T[])
+    onChange(newSelectedValues)
   }
 
   return (
@@ -52,6 +60,7 @@ function CheckboxGroupComponent<T extends string | number>({
             key={String(option.value)}
             type="button"
             onClick={() => handleToggle(option.value)}
+            disabled={disabled}
             className={cn(
               buttonVariants({
                 size: "sm",
@@ -59,12 +68,22 @@ function CheckboxGroupComponent<T extends string | number>({
                   variant === "button-paper" ? "primary-paper" : "secondary",
               }),
               selectedValues.has(option.value) &&
-                "bg-accent text-on-accent hover:bg-accent-highlight"
+                "bg-accent text-on-accent hover:bg-accent-highlight",
+              option.className
             )}
           >
             {option.label}
           </button>
-        ) : null
+        ) : (
+          <Checkbox
+            key={String(option.value)}
+            checked={selectedValues.has(option.value)}
+            onChange={() => handleToggle(option.value)}
+            label={option.label as string}
+            className={option.className}
+            disabled={disabled}
+          />
+        )
       )}
     </div>
   )

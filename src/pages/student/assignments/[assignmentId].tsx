@@ -1,5 +1,5 @@
 import { SolutionType, type StudentAnswer } from "@prisma/client"
-import { Check, Eye, EyeOff, X } from "lucide-react"
+import { Check, Eye, EyeOff, Save, X } from "lucide-react"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import React, { useEffect, useMemo, useState } from "react"
@@ -10,7 +10,15 @@ import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBl
 import { SpinnerScreen } from "@/components/SpinnerScreen"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { cn } from "@/styles"
-import { Box, Button, Container, Input, Paper, Row, Stack } from "@/ui"
+import {
+  Accordion,
+  Box,
+  Button,
+  Container,
+  Paper,
+  Row,
+  Stack,
+} from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 
@@ -20,7 +28,6 @@ type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 interface AnswerSolutionBlockProps {
   question: Question
   studentAnswer?: StudentAnswer
-  isCompleted: boolean
   currentAnswer: string
   setCurrentAnswer: (value: string) => void
   onSubmit: () => void
@@ -30,64 +37,70 @@ interface AnswerSolutionBlockProps {
 function AnswerSolutionBlock({
   question,
   studentAnswer,
-  isCompleted,
   currentAnswer,
   setCurrentAnswer,
   onSubmit,
   isSubmitting,
 }: AnswerSolutionBlockProps) {
-  const [showHint, setShowHint] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+
   const isAnswered = !!studentAnswer
+  const canShowHint = !!question.hint && !isAnswered
+  const canShowWork = !!question.work && isAnswered
 
-  if (question.solutionType !== SolutionType.SHORT) {
-    return null
-  }
+  return (
+    <Stack className="w-full gap-4 md:min-h-0">
+      <p className="font-semibold">{question.prompt}</p>
+      {(canShowHint || canShowWork) && (
+        <Accordion
+          title={isAnswered ? "Решение" : "Подсказка"}
+          className="md:min-h-0"
+          panelClassName="md:min-h-0 overflow-y-auto px-0 py-4 text-lg"
+          isOpen={isOpen}
+          onToggle={() => setIsOpen((prev) => !prev)}
+        >
+          {!isAnswered ? (
+            <Markdown>{question.hint ?? ""}</Markdown>
+          ) : (
+            <Markdown>{question.work ?? ""}</Markdown>
+          )}
+        </Accordion>
+      )}
 
-  if (isAnswered || isCompleted) {
-    return (
       <QuestionSolutionBlock
         question={question}
-        studentAnswer={studentAnswer}
-        showControls
+        value={isAnswered ? studentAnswer.answer : currentAnswer}
+        onChange={isAnswered ? undefined : setCurrentAnswer}
+        isCorrect={studentAnswer?.isCorrect}
       />
-    )
-  }
 
-  // Otherwise, show the input to submit an answer.
-  return (
-    <Stack className="w-full justify-center gap-4">
-      {showHint && (
-        <QuestionSolutionBlock question={question} showControls showHint />
-      )}
-      <p className="font-semibold">{question.prompt}</p>
-      <Input
-        placeholder="Ответ"
-        value={currentAnswer}
-        onChange={(e) => setCurrentAnswer(e.target.value)}
-        className="w-full"
-        variant="primary-paper"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSubmit()
-        }}
-        after={
-          <Button onClick={onSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "..." : "Ответить"}
-          </Button>
-        }
-      />
       <Stack className="justify-evenly mt-4 gap-4 md:flex-row">
-        <Button size="lg" className="gap-4 flex-grow" disabled>
-          <Eye />
+        <Button
+          size="lg"
+          className="w-full gap-4"
+          onClick={() => setIsOpen((prev) => !prev)}
+          disabled={!canShowWork}
+        >
+          {isOpen && question.work && isAnswered ? <EyeOff /> : <Eye />}
           Решение
         </Button>
         <Button
           size="lg"
-          className="gap-4 flex-grow"
-          onClick={() => setShowHint((prev) => !prev)}
-          disabled={!question.hint}
+          className="w-full gap-4"
+          onClick={() => setIsOpen((prev) => !prev)}
+          disabled={!canShowHint}
         >
-          {showHint ? <EyeOff /> : <Eye />}
+          {isOpen && question.hint && !isAnswered ? <EyeOff /> : <Eye />}
           Подсказка
+        </Button>
+        <Button
+          size="lg"
+          className="w-full gap-4"
+          onClick={onSubmit}
+          disabled={!currentAnswer || isSubmitting}
+        >
+          <Save />
+          Сохранить
         </Button>
       </Stack>
     </Stack>
@@ -129,9 +142,6 @@ function CustomPaginationNav({
             ? "text-success"
             : "text-danger"
           : "text-primary"
-        console.log(
-          q.body?.split("\n")[0]?.replaceAll("\\dfrac", "\\frac") ?? null
-        )
         return (
           <Paper
             key={q.id}
@@ -149,15 +159,15 @@ function CustomPaginationNav({
             >
               {pageNum}
             </span>
-            <p className="col-start-2 row-start-1 truncate text-secondary">
+            <Box className="col-start-2 row-start-1 truncate text-secondary">
               <Markdown>
                 {q.body?.split("\n")[0]?.replaceAll("\\dfrac", "\\frac") ??
                   null}
               </Markdown>
-            </p>
+            </Box>
             {studentAnswer ? (
               <Row className="col-start-2 row-start-2 items-center gap-2 text-sm">
-                <span>{studentAnswer.answer}</span>
+                <span>{studentAnswer.answer.replaceAll("|", ", ")}</span>
                 {isCorrect ? (
                   <Check className="h-4 w-4 text-success" />
                 ) : (
@@ -165,7 +175,7 @@ function CustomPaginationNav({
                     <X className="h-4 w-4 text-danger" />
                     {q.solution && (
                       <span className="text-secondary">
-                        Ответ: {q.solution}
+                        Ответ: {q.solution.replaceAll("|", ", ")}
                       </span>
                     )}
                   </>
@@ -259,7 +269,7 @@ export default function AssignmentPage() {
 
   const isCompleted = !!assignmentQuery.data?.completedAt
   const answerableQuestions = questions.filter(
-    (q) => q.solutionType === SolutionType.SHORT
+    (q) => q.solutionType !== SolutionType.LONG
   ).length
   const totalQuestions = questions.length
   const answeredQuestionsCount = studentAnswersMap.size
@@ -315,45 +325,33 @@ export default function AssignmentPage() {
             )}
           </Box>
 
-          <Box
-            className={cn(
-              "md:row-start-2 md:col-start-1 md:min-h-0",
-              currentQuestion.solutionType !== SolutionType.SHORT &&
-                "col-span-2"
-            )}
-          >
+          <Box className={cn("md:row-start-2 md:col-start-1 md:min-h-0")}>
             <QuestionCard
               question={currentQuestion}
-              isPromptHidden
+              hidePrompt
+              hideSolutionBlock
               size="lg"
-              footer={
-                currentQuestion.solutionType === SolutionType.SHORT
-                  ? () => (
-                      <AnswerSolutionBlock
-                        question={currentQuestion}
-                        studentAnswer={currentStudentAnswer}
-                        isCompleted={isCompleted}
-                        currentAnswer={currentAnswer}
-                        setCurrentAnswer={setCurrentAnswer}
-                        onSubmit={handleSubmitAnswer}
-                        isSubmitting={submitAnswerMutation.isPending}
-                      />
-                    )
-                  : undefined
-              }
+              footer={() => (
+                <AnswerSolutionBlock
+                  question={currentQuestion}
+                  studentAnswer={currentStudentAnswer}
+                  currentAnswer={currentAnswer}
+                  setCurrentAnswer={setCurrentAnswer}
+                  onSubmit={handleSubmitAnswer}
+                  isSubmitting={submitAnswerMutation.isPending}
+                />
+              )}
             />
           </Box>
 
-          {currentQuestion.solutionType === SolutionType.SHORT && (
-            <Box className="md:row-start-2 md:col-start-2 md:h-full md:max-h-full md:min-h-0">
-              <CustomPaginationNav
-                questions={questions}
-                studentAnswersMap={studentAnswersMap}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
-              />
-            </Box>
-          )}
+          <Box className="md:row-start-2 md:col-start-2 md:h-full md:max-h-full md:min-h-0">
+            <CustomPaginationNav
+              questions={questions}
+              studentAnswersMap={studentAnswersMap}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+            />
+          </Box>
         </Container>
       </ProtectedLayout>
     </>

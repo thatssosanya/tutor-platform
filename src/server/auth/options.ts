@@ -28,7 +28,9 @@ const authOptions: NextAuthConfig = {
 
         const user = await db?.user.findFirst({
           where: { name: credentials.name },
-          include: { subjects: { select: { id: true, name: true } } },
+          include: {
+            subjects: { select: { id: true, name: true, grade: true } },
+          },
         })
 
         if (!user) {
@@ -56,7 +58,10 @@ const authOptions: NextAuthConfig = {
           name: user.name,
           displayName: user.displayName,
           permissions: user.permissions,
-          subjects: user.subjects.map((s) => ({ id: s.id, name: s.name })),
+          subjects: user.subjects.map((s) => ({
+            id: s.id,
+            name: s.grade === "9" ? `${s.name} (ОГЭ)` : s.name,
+          })),
         }
       },
     }),

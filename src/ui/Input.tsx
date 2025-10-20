@@ -24,13 +24,21 @@ const inputVariants = cva(
 
 type InputProps = {
   after?: React.ReactNode
+  label?: string
 } & React.ComponentPropsWithoutRef<"input"> &
   VariantProps<typeof inputVariants>
 
-function InputComponent({ className, variant, after, ...props }: InputProps) {
+function InputComponent({
+  className,
+  variant,
+  after,
+  label,
+  ...props
+}: InputProps) {
   const input = (
     <HeadlessInput
       className={cn(inputVariants({ variant, className }))}
+      placeholder={props.placeholder ?? label}
       {...props}
     />
   )

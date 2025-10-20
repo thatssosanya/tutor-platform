@@ -202,12 +202,17 @@ export function TutorAssignmentView({
           <QuestionList
             questions={filteredQuestions}
             isLoading={false}
+            hideSolutionBlock
             cardFooter={(question) => {
               const studentAnswer = studentAnswersMap.get(question.id)
+              if (!studentAnswer) {
+                return null
+              }
               return (
                 <QuestionSolutionBlock
                   question={question}
-                  studentAnswer={studentAnswer}
+                  value={studentAnswer.answer}
+                  isCorrect={studentAnswer.isCorrect}
                 />
               )
             }}

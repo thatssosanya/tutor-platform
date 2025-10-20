@@ -8,6 +8,7 @@ import { SearchFilter } from "@/components/filters/SearchFilter"
 import { TopicFilter } from "@/components/filters/TopicFilter"
 import { Markdown } from "@/components/Markdown"
 import { QuestionCard } from "@/components/questions/QuestionCard"
+import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBlock"
 import { SpinnerScreen } from "@/components/SpinnerScreen"
 import { useSearchFilter } from "@/hooks/useSearchFilter"
 import { useTopicFilter } from "@/hooks/useTopicFilter"
@@ -384,11 +385,12 @@ const ScrapeSubjectPage: NextPage = () => {
     }))
   }
 
-  const handleFieldBlur = (
+  const handleFieldSave = (
     question: Question,
-    field: "body" | "solution" | "work" | "hint"
+    field: "body" | "solution" | "work" | "hint",
+    value?: string
   ) => {
-    const changedValue = localChanges[question.id]?.[field]
+    const changedValue = value ?? localChanges[question.id]?.[field]
     if (changedValue !== undefined && changedValue !== question[field]) {
       updateContentMutation.mutate({
         id: question.id,
@@ -452,7 +454,7 @@ const ScrapeSubjectPage: NextPage = () => {
             onChange={(e) =>
               handleFieldChange(question.id, "body", e.target.value)
             }
-            onBlur={() => handleFieldBlur(question, "body")}
+            onBlur={() => handleFieldSave(question, "body")}
             className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
             disabled={isUpdatingContent}
           />
@@ -461,15 +463,24 @@ const ScrapeSubjectPage: NextPage = () => {
           <>
             <Stack className="gap-1">
               <h4 className="font-semibold text-primary">Ответ:</h4>
-              <Box className="text-lg">{solutionValue ?? "Нет ответа"}</Box>
-              <textarea
-                value={solutionValue ?? ""}
-                onChange={(e) =>
-                  handleFieldChange(question.id, "solution", e.target.value)
-                }
-                onBlur={() => handleFieldBlur(question, "solution")}
-                className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isUpdatingContent}
+              <QuestionSolutionBlock
+                question={question}
+                value={solutionValue}
+                onChange={(v) => {
+                  handleFieldChange(question.id, "solution", v)
+                  if (
+                    (
+                      [
+                        SolutionType.MULTICHOICE,
+                        SolutionType.MULTIRESPONSE,
+                        SolutionType.MULTICHOICEGROUP,
+                      ] as SolutionType[]
+                    ).includes(question.solutionType)
+                  ) {
+                    handleFieldSave(question, "solution", v)
+                  }
+                }}
+                onBlur={() => handleFieldSave(question, "solution")}
               />
             </Stack>
 
@@ -483,7 +494,7 @@ const ScrapeSubjectPage: NextPage = () => {
                 onChange={(e) =>
                   handleFieldChange(question.id, "work", e.target.value)
                 }
-                onBlur={() => handleFieldBlur(question, "work")}
+                onBlur={() => handleFieldSave(question, "work")}
                 className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
                 disabled={isUpdatingContent}
               />
@@ -499,7 +510,7 @@ const ScrapeSubjectPage: NextPage = () => {
                 onChange={(e) =>
                   handleFieldChange(question.id, "hint", e.target.value)
                 }
-                onBlur={() => handleFieldBlur(question, "hint")}
+                onBlur={() => handleFieldSave(question, "hint")}
                 className="w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
                 disabled={isUpdatingContent}
               />
@@ -724,6 +735,7 @@ const ScrapeSubjectPage: NextPage = () => {
                     <QuestionCard
                       key={q.id}
                       question={q}
+                      hideSolutionBlock
                       footer={cardFooter}
                       controls={cardControls}
                     />

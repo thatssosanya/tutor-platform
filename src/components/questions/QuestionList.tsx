@@ -11,6 +11,7 @@ type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 type QuestionListProps = {
   questions: Question[]
   isLoading: boolean
+  hideSolutionBlock?: boolean
   cardControls?: (question: Question) => React.ReactNode
   cardFooter?: (question: Question) => React.ReactNode
 }
@@ -18,6 +19,7 @@ type QuestionListProps = {
 export function QuestionList({
   questions,
   isLoading,
+  hideSolutionBlock,
   cardControls,
   cardFooter,
 }: QuestionListProps) {
@@ -35,6 +37,7 @@ export function QuestionList({
         <QuestionCard
           key={question.id}
           question={question}
+          hideSolutionBlock={hideSolutionBlock}
           controls={cardControls}
           footer={cardFooter}
         />

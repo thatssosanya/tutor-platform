@@ -10,7 +10,6 @@ import { Button, Pagination, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 
 import { ExamPositionFilter } from "../filters/ExamPositionFilter"
-import { QuestionSolutionBlock } from "./QuestionSolutionBlock"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -85,10 +84,6 @@ export function QuestionPicker({
     </Button>
   )
 
-  const cardFooter = (question: Question) => (
-    <QuestionSolutionBlock question={question} showAnswer={false} />
-  )
-
   const pagination = (
     <Pagination
       currentPage={currentPage}
@@ -124,7 +119,6 @@ export function QuestionPicker({
             questions={availableQuestions}
             isLoading={isLoadingAvailable}
             cardControls={addQuestionControl}
-            cardFooter={cardFooter}
           />
           {!isLoadingAvailable && pagination}
         </Stack>
@@ -138,7 +132,6 @@ export function QuestionPicker({
           questions={selectedQuestions}
           isLoading={isLoadingSelected}
           cardControls={removeQuestionControl}
-          cardFooter={cardFooter}
         />
       </Stack>
     </div>

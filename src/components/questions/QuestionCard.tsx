@@ -1,4 +1,4 @@
-import { QuestionSource } from "@prisma/client"
+import { QuestionSource, SolutionType } from "@prisma/client"
 import React from "react"
 
 import { cn } from "@/styles"
@@ -7,21 +7,31 @@ import { type RouterOutputs } from "@/utils/api"
 import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
 
 import { Markdown } from "../Markdown"
+import { QuestionSolutionBlock } from "./QuestionSolutionBlock"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
 type QuestionCardProps = {
   question: Question
   size?: "default" | "lg"
-  isPromptHidden?: boolean
+  hidePrompt?: boolean
+  hideSolutionBlock?: boolean
   controls?: (question: Question) => React.ReactNode
   footer?: (question: Question) => React.ReactNode
 }
 
+const TYPES_WITH_SOLUTIONS = [
+  SolutionType.SHORT,
+  SolutionType.MULTICHOICE,
+  SolutionType.MULTIRESPONSE,
+  SolutionType.MULTICHOICEGROUP,
+] as SolutionType[]
+
 export function QuestionCard({
   question,
   size = "default",
-  isPromptHidden,
+  hidePrompt,
+  hideSolutionBlock,
   controls,
   footer,
 }: QuestionCardProps) {
@@ -54,12 +64,7 @@ export function QuestionCard({
       </Row>
       <Stack className="items-start md:flex-row md:items-center md:min-h-40">
         <Stack className={cn("text-lg")}>
-          <Markdown>
-            {[
-              question.body,
-              ...question.options.map((o) => o.order + ") " + o.body),
-            ].join("\n\n")}
-          </Markdown>
+          <Markdown>{question.body}</Markdown>
         </Stack>
         <Stack className="ml-auto shrink-0">
           {question.attachments.map((a) => (
@@ -67,11 +72,15 @@ export function QuestionCard({
           ))}
         </Stack>
       </Stack>
-      {(!isPromptHidden || footer) && (
+      {(!hidePrompt || !hideSolutionBlock || footer) && (
         <Stack className={cn("gap-4", size === "lg" && "mt-auto min-h-0")}>
-          {!isPromptHidden && (
+          {!hidePrompt && (
             <p className="font-semibold text-primary">{question.prompt}</p>
           )}
+          {!hideSolutionBlock &&
+            TYPES_WITH_SOLUTIONS.includes(question.solutionType) && (
+              <QuestionSolutionBlock question={question} />
+            )}
           {footer && footer(question)}
         </Stack>
       )}

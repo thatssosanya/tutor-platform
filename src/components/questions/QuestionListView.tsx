@@ -1,5 +1,5 @@
 import { Transition } from "@headlessui/react"
-import { ExternalLink,ThumbsDown, Trash2 } from "lucide-react"
+import { ExternalLink, ThumbsDown, Trash2 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import React, { useEffect, useState } from "react"
 
@@ -8,7 +8,7 @@ import { useSearchFilter } from "@/hooks/useSearchFilter"
 import { useSourceFilter } from "@/hooks/useSourceFilter"
 import { useSubjectFilter } from "@/hooks/useSubjectFilter"
 import { useTopicFilter } from "@/hooks/useTopicFilter"
-import { Box, Button,Pagination, Row, Spinner, Stack } from "@/ui"
+import { Box, Button, Pagination, Row, Spinner, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { usePermissions } from "@/utils/permissions"
 
@@ -19,7 +19,6 @@ import { SubjectFilter } from "../filters/SubjectFilter"
 import { TopicFilter } from "../filters/TopicFilter"
 import { QuestionCreateForm } from "./QuestionCreateForm"
 import { QuestionList } from "./QuestionList"
-import { QuestionSolutionBlock } from "./QuestionSolutionBlock"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
@@ -201,10 +200,6 @@ export function QuestionListView({
     </Row>
   )
 
-  const cardFooter = (question: Question) => (
-    <QuestionSolutionBlock question={question} showAnswer={false} />
-  )
-
   const pagination = (
     <Pagination
       currentPage={currentPage}
@@ -283,7 +278,6 @@ export function QuestionListView({
                 questions={questions}
                 isLoading={questionsQuery.isLoading && !isPaginating}
                 cardControls={cardControls}
-                cardFooter={cardFooter}
               />
             </Transition>
           </div>

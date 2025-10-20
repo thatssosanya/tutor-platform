@@ -68,7 +68,7 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
     onChange,
     placeholder,
     multiple,
-    anchor,
+    anchor = "bottom",
     variant,
     className,
     onClose,
@@ -136,7 +136,7 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
       className={cn("relative", className)}
     >
       <ListboxButton className={listboxButtonVariants({ variant, className })}>
-        <span className="block truncate">{getButtonDisplay()}</span>
+        <span className="block truncate h-5">{getButtonDisplay()}</span>
         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
           <ChevronsUpDown className="h-5 w-5 text-secondary" />
         </span>
@@ -144,7 +144,7 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
       <ListboxOptions
         // @ts-expect-error headless doesn't export this type https://headlessui.com/react/listbox#positioning-the-dropdown
         anchor={anchor}
-        className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-paper py-1 text-base shadow-primary shadow-lg inset-shadow-xs focus:outline-none sm:text-sm"
+        className="absolute z-10 max-h-60 overflow-auto rounded-md bg-paper py-1 text-base shadow-primary shadow-lg inset-shadow-xs focus:outline-none sm:text-sm"
       >
         {options.map((option) => (
           <ListboxOption

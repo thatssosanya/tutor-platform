@@ -11,10 +11,14 @@ import { PermissionBit } from "@/utils/permissions"
 export const subjectRouter = createTRPCRouter({
   // --- PUBLIC ---
 
-  getAll: publicProcedure.query(({ ctx }) => {
-    return ctx.db.subject.findMany({
+  getAll: publicProcedure.query(async ({ ctx }) => {
+    const subjects = await ctx.db.subject.findMany({
       orderBy: { name: "asc" },
     })
+    return subjects.map((s) => ({
+      ...s,
+      name: s.grade === "9" ? `${s.name} (ОГЭ)` : s.name,
+    }))
   }),
 
   getAllByGrade: publicProcedure.query(async ({ ctx }) => {

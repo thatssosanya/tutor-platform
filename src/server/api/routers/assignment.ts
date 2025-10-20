@@ -420,7 +420,7 @@ export const assignmentRouter = createTRPCRouter({
       }
 
       let isCorrect = false
-      if (question.solutionType === SolutionType.SHORT && question.solution) {
+      if (question.solution) {
         isCorrect =
           answer.trim().toLowerCase() === question.solution.trim().toLowerCase()
       }
