@@ -10,15 +10,7 @@ import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBl
 import { SpinnerScreen } from "@/components/SpinnerScreen"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { cn } from "@/styles"
-import {
-  Accordion,
-  Box,
-  Button,
-  Container,
-  Paper,
-  Row,
-  Stack,
-} from "@/ui"
+import { Accordion, Box, Button, Container, Paper, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 
@@ -97,7 +89,7 @@ function AnswerSolutionBlock({
           size="lg"
           className="w-full gap-4"
           onClick={onSubmit}
-          disabled={!currentAnswer || isSubmitting}
+          disabled={!currentAnswer || isSubmitting || isAnswered}
         >
           <Save />
           Сохранить
