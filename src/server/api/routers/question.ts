@@ -8,7 +8,7 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc"
 import { verifyQuestion } from "@/server/lib/fipi"
-import { enrichQuestionWithAI } from "@/server/services/ai"
+import { enrichQuestionWithAI } from "@/server/services/ai/enrichment"
 import { UNENRICHABLE_SOLUTION_TYPES } from "@/utils/consts"
 import { PermissionBit } from "@/utils/permissions"
 
