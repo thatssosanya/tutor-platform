@@ -51,11 +51,10 @@ export function MultiChoiceGroupSolutionBlock({
           groupOptions.find((o) => o.value === selectedGroupAnswer) ?? null
 
         return (
-          <Stack className="items-center">
+          <Stack className="items-center" key={group.order ?? i}>
             <Markdown>{group.order}</Markdown>
             {isEditable ? (
               <Listbox
-                key={group.order ?? i}
                 options={groupOptions}
                 value={selectedOption}
                 onChange={(opt) => handleChange(i, opt?.value ?? "")}
