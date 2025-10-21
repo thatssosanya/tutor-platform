@@ -290,6 +290,7 @@ export const questionRouter = createTRPCRouter({
       return ctx.db.question.update({
         where: { id: input.id },
         data: {
+          hint: aiEnrichment.hint,
           work: aiEnrichment.work,
           solution: aiEnrichment.solution,
           verified,

@@ -62,8 +62,11 @@ export const fetchFipiPage = async (path: string, grade?: string) => {
 export const verifyQuestion = async (
   questionId: string,
   subjectId: string,
-  solution?: string
+  solution?: string | null
 ) => {
+  if (solution === null) {
+    return false
+  }
   // TODO add puppeteer
   if (questionId) {
     return false

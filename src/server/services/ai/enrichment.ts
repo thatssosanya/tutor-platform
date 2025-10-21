@@ -30,8 +30,8 @@ type EnrichQuestionInput = Pick<
 }
 
 const enrichQuestionResponseSchema = z.object({
-  work: z.string(),
-  solution: z.string(),
+  work: z.string().nullable(),
+  solution: z.string().nullable(),
   hint: z.string().nullable(),
 })
 type EnrichQuestionResponse = Partial<
@@ -73,21 +73,30 @@ export async function enrichQuestionWithAI(
       role: "system",
       content: systemPrompt,
     },
-    ...examples.flatMap((example) => [
-      {
-        role: "user" as const,
-        content: example.question,
-      },
-      {
-        role: "assistant" as const,
-        content: example.response,
-      },
-    ]),
+    ...(
+      await Promise.all(
+        examples.map(async (example) => [
+          {
+            role: "user" as const,
+            content: [
+              { type: "text" as const, text: example.question },
+              ...("imageUrls" in example && !!example.imageUrls
+                ? await renderImageMessageParts(example.imageUrls)
+                : []),
+            ],
+          },
+          {
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: example.response }],
+          },
+        ])
+      )
+    ).flat(),
     {
-      role: "user",
+      role: "user" as const,
       content: [
         {
-          type: "text",
+          type: "text" as const,
           text:
             question.body.replaceAll(INLINE_IMAGE_REGEX, (_, g1) => g1) +
             options,
@@ -117,29 +126,30 @@ export async function enrichQuestionWithAI(
       })
 
       const content = response.choices[0]?.message?.content
-      console.dir(response.choices[0])
       if (!content) {
         throw new Error("AI enrichment failed: No content in response.")
       }
-
       const parsed = JSON.parse(content) as EnrichQuestionResponse
-      return {
+
+      const result = {
         work:
           parsed.work
             ?.replaceAll("\\\\", "\\")
             ?.replaceAll("\\n", "\n")
             ?.replaceAll("LATEXSTART", "$")
             ?.replaceAll("LATEXEND", "$")
-            ?.replaceAll("\\frac", "\\dfrac") ?? ""?.replace(/^Ответ:.*$/m, ""),
-        solution: parsed.solution ?? "",
+            ?.replaceAll("\\frac", "\\dfrac")
+            ?.replace(/^Ответ:.*$/m, "") ?? null,
+        solution: parsed.solution ?? null,
         hint:
           parsed.hint
             ?.replaceAll("\\\\", "\\")
             ?.replaceAll("\\n", "\n")
             ?.replaceAll("LATEXSTART", "$")
             ?.replaceAll("LATEXEND", "$")
-            ?.replaceAll("\\frac", "\\dfrac") ?? "",
+            ?.replaceAll("\\frac", "\\dfrac") ?? null,
       }
+      return result
     } catch (error) {
       if (attempt === maxRetries - 1) {
         console.error("An error occurred during AI question enrichment:", error)

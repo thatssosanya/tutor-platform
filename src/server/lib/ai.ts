@@ -53,6 +53,96 @@ export const SOLUTION_TYPE_INSTRUCTIONS: Record<string, string> = {
     "Поле \`solution\` должно содержать последовательность значений, выбранных из предоставленных опций, по одному для каждой группы, разделенных символом |.",
 }
 
+// group 1 = [alt], group 2 = url
+export const INLINE_IMAGE_REGEX = /!(\[.*?\])\((.*?)\s(?:.*?)\)/g
+
+export function renderMultiOptions(
+  options: Pick<Question["options"][number], "order" | "body">[],
+  solutionType: SolutionType
+) {
+  switch (solutionType) {
+    case SolutionType.MULTICHOICE:
+    case SolutionType.MULTIRESPONSE: {
+      return (
+        "\n\nВарианты ответа:\n" +
+        JSON.stringify(
+          options.map((o) => ({
+            order: o.order,
+            // replace inline images with alt
+            body: o.body.replaceAll(INLINE_IMAGE_REGEX, (_, g1) => g1),
+          }))
+        )
+      )
+    }
+    case SolutionType.MULTICHOICEGROUP: {
+      return (
+        "\n\nГруппы вариантов ответов:\n" +
+        JSON.stringify(
+          options.map((o, i) => ({
+            group: o.order ?? i.toString(),
+            options: o.body.split("|"),
+          }))
+        )
+      )
+    }
+    case SolutionType.SHORT:
+    case SolutionType.LONG:
+    default: {
+      return ""
+    }
+  }
+}
+
+export function extractInlineImageUrls(strings: string[]) {
+  const inlineImageUrls = strings
+    .flatMap((s) => [...s.matchAll(INLINE_IMAGE_REGEX)].map((m) => m[2]))
+    .filter((url) => url !== undefined)
+  return inlineImageUrls
+}
+
+export async function renderImageMessageParts(urls: string[]) {
+  const attachmentPromises = urls.map(async (url) => {
+    try {
+      const response = await fetchFipi(url)
+      return responseToBase64DataURL(response)
+    } catch (e) {
+      console.warn(`Error fetching attachment URL ${url}. Skipping.`, e)
+      return null
+    }
+  })
+  const base64Urls = (await Promise.all(attachmentPromises)).filter(
+    (url) => url !== null
+  )
+  const imageMessageParts = base64Urls.map((base64Url) => ({
+    type: "image_url" as const,
+    image_url: { url: base64Url },
+  }))
+  return imageMessageParts
+}
+
+export async function responseToBase64DataURL(
+  response: Response
+): Promise<string | null> {
+  if (!response.ok) {
+    console.error(
+      `Failed to fetch attachment: ${response.status} ${response.statusText}`
+    )
+    return null
+  }
+
+  const contentType =
+    response.headers.get("content-type") || "application/octet-stream"
+
+  try {
+    const buffer = await response.arrayBuffer()
+    const base64 = Buffer.from(buffer).toString("base64")
+    return `data:${contentType};base64,${base64}`
+  } catch (e) {
+    console.error("Error converting response to Base64:", e)
+    return null
+  }
+}
+
 export const EXAMPLES = {
   [SolutionType.SHORT]: [
     {
@@ -337,94 +427,4 @@ export const EXAMPLES = {
       }),
     },
   ],
-}
-
-// group 1 = [alt], group 2 = url
-export const INLINE_IMAGE_REGEX = /!(\[.*?\])\((.*?)\s(?:.*?)\)/g
-
-export function renderMultiOptions(
-  options: Pick<Question["options"][number], "order" | "body">[],
-  solutionType: SolutionType
-) {
-  switch (solutionType) {
-    case SolutionType.MULTICHOICE:
-    case SolutionType.MULTIRESPONSE: {
-      return (
-        "\n\nВарианты ответа:\n" +
-        JSON.stringify(
-          options.map((o) => ({
-            order: o.order,
-            // replace inline images with alt
-            body: o.body.replaceAll(INLINE_IMAGE_REGEX, (_, g1) => g1),
-          }))
-        )
-      )
-    }
-    case SolutionType.MULTICHOICEGROUP: {
-      return (
-        "\n\nГруппы вариантов ответов:\n" +
-        JSON.stringify(
-          options.map((o, i) => ({
-            group: o.order ?? i.toString(),
-            options: o.body.split("|"),
-          }))
-        )
-      )
-    }
-    case SolutionType.SHORT:
-    case SolutionType.LONG:
-    default: {
-      return ""
-    }
-  }
-}
-
-export function extractInlineImageUrls(strings: string[]) {
-  const inlineImageUrls = strings
-    .flatMap((s) => [...s.matchAll(INLINE_IMAGE_REGEX)].map((m) => m[2]))
-    .filter((url) => url !== undefined)
-  return inlineImageUrls
-}
-
-export async function renderImageMessageParts(urls: string[]) {
-  const attachmentPromises = urls.map(async (url) => {
-    try {
-      const response = await fetchFipi(url)
-      return responseToBase64DataURL(response)
-    } catch (e) {
-      console.warn(`Error fetching attachment URL ${url}. Skipping.`, e)
-      return null
-    }
-  })
-  const base64Urls = (await Promise.all(attachmentPromises)).filter(
-    (url) => url !== null
-  )
-  const imageMessageParts = base64Urls.map((base64Url) => ({
-    type: "image_url" as const,
-    image_url: { url: base64Url },
-  }))
-  return imageMessageParts
-}
-
-export async function responseToBase64DataURL(
-  response: Response
-): Promise<string | null> {
-  if (!response.ok) {
-    console.error(
-      `Failed to fetch attachment: ${response.status} ${response.statusText}`
-    )
-    return null
-  }
-
-  const contentType =
-    response.headers.get("content-type") || "application/octet-stream"
-
-  try {
-    const buffer = await response.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString("base64")
-    return `data:${contentType};base64,${base64}`
-  } catch (e) {
-    console.error("Error converting response to Base64:", e)
-    return null
-  }
 }
