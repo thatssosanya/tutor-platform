@@ -63,16 +63,14 @@ model Subject {
 model Topic {
     id        String
     subjectId String
+    parentId  String?
 
-    name String
+    name         String
+    examPosition Int?
 
-    subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-
-    parentId String?
-
-    parent   Topic?  @relation("TopicHierarchy", fields: [parentId, subjectId], references: [id, subjectId])
-    children Topic[] @relation("TopicHierarchy")
-
+    subject   Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+    parent    Topic?            @relation("TopicHierarchy", fields: [parentId, subjectId], references: [id, subjectId])
+    children  Topic[]           @relation("TopicHierarchy")
     questions QuestionToTopic[]
 
     @@id([id, subjectId])
@@ -102,7 +100,6 @@ model Question {
     solutionType    SolutionType
     source          QuestionSource @default(FIPI)
     sourcePosition  Int?
-    examPosition    Int?
 
     creatorId String?
     creator   User?   @relation(fields: [creatorId], references: [id])

@@ -1,10 +1,9 @@
 import { ArrowLeft, Save } from "lucide-react"
 import React, { useEffect, useMemo, useState } from "react"
 
-import { useExamPositionFilter } from "@/hooks/useExamPositionFilter"
-import { useSearchFilter } from "@/hooks/useSearchFilter"
-import { useSourceFilter } from "@/hooks/useSourceFilter"
-import { useTopicFilter } from "@/hooks/useTopicFilter"
+import { useSearchFilter } from "@/hooks/filters/useSearchFilter"
+import { useSourceFilter } from "@/hooks/filters/useSourceFilter"
+import { useTopicFilter } from "@/hooks/filters/useTopicFilter"
 import { Button, Input, Paper, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 
@@ -31,13 +30,16 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
 
   const [currentPage, setCurrentPage] = useState(1)
   const { search, debouncedSearch, onSearchChange } = useSearchFilter()
-  const { selectedExamPosition, onSelectedExamPositionChange } =
-    useExamPositionFilter({
-      isQueryParamSyncEnabled: true,
-    })
   const { selectedTopicIds, onSelectedTopicIdsChange } = useTopicFilter(
     test?.subjectId ?? null
   )
+  const {
+    selectedTopicIds: selectedExamPositionIds,
+    onSelectedTopicIdsChange: onSelectedExamPositionIdsChange,
+  } = useTopicFilter(test?.subjectId ?? null, {
+    isQueryParamSyncEnabled: true,
+    paramName: "examPosition",
+  })
   const { selectedSources, onSelectedSourcesChange } = useSourceFilter()
 
   const availableQuestionsQueryParams = {
@@ -73,12 +75,12 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
       if (!previousTestData || !previousAvailableData) return
 
       const isRemoving = previousTestData.questions.some(
-        (tq) => tq.questionId === questionId
+        (tq) => tq.question.id === questionId
       )
 
       if (isRemoving) {
         const questionToMove = previousTestData.questions.find(
-          (tq) => tq.questionId === questionId
+          (tq) => tq.question.id === questionId
         )?.question
         if (!questionToMove) return
 
@@ -88,7 +90,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
             : {
                 ...oldTest,
                 questions: oldTest.questions.filter(
-                  (tq) => tq.questionId !== questionId
+                  (tq) => tq.question.id !== questionId
                 ),
               }
         )
@@ -237,8 +239,8 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
         onRemove={handleToggleQuestion}
         search={search}
         onSearchChange={onSearchChange}
-        selectedExamPosition={selectedExamPosition}
-        onSelectedExamPositionChange={onSelectedExamPositionChange}
+        selectedExamPositionIds={selectedExamPositionIds}
+        onSelectedExamPositionIdsChange={onSelectedExamPositionIdsChange}
         selectedSources={selectedSources}
         onSelectedSourcesChange={onSelectedSourcesChange}
         selectedTopicIds={selectedTopicIds}

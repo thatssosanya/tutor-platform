@@ -1,6 +1,6 @@
 import React from "react"
 
-import { useSubjectFilter } from "@/hooks/useSubjectFilter"
+import { useSubjectFilter } from "@/hooks/filters/useSubjectFilter"
 import { Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 

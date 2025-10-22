@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import React, { useEffect, useMemo, useState } from "react"
 
+import { useSubjects } from "@/hooks/useSubjects"
 import {
   Box,
   Button,
@@ -24,7 +25,6 @@ import {
   Stack,
 } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
-import { useSubjects } from "@/utils/subjects"
 
 import { SpinnerScreen } from "../SpinnerScreen"
 import { TestList } from "../tests/TestList"

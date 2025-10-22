@@ -5,11 +5,11 @@ import React, { useMemo } from "react"
 
 import { SubjectFilter } from "@/components/filters/SubjectFilter"
 import { TestList } from "@/components/tests/TestList"
+import { useSubjects } from "@/hooks/useSubjects"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
-import { useSubjects } from "@/utils/subjects"
 
 type Test =
   RouterOutputs["assignment"]["getStudentAssignmentsBySubject"][number]["test"] & {

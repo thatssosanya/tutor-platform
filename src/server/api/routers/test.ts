@@ -26,9 +26,18 @@ export const testRouter = createTRPCRouter({
             include: {
               question: {
                 include: {
-                  subject: { select: { grade: true } },
+                  subject: {
+                    select: {
+                      grade: true,
+                    },
+                  },
                   attachments: true,
                   options: true,
+                  topics: {
+                    select: {
+                      topic: { select: { id: true, examPosition: true } },
+                    },
+                  },
                 },
               },
             },

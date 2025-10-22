@@ -10,8 +10,8 @@ import { Markdown } from "@/components/Markdown"
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBlock"
 import { SpinnerScreen } from "@/components/SpinnerScreen"
-import { useSearchFilter } from "@/hooks/useSearchFilter"
-import { useTopicFilter } from "@/hooks/useTopicFilter"
+import { useSearchFilter } from "@/hooks/filters/useSearchFilter"
+import { useTopicFilter } from "@/hooks/filters/useTopicFilter"
 import DefaultLayout from "@/layouts/DefaultLayout"
 import {
   Box,
@@ -22,7 +22,7 @@ import {
   Row,
   Stack,
 } from "@/ui"
-import { api, type RouterOutputs } from "@/utils/api"
+import { api, type RouterInputs, type RouterOutputs } from "@/utils/api"
 import {
   SOLUTION_TYPE_OPTIONS,
   UNENRICHABLE_SOLUTION_TYPES,
@@ -134,13 +134,18 @@ const ScrapeSubjectPage: NextPage = () => {
     { enabled: !!fipiSubjectId }
   )
 
+  const examPositionsQuery = api.topic.getAllBySubject.useQuery({
+    subjectId: fipiSubjectId,
+    examPosition: true,
+  })
+
   const { data: topics, isLoading: isLoadingTopics } =
     api.topic.getAllBySubject.useQuery(
       { subjectId: fipiSubjectId },
       { enabled: !!fipiSubjectId }
     )
 
-  const queryKey = {
+  const queryKey: RouterInputs["question"]["getPaginated"] = {
     subjectId: fipiSubjectId,
     page,
     limit: 10,
@@ -149,7 +154,7 @@ const ScrapeSubjectPage: NextPage = () => {
     topicIds: selectedTopicIds,
     verified: verifiedFilter === "all" ? null : verifiedFilter === "yes",
     solutionType: solutionTypeFilter === "all" ? undefined : solutionTypeFilter,
-    hasExamPosition:
+    examPositions:
       examPositionFilter === "all" ? null : examPositionFilter === "yes",
     hasSolution: solutionFilter === "all" ? null : solutionFilter === "yes",
     hasWork: workFilter === "all" ? null : workFilter === "yes",
@@ -285,18 +290,60 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const updateExamPositionMutation =
     api.question.updateExamPosition.useMutation({
-      onMutate: async ({ id, examPosition }) => {
+      onMutate: async ({ id: questionId, examPositionId }) => {
         await apiUtils.question.getPaginated.cancel(queryKey)
+
         const previousData = apiUtils.question.getPaginated.getData(queryKey)
+
         apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
           if (!oldData) return
+
+          const examPositionTopics = examPositionsQuery.data
+          if (!examPositionTopics) {
+            return oldData
+          }
+
           return {
             ...oldData,
-            items: oldData.items.map((q) =>
-              q.id === id ? { ...q, examPosition } : q
-            ),
+            items: oldData.items.map((q) => {
+              if (q.id !== questionId) {
+                return q
+              }
+
+              const topicsToKeep = q.topics.filter(
+                (questionToTopic) => questionToTopic.topic.examPosition === null
+              )
+
+              const updatedTopics = [...topicsToKeep]
+
+              if (examPositionId !== null) {
+                const targetTopic = examPositionTopics.find(
+                  (topic) => topic.id === examPositionId
+                )
+
+                if (targetTopic) {
+                  updatedTopics.push({
+                    topic: targetTopic,
+                  })
+
+                  if (targetTopic.parentId) {
+                    const parentTopic = examPositionTopics.find(
+                      (topic) => topic.id === targetTopic.parentId
+                    )
+                    if (parentTopic) {
+                      updatedTopics.push({
+                        topic: parentTopic,
+                      })
+                    }
+                  }
+                }
+              }
+
+              return { ...q, topics: updatedTopics }
+            }),
           }
         })
+
         return { previousData }
       },
       onError: (err, _, context) => {
@@ -533,36 +580,118 @@ const ScrapeSubjectPage: NextPage = () => {
       </Stack>
     )
 
-    const examPositionButtons = Array.from({ length: 25 }, (_, i) => i + 1)
-    const handleExamPositionClick = (pos: number) => {
-      updateExamPositionMutation.mutate({
-        id: question.id,
-        examPosition: question.examPosition === pos ? null : pos,
-      })
+    // TODO rewrite to use localChanges
+    const handleExamPositionClick = (examPositionId: string) => {
+      const isDeselecting = question.topics.some(
+        (t) => t.topic.id === examPositionId
+      )
+
+      if (isDeselecting) {
+        updateExamPositionMutation.mutate({
+          id: question.id,
+          examPositionId: null,
+        })
+        return
+      }
+
+      const examPositionTopics = examPositionsQuery.data
+      if (!examPositionTopics) return
+
+      const clickedTopic = examPositionTopics.find(
+        (topic) => topic.id === examPositionId
+      )
+      if (!clickedTopic) return
+
+      if (clickedTopic.parentId === null) {
+        apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
+          if (!oldData) return
+
+          return {
+            ...oldData,
+            items: oldData.items.map((q) => {
+              if (q.id !== question.id) {
+                return q
+              }
+
+              const topicsToKeep = q.topics.filter(
+                (qt) => qt.topic.examPosition === null
+              )
+              const updatedTopics = [...topicsToKeep, { topic: clickedTopic }]
+
+              return { ...q, topics: updatedTopics }
+            }),
+          }
+        })
+      } else {
+        updateExamPositionMutation.mutate({
+          id: question.id,
+          examPositionId: examPositionId,
+        })
+      }
     }
+
+    const selectedExamPositions = question.topics.filter(
+      (t) => t.topic.examPosition !== null
+    )
 
     const examPositionUI = (
       <Stack className="gap-2">
         <p className="text-sm font-semibold text-secondary">Номер вопроса</p>
-        <Row className="flex-wrap gap-1">
-          {examPositionButtons.map((pos) => (
-            <Button
-              key={pos}
-              size="sm"
-              variant={
-                question.examPosition === pos ? "primary" : "primary-paper"
-              }
-              onClick={() => handleExamPositionClick(pos)}
-              className="min-w-9"
-              disabled={
-                updateExamPositionMutation.isPending &&
-                updateExamPositionMutation.variables?.id === question.id
-              }
-            >
-              {pos}
-            </Button>
-          ))}
-        </Row>
+        <Stack className="gap-4">
+          <Row className="flex-wrap gap-2">
+            {examPositionsQuery.data
+              ?.filter((p) => p.parentId === null)
+              .map((p) => (
+                <Button
+                  key={p.id}
+                  size="sm"
+                  variant={
+                    question.topics.some((t) => t.topic.id === p.id)
+                      ? "primary"
+                      : "primary-paper"
+                  }
+                  onClick={() => handleExamPositionClick(p.id)}
+                  className="min-w-9"
+                  disabled={
+                    updateExamPositionMutation.isPending &&
+                    updateExamPositionMutation.variables?.id === question.id
+                  }
+                >
+                  {p.examPosition}
+                </Button>
+              ))}
+          </Row>
+          {selectedExamPositions.length > 0 && (
+            <Stack className="flex-wrap gap-2">
+              {examPositionsQuery.data
+                ?.filter(
+                  (p) =>
+                    p.parentId ===
+                    selectedExamPositions.find((t) => t.topic.parentId === null)
+                      ?.topic.id
+                )
+                .map((p) => (
+                  <Button
+                    key={p.id}
+                    size="sm"
+                    variant={
+                      question.topics.some((t) => t.topic.id === p.id)
+                        ? "primary"
+                        : "primary-paper"
+                    }
+                    onClick={() => handleExamPositionClick(p.id)}
+                    className="min-w-9"
+                    disabled={
+                      updateExamPositionMutation.isPending &&
+                      updateExamPositionMutation.variables?.id === question.id
+                    }
+                  >
+                    {p.name}
+                  </Button>
+                ))}
+            </Stack>
+          )}
+        </Stack>
       </Stack>
     )
 

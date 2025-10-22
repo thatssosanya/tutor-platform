@@ -1,7 +1,7 @@
 import React from "react"
 
+import { useSubjects } from "@/hooks/useSubjects"
 import { RadioGroup, type RadioOption } from "@/ui"
-import { useSubjects } from "@/utils/subjects"
 
 type SubjectFilterProps = {
   selectedSubjectId: string | null

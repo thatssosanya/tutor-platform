@@ -9,7 +9,9 @@ import {
 } from "@/server/api/trpc"
 import { verifyQuestion } from "@/server/lib/fipi"
 import { enrichQuestionWithAI } from "@/server/services/ai/enrichment"
-import { UNENRICHABLE_SOLUTION_TYPES } from "@/utils/consts"
+import {
+  UNENRICHABLE_SOLUTION_TYPES,
+} from "@/utils/consts"
 import { PermissionBit } from "@/utils/permissions"
 
 const questionInputSchema = z.object({
@@ -70,8 +72,13 @@ export const questionRouter = createTRPCRouter({
         topicIds: z.array(z.string()).optional(),
         sources: z.array(z.nativeEnum(QuestionSource)).optional(),
         search: z.string().optional(),
-        examPosition: z
-          .union([z.boolean(), z.number(), z.null()])
+        examPositions: z
+          .union([
+            z.boolean(),
+            z.array(z.number()),
+            z.array(z.string()),
+            z.null(),
+          ])
           .optional()
           .default(null),
         verified: z.boolean().nullable().optional().default(null),
@@ -90,7 +97,7 @@ export const questionRouter = createTRPCRouter({
         topicIds,
         sources,
         search,
-        examPosition,
+        examPositions,
         verified,
         solutionType,
         hasSolution,
@@ -101,6 +108,7 @@ export const questionRouter = createTRPCRouter({
       const skip = (page - 1) * limit
 
       const whereClause: Prisma.QuestionWhereInput = {
+        // model fields
         id:
           excludeIds && excludeIds.length > 0
             ? { notIn: excludeIds }
@@ -108,20 +116,8 @@ export const questionRouter = createTRPCRouter({
         subjectId: subjectId,
         source: sources && sources.length > 0 ? { in: sources } : undefined,
         solutionType: solutionType,
-        topics:
-          topicIds && topicIds.length > 0
-            ? { some: { topicId: { in: topicIds } } }
-            : undefined,
         verified:
           verified === null || verified === undefined ? undefined : verified,
-        examPosition:
-          examPosition === null || examPosition === undefined
-            ? undefined
-            : typeof examPosition === "boolean"
-              ? examPosition
-                ? { not: null }
-                : null
-              : { equals: examPosition },
         solution:
           hasSolution === null || hasSolution === undefined
             ? undefined
@@ -149,6 +145,48 @@ export const questionRouter = createTRPCRouter({
               ],
             }
           : undefined),
+
+        // relational fields
+        AND: [
+          ...(topicIds && topicIds.length > 0
+            ? [{ topics: { some: { topicId: { in: topicIds } } } }]
+            : []),
+
+          ...(examPositions === true
+            ? [{ topics: { some: { topic: { examPosition: { not: null } } } } }]
+            : examPositions === false
+              ? [{ topics: { every: { topic: { examPosition: null } } } }]
+              : Array.isArray(examPositions) && examPositions.length > 0
+                ? typeof examPositions[0] === "string"
+                  ? [
+                      {
+                        topics: {
+                          some: {
+                            topic: {
+                              OR: [
+                                { parentId: { in: examPositions as string[] } },
+                                { id: { in: examPositions as string[] } },
+                              ],
+                            },
+                          },
+                        },
+                      },
+                    ]
+                  : typeof examPositions[0] === "number"
+                    ? [
+                        {
+                          topics: {
+                            some: {
+                              topic: {
+                                examPosition: { in: examPositions as number[] },
+                              },
+                            },
+                          },
+                        },
+                      ]
+                    : []
+                : []),
+        ],
       }
 
       const [items, totalCount] = await ctx.db.$transaction([
@@ -164,6 +202,13 @@ export const questionRouter = createTRPCRouter({
             },
             attachments: true,
             options: true,
+            topics: {
+              select: {
+                topic: {
+                  select: { id: true, parentId: true, examPosition: true },
+                },
+              },
+            },
           },
           orderBy: {
             createdAt: "asc",
@@ -221,13 +266,77 @@ export const questionRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string(),
-        examPosition: z.number().nullable(),
+        examPositionId: z.string().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.question.update({
-        where: { id: input.id },
-        data: { examPosition: input.examPosition },
+      const { id: questionId, examPositionId } = input
+
+      return ctx.db.$transaction(async (tx) => {
+        const question = await tx.question.findUnique({
+          where: { id: questionId },
+          select: {
+            subjectId: true,
+            topics: {
+              select: {
+                topicId: true,
+                topic: { select: { examPosition: true } },
+              },
+            },
+          },
+        })
+
+        if (!question) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Question with ID '${questionId}' not found.`,
+          })
+        }
+        const deleteData: Prisma.QuestionToTopicDeleteManyArgs = {
+          where: {
+            questionId,
+            topic: {
+              examPosition: { not: null },
+            },
+          },
+        }
+        await tx.questionToTopic.deleteMany(deleteData)
+
+        const topicsToCreate: Prisma.QuestionToTopicCreateManyInput[] = []
+        if (examPositionId !== null) {
+          const targetTopic = await tx.topic.findUnique({
+            where: {
+              id_subjectId: {
+                id: examPositionId,
+                subjectId: question.subjectId,
+              },
+            },
+            select: { parentId: true },
+          })
+
+          if (!targetTopic) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Topic with ID '${examPositionId}' not found.`,
+            })
+          }
+
+          topicsToCreate.push({
+            questionId,
+            subjectId: question.subjectId,
+            topicId: examPositionId,
+          })
+
+          if (targetTopic.parentId) {
+            topicsToCreate.push({
+              questionId,
+              subjectId: question.subjectId,
+              topicId: targetTopic.parentId,
+            })
+          }
+        }
+        const createData = { data: topicsToCreate }
+        return await tx.questionToTopic.createMany(createData)
       })
     }),
 

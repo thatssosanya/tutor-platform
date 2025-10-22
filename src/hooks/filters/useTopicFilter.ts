@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 
-import { useQueryParamArray } from "./useQueryParamArray"
+import { useQueryParamArray } from "../useQueryParamArray"
 
 type UseTopicFilterOptions = {
   isQueryParamSyncEnabled?: boolean

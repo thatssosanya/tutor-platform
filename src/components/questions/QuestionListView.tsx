@@ -3,16 +3,14 @@ import { ExternalLink, ThumbsDown, Trash2 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import React, { useEffect, useState } from "react"
 
-import { useExamPositionFilter } from "@/hooks/useExamPositionFilter"
-import { useSearchFilter } from "@/hooks/useSearchFilter"
-import { useSourceFilter } from "@/hooks/useSourceFilter"
-import { useSubjectFilter } from "@/hooks/useSubjectFilter"
-import { useTopicFilter } from "@/hooks/useTopicFilter"
+import { useSearchFilter } from "@/hooks/filters/useSearchFilter"
+import { useSourceFilter } from "@/hooks/filters/useSourceFilter"
+import { useSubjectFilter } from "@/hooks/filters/useSubjectFilter"
+import { useTopicFilter } from "@/hooks/filters/useTopicFilter"
 import { Box, Button, Pagination, Row, Spinner, Stack } from "@/ui"
-import { api, type RouterOutputs } from "@/utils/api"
+import { api, type RouterInputs, type RouterOutputs } from "@/utils/api"
 import { usePermissions } from "@/utils/permissions"
 
-import { ExamPositionFilter } from "../filters/ExamPositionFilter"
 import { SearchFilter } from "../filters/SearchFilter"
 import { SourceFilter } from "../filters/SourceFilter"
 import { SubjectFilter } from "../filters/SubjectFilter"
@@ -42,14 +40,17 @@ export function QuestionListView({
     isStorageSyncEnabled: true,
     isQueryParamSyncEnabled: true,
   })
-  const { selectedExamPosition, onSelectedExamPositionChange } =
-    useExamPositionFilter({
-      isQueryParamSyncEnabled: true,
-    })
   const { selectedTopicIds, onSelectedTopicIdsChange } = useTopicFilter(
     selectedSubjectId,
     { isQueryParamSyncEnabled: true }
   )
+  const {
+    selectedTopicIds: selectedExamPositionIds,
+    onSelectedTopicIdsChange: onSelectedExamPositionIdsChange,
+  } = useTopicFilter(selectedSubjectId, {
+    isQueryParamSyncEnabled: true,
+    paramName: "examPosition",
+  })
   const { selectedSources, onSelectedSourcesChange } = useSourceFilter({
     isQueryParamSyncEnabled: true,
   })
@@ -58,11 +59,12 @@ export function QuestionListView({
   const { isAdmin } = usePermissions()
   const utils = api.useUtils()
 
-  const questionsQueryParams = {
+  const questionsQueryParams: RouterInputs["question"]["getPaginated"] = {
+    verified: true,
     subjectId: selectedSubjectId!,
     topicIds: selectedTopicIds,
     search: debouncedSearch ?? undefined,
-    examPosition: selectedExamPosition ?? undefined,
+    examPositions: selectedExamPositionIds ?? undefined,
     sources: selectedSources,
     page: currentPage,
     limit: 10,
@@ -226,20 +228,24 @@ export function QuestionListView({
           onSelectedSubjectIdChange={onSelectedSubjectIdChange}
         />
         <SearchFilter search={search} onSearchChange={onSearchChange} />
-        <ExamPositionFilter
-          selectedExamPosition={selectedExamPosition}
-          onSelectedExamPositionChange={onSelectedExamPositionChange}
-        />
         <SourceFilter
           selectedSources={selectedSources}
           onSelectedSourcesChange={onSelectedSourcesChange}
         />
         {selectedSubjectId && (
-          <TopicFilter
-            subjectId={selectedSubjectId}
-            selectedTopicIds={selectedTopicIds}
-            onSelectedTopicIdsChange={onSelectedTopicIdsChange}
-          />
+          <>
+            <TopicFilter
+              subjectId={selectedSubjectId}
+              selectedTopicIds={selectedTopicIds}
+              onSelectedTopicIdsChange={onSelectedTopicIdsChange}
+            />
+            <TopicFilter
+              variant="examPosition"
+              subjectId={selectedSubjectId}
+              selectedTopicIds={selectedExamPositionIds}
+              onSelectedTopicIdsChange={onSelectedExamPositionIdsChange}
+            />
+          </>
         )}
       </Stack>
       {selectedSubjectId ? (

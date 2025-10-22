@@ -2,9 +2,9 @@ import { Plus, X } from "lucide-react"
 import { useRouter } from "next/router"
 import React, { useState } from "react"
 
+import { useSubjects } from "@/hooks/useSubjects"
 import { Button, CheckboxGroup, Input, Paper, Row, Stack } from "@/ui"
 import { api } from "@/utils/api"
-import { useSubjects } from "@/utils/subjects"
 
 type StudentCreateFormProps = {
   allowCreate?: boolean

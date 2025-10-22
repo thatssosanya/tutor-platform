@@ -3,7 +3,7 @@ import { useCallback, useMemo } from "react"
 
 import { ALL_QUESTION_SOURCES } from "@/utils/consts"
 
-import { useQueryParamArray } from "./useQueryParamArray"
+import { useQueryParamArray } from "../useQueryParamArray"
 
 type UseSourceFilterOptions = {
   isQueryParamSyncEnabled?: boolean

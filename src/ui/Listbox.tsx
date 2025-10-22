@@ -144,7 +144,7 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
       <ListboxOptions
         // @ts-expect-error headless doesn't export this type https://headlessui.com/react/listbox#positioning-the-dropdown
         anchor={anchor}
-        className="absolute z-10 max-h-60 overflow-auto rounded-md bg-paper py-1 text-base shadow-primary shadow-lg inset-shadow-xs focus:outline-none sm:text-sm"
+        className="[--anchor-gap:calc(var(--spacing)*2)] w-(--button-width) max-h-80! absolute z-10 overflow-auto rounded-md bg-paper py-1 text-base shadow-primary shadow-lg inset-shadow-xs focus:outline-none sm:text-sm"
       >
         {options.map((option) => (
           <ListboxOption

@@ -56,7 +56,7 @@ export function TutorAssignmentView({
   const assignmentTopicIds = useMemo(() => {
     const topicIdSet = new Set<string>()
     questions.forEach((q) => {
-      q.topics.forEach((t) => topicIdSet.add(t.topicId))
+      q.topics.forEach((t) => topicIdSet.add(t.topic.id))
     })
     return Array.from(topicIdSet)
   }, [questions])
@@ -77,7 +77,7 @@ export function TutorAssignmentView({
 
       // Topic filter
       if (selectedTopicIds.length > 0) {
-        const questionTopicIds = new Set(question.topics.map((t) => t.topicId))
+        const questionTopicIds = new Set(question.topics.map((t) => t.topic.id))
         const hasMatchingTopic = selectedTopicIds.some((id) =>
           questionTopicIds.has(id)
         )

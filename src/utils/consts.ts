@@ -22,3 +22,5 @@ export const SOLUTION_TYPE_OPTIONS: RadioOption<SolutionType>[] = [
 
 export const FIPI_EGE_URL = "https://ege.fipi.ru"
 export const FIPI_OGE_URL = "https://oge.fipi.ru"
+
+export const EXAM_POSITION_ID_PREFIX = "exp-"

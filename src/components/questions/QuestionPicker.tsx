@@ -9,8 +9,6 @@ import { QuestionList } from "@/components/questions/QuestionList"
 import { Button, Pagination, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 
-import { ExamPositionFilter } from "../filters/ExamPositionFilter"
-
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
 type QuestionPickerProps = {
@@ -26,12 +24,12 @@ type QuestionPickerProps = {
   // Filters
   search: string
   onSearchChange: (value: string) => void
-  selectedExamPosition: number | null
-  onSelectedExamPositionChange: (position: number | null) => void
   selectedSources: QuestionSource[]
   onSelectedSourcesChange: (sources: QuestionSource[]) => void
   selectedTopicIds: string[]
   onSelectedTopicIdsChange: (ids: string[]) => void
+  selectedExamPositionIds: string[]
+  onSelectedExamPositionIdsChange: (ids: string[]) => void
   // Pagination
   currentPage: number
   totalPages: number | undefined | null
@@ -51,12 +49,12 @@ export function QuestionPicker({
   // Filters
   search,
   onSearchChange,
-  selectedExamPosition,
-  onSelectedExamPositionChange,
   selectedSources,
   onSelectedSourcesChange,
   selectedTopicIds,
   onSelectedTopicIdsChange,
+  selectedExamPositionIds,
+  onSelectedExamPositionIdsChange,
   // Pagination
   currentPage,
   totalPages,
@@ -99,10 +97,6 @@ export function QuestionPicker({
         <h3 className="text-lg font-semibold">Доступные вопросы</h3>
         <Stack className="gap-4">
           <SearchFilter search={search} onSearchChange={onSearchChange} />
-          <ExamPositionFilter
-            selectedExamPosition={selectedExamPosition}
-            onSelectedExamPositionChange={onSelectedExamPositionChange}
-          />
           <SourceFilter
             selectedSources={selectedSources}
             onSelectedSourcesChange={onSelectedSourcesChange}
@@ -111,6 +105,12 @@ export function QuestionPicker({
             subjectId={subjectId}
             selectedTopicIds={selectedTopicIds}
             onSelectedTopicIdsChange={onSelectedTopicIdsChange}
+          />
+          <TopicFilter
+            variant="examPosition"
+            subjectId={subjectId}
+            selectedTopicIds={selectedExamPositionIds}
+            onSelectedTopicIdsChange={onSelectedExamPositionIdsChange}
           />
         </Stack>
         <Stack className="gap-4">

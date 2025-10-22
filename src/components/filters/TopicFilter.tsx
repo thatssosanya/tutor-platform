@@ -8,6 +8,7 @@ type TopicFilterProps = {
   selectedTopicIds: string[]
   onSelectedTopicIdsChange: (ids: string[]) => void
   allowedTopicIds?: string[]
+  variant?: "examPosition" | "default"
 }
 
 export function TopicFilter({
@@ -15,8 +16,12 @@ export function TopicFilter({
   selectedTopicIds,
   onSelectedTopicIdsChange,
   allowedTopicIds,
+  variant = "default",
 }: TopicFilterProps) {
-  const topicsQuery = api.topic.getAllBySubject.useQuery({ subjectId })
+  const topicsQuery = api.topic.getAllBySubject.useQuery({
+    subjectId,
+    examPosition: variant === "examPosition",
+  })
 
   const topicOptions = useMemo(() => {
     if (!topicsQuery.data) return []
@@ -41,41 +46,32 @@ export function TopicFilter({
     }
 
     const rootTopics = topics.filter((t) => !t.parentId)
-    const childTopicsMap = new Map<string, typeof topics>()
-
-    topics.forEach((topic) => {
-      if (topic.parentId) {
-        if (!childTopicsMap.has(topic.parentId)) {
-          childTopicsMap.set(topic.parentId, [])
-        }
-        childTopicsMap.get(topic.parentId)!.push(topic)
-      }
-    })
-
-    rootTopics.sort((a, b) => a.id.localeCompare(b.id))
 
     const options: ListboxOptionType<string>[] = []
     rootTopics.forEach((root) => {
       options.push({
         value: root.id,
-        label: `${root.id} - ${root.name}`,
-        disabled: true,
+        label:
+          variant === "examPosition" ? root.name : `${root.id} - ${root.name}`,
+        disabled: variant === "examPosition" ? undefined : true,
       })
 
-      const children = childTopicsMap.get(root.id)
+      const children = topics.filter((t) => t.parentId === root.id)
       if (children) {
-        children.sort((a, b) => a.id.localeCompare(b.id))
         children.forEach((child) => {
           options.push({
             value: child.id,
-            label: `  ${child.id} - ${child.name}`,
+            label:
+              variant === "examPosition"
+                ? `  ${child.name}`
+                : `  ${child.id} - ${child.name}`,
           })
         })
       }
     })
 
     return options
-  }, [topicsQuery.data, allowedTopicIds])
+  }, [topicsQuery.data, allowedTopicIds, variant])
 
   const selectedOptions = useMemo(
     () =>
@@ -97,25 +93,32 @@ export function TopicFilter({
   }
 
   if (topicsQuery.isLoading) {
-    return <p className="text-sm text-secondary">Загрузка тем...</p>
+    return (
+      <p className="text-sm text-secondary">
+        Загрузка {variant === "examPosition" ? "номеров вопроса" : "тем"}...
+      </p>
+    )
   }
 
   if (!topicOptions || topicOptions.length === 0) {
     return (
       <p className="text-sm text-secondary">
-        {allowedTopicIds ? "Нет тем для этого задания." : "Темы не найдены."}
+        {(variant === "examPosition" ? "Номера вопроса" : "Темы") +
+          " не найдены."}
       </p>
     )
   }
 
   return (
     <Listbox
-      label="Темы"
+      label={variant === "examPosition" ? "Номера вопроса" : "Темы"}
       multiple
       options={topicOptions}
       value={selectedOptions}
       onChange={handleOnChange}
-      placeholder="Все темы"
+      placeholder={
+        variant === "examPosition" ? "Все номера вопроса" : "Все темы"
+      }
       getButtonText={getButtonText}
     />
   )

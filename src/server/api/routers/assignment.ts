@@ -254,7 +254,11 @@ export const assignmentRouter = createTRPCRouter({
                       },
                       attachments: true,
                       options: true,
-                      topics: { include: { topic: { select: { id: true } } } },
+                      topics: {
+                        select: {
+                          topic: { select: { id: true, examPosition: true } },
+                        },
+                      },
                     },
                   },
                 },
