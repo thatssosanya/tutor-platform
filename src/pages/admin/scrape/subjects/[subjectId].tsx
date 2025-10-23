@@ -16,6 +16,7 @@ import DefaultLayout from "@/layouts/DefaultLayout"
 import {
   Box,
   Button,
+  Checkbox,
   Container,
   RadioGroup,
   type RadioOption,
@@ -104,6 +105,8 @@ const ScrapeSubjectPage: NextPage = () => {
   const [targetPage, setTargetPage] = useState<number | "">("")
   const [isAutoScraping, setIsAutoScraping] = useState(false)
   const [isAutoEnriching, setIsAutoEnriching] = useState(false)
+  const [showExamPositionCategories, setShowExamPositionCategories] =
+    useState(false)
 
   const [localChanges, setLocalChanges] = useState<{
     [id: string]: Partial<Pick<Question, "body" | "solution" | "work" | "hint">>
@@ -661,7 +664,7 @@ const ScrapeSubjectPage: NextPage = () => {
                 </Button>
               ))}
           </Row>
-          {selectedExamPositions.length > 0 && (
+          {selectedExamPositions.length > 0 && showExamPositionCategories && (
             <Stack className="flex-wrap gap-2">
               {examPositionsQuery.data
                 ?.filter(
@@ -816,6 +819,11 @@ const ScrapeSubjectPage: NextPage = () => {
                 label="Номер вопроса"
                 value={examPositionFilter}
                 onChange={setExamPositionFilter}
+              />
+              <Checkbox
+                label="Показывать подкатегории"
+                checked={showExamPositionCategories}
+                onChange={setShowExamPositionCategories}
               />
               <BooleanFilterGroup
                 label="Ответ"
