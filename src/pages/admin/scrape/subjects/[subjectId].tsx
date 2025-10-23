@@ -602,32 +602,32 @@ const ScrapeSubjectPage: NextPage = () => {
       )
       if (!clickedTopic) return
 
-      if (clickedTopic.parentId === null) {
-        apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
-          if (!oldData) return
+      // if (clickedTopic.parentId === null) {
+      //   apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
+      //     if (!oldData) return
 
-          return {
-            ...oldData,
-            items: oldData.items.map((q) => {
-              if (q.id !== question.id) {
-                return q
-              }
+      //     return {
+      //       ...oldData,
+      //       items: oldData.items.map((q) => {
+      //         if (q.id !== question.id) {
+      //           return q
+      //         }
 
-              const topicsToKeep = q.topics.filter(
-                (qt) => qt.topic.examPosition === null
-              )
-              const updatedTopics = [...topicsToKeep, { topic: clickedTopic }]
+      //         const topicsToKeep = q.topics.filter(
+      //           (qt) => qt.topic.examPosition === null
+      //         )
+      //         const updatedTopics = [...topicsToKeep, { topic: clickedTopic }]
 
-              return { ...q, topics: updatedTopics }
-            }),
-          }
-        })
-      } else {
-        updateExamPositionMutation.mutate({
-          id: question.id,
-          examPositionId: examPositionId,
-        })
-      }
+      //         return { ...q, topics: updatedTopics }
+      //       }),
+      //     }
+      //   })
+      // } else {
+      updateExamPositionMutation.mutate({
+        id: question.id,
+        examPositionId: examPositionId,
+      })
+      // }
     }
 
     const selectedExamPositions = question.topics.filter(
@@ -680,11 +680,6 @@ const ScrapeSubjectPage: NextPage = () => {
                         : "primary-paper"
                     }
                     onClick={() => handleExamPositionClick(p.id)}
-                    className="min-w-9"
-                    disabled={
-                      updateExamPositionMutation.isPending &&
-                      updateExamPositionMutation.variables?.id === question.id
-                    }
                   >
                     {p.name}
                   </Button>

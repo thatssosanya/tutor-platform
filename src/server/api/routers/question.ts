@@ -9,9 +9,7 @@ import {
 } from "@/server/api/trpc"
 import { verifyQuestion } from "@/server/lib/fipi"
 import { enrichQuestionWithAI } from "@/server/services/ai/enrichment"
-import {
-  UNENRICHABLE_SOLUTION_TYPES,
-} from "@/utils/consts"
+import { UNENRICHABLE_SOLUTION_TYPES } from "@/utils/consts"
 import { PermissionBit } from "@/utils/permissions"
 
 const questionInputSchema = z.object({
@@ -292,50 +290,61 @@ export const questionRouter = createTRPCRouter({
             message: `Question with ID '${questionId}' not found.`,
           })
         }
+
+        const targetTopic =
+          examPositionId !== null
+            ? await tx.topic.findUnique({
+                where: {
+                  id_subjectId: {
+                    id: examPositionId,
+                    subjectId: question.subjectId,
+                  },
+                },
+                select: { parentId: true, examPosition: true },
+              })
+            : null
+
         const deleteData: Prisma.QuestionToTopicDeleteManyArgs = {
           where: {
             questionId,
             topic: {
-              examPosition: { not: null },
+              AND: [
+                { examPosition: { not: null } },
+                ...(targetTopic
+                  ? [{ examPosition: { not: targetTopic.examPosition } }]
+                  : []),
+              ],
             },
           },
         }
         await tx.questionToTopic.deleteMany(deleteData)
 
+        if (examPositionId === null) {
+          return
+        }
+
         const topicsToCreate: Prisma.QuestionToTopicCreateManyInput[] = []
-        if (examPositionId !== null) {
-          const targetTopic = await tx.topic.findUnique({
-            where: {
-              id_subjectId: {
-                id: examPositionId,
-                subjectId: question.subjectId,
-              },
-            },
-            select: { parentId: true },
+        if (!targetTopic) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Topic with ID '${examPositionId}' not found.`,
           })
+        }
 
-          if (!targetTopic) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: `Topic with ID '${examPositionId}' not found.`,
-            })
-          }
+        topicsToCreate.push({
+          questionId,
+          subjectId: question.subjectId,
+          topicId: examPositionId,
+        })
 
+        if (targetTopic.parentId) {
           topicsToCreate.push({
             questionId,
             subjectId: question.subjectId,
-            topicId: examPositionId,
+            topicId: targetTopic.parentId,
           })
-
-          if (targetTopic.parentId) {
-            topicsToCreate.push({
-              questionId,
-              subjectId: question.subjectId,
-              topicId: targetTopic.parentId,
-            })
-          }
         }
-        const createData = { data: topicsToCreate }
+        const createData = { data: topicsToCreate, skipDuplicates: true }
         return await tx.questionToTopic.createMany(createData)
       })
     }),
