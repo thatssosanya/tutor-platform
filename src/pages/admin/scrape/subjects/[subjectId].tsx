@@ -116,6 +116,13 @@ const ScrapeSubjectPage: NextPage = () => {
   const { search, debouncedSearch, onSearchChange } = useSearchFilter()
   const { selectedTopicIds, onSelectedTopicIdsChange } =
     useTopicFilter(fipiSubjectId)
+  const {
+    selectedTopicIds: selectedExamPositionIds,
+    onSelectedTopicIdsChange: onSelectedExamPositionIdsChange,
+  } = useTopicFilter(fipiSubjectId, {
+    isQueryParamSyncEnabled: true,
+    paramName: "examPosition",
+  })
 
   // Filter states
   const [verifiedFilter, setVerifiedFilter] =
@@ -123,7 +130,7 @@ const ScrapeSubjectPage: NextPage = () => {
   const [solutionTypeFilter, setSolutionTypeFilter] = useState<
     SolutionType | "all"
   >("all")
-  const [examPositionFilter, setExamPositionFilter] =
+  const [examPositionSetFilter, setExamPositionSetFilter] =
     useState<BooleanFilterState>("all")
   const [solutionFilter, setSolutionFilter] =
     useState<BooleanFilterState>("all")
@@ -158,7 +165,11 @@ const ScrapeSubjectPage: NextPage = () => {
     verified: verifiedFilter === "all" ? null : verifiedFilter === "yes",
     solutionType: solutionTypeFilter === "all" ? undefined : solutionTypeFilter,
     examPositions:
-      examPositionFilter === "all" ? null : examPositionFilter === "yes",
+      selectedExamPositionIds.length > 0
+        ? selectedExamPositionIds
+        : examPositionSetFilter === "all"
+          ? null
+          : examPositionSetFilter === "yes",
     hasSolution: solutionFilter === "all" ? null : solutionFilter === "yes",
     hasWork: workFilter === "all" ? null : workFilter === "yes",
     hasHint: hintFilter === "all" ? null : hintFilter === "yes",
@@ -178,7 +189,7 @@ const ScrapeSubjectPage: NextPage = () => {
     solutionTypeFilter,
     fipiSubjectId,
     verifiedFilter,
-    examPositionFilter,
+    examPositionSetFilter,
     solutionFilter,
     workFilter,
     hintFilter,
@@ -817,8 +828,14 @@ const ScrapeSubjectPage: NextPage = () => {
               />
               <BooleanFilterGroup
                 label="Номер вопроса"
-                value={examPositionFilter}
-                onChange={setExamPositionFilter}
+                value={examPositionSetFilter}
+                onChange={setExamPositionSetFilter}
+              />
+              <TopicFilter
+                variant="examPosition"
+                subjectId={fipiSubjectId}
+                selectedTopicIds={selectedExamPositionIds}
+                onSelectedTopicIdsChange={onSelectedExamPositionIdsChange}
               />
               <Checkbox
                 label="Показывать подкатегории"
