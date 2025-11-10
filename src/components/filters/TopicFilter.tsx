@@ -46,6 +46,17 @@ export function TopicFilter({
     }
 
     const rootTopics = topics.filter((t) => !t.parentId)
+    // TODO sorting
+    rootTopics.sort((a, b) => {
+      if ((+a.id).toString() === a.id && (+b.id).toString() === b.id) {
+        if (+a.id < +b.id) {
+          return -1
+        } else if (+a.id > +b.id) {
+          return 1
+        }
+      }
+      return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+    })
 
     const options: ListboxOptionType<string>[] = []
     rootTopics.forEach((root) => {
@@ -57,6 +68,16 @@ export function TopicFilter({
       })
 
       const children = topics.filter((t) => t.parentId === root.id)
+      children.sort((a, b) => {
+        if ((+a.id).toString() === a.id && (+b.id).toString() === b.id) {
+          if (+a.id < +b.id) {
+            return -1
+          } else if (+a.id > +b.id) {
+            return 1
+          }
+        }
+        return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+      })
       if (children) {
         children.forEach((child) => {
           options.push({

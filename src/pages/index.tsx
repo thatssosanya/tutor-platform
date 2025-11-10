@@ -3,9 +3,28 @@ import { signOut, useSession } from "next-auth/react"
 
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { Button, Container, Paper, Stack } from "@/ui"
+import { useEffect } from "react"
+import { isStudent, isTutor } from "@/utils/permissions"
+import { useRouter } from "next/router"
+import { SpinnerScreen } from "@/components/SpinnerScreen"
 
 export default function Home() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  // TODO custom hook
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      const permissions = session.user.permissions ?? 0
+      if (isTutor(permissions)) {
+        void router.push("/tutor/questions")
+      } else if (isStudent(permissions)) {
+        void router.push("/student/assignments")
+      } else {
+        // TODO add no permissions page
+      }
+    }
+  }, [status, session, router])
 
   return (
     <>
@@ -13,24 +32,7 @@ export default function Home() {
         <title>Tutor Platform</title>
       </Head>
       <ProtectedLayout>
-        <Container className="my-auto md:max-w-md">
-          <Paper>
-            <Stack className="items-center gap-4 text-center">
-              <h1 className="text-2xl font-bold text-primary mb-4">
-                Tutor Platform
-              </h1>
-
-              <Stack className="gap-2">
-                <p className="text-secondary">
-                  Вы вошли как {session?.user?.displayName}
-                </p>
-                <Button variant="danger" onClick={() => void signOut()}>
-                  Выйти
-                </Button>
-              </Stack>
-            </Stack>
-          </Paper>
-        </Container>
+        <SpinnerScreen />
       </ProtectedLayout>
     </>
   )
