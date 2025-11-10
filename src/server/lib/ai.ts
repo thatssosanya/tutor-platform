@@ -215,7 +215,7 @@ export const EXAMPLES = {
               body: " $\\dfrac{77}{19}$ ",
             },
           ],
-          SolutionType.MULTIRESPONSE
+          SolutionType.MULTICHOICE
         ),
       response: JSON.stringify({
         hint: "Чтобы определить, принадлежит ли число интервалу $(a; b)$, сравни его с границами: умножь границы на общий знаменатель и проверь, попадает ли числитель в промежуток между полученными значениями.",

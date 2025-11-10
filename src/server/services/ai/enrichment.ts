@@ -113,7 +113,7 @@ export async function enrichQuestionWithAI(
       const response = await openai.chat.completions.create({
         model: "gpt-5-nano",
         messages: messages,
-        temperature: 0,
+        temperature: 0.2,
         // @ts-expect-error TODO add openai.d.ts
         reasoning: {
           effort: "medium",
