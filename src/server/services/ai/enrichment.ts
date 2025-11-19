@@ -4,8 +4,8 @@ import z from "zod"
 
 import { env } from "@/env"
 import {
-  EXAMPLES,
   extractInlineImageUrls,
+  getExampleMessages, // <--- IMPORT THIS
   GRADE_MARKER,
   INLINE_IMAGE_REGEX,
   renderImageMessageParts,
@@ -63,7 +63,7 @@ export async function enrichQuestionWithAI(
 
   const options = renderMultiOptions(question.options, question.solutionType)
 
-  const examples = EXAMPLES[question.solutionType]
+  const exampleMessages = await getExampleMessages(question.solutionType)
 
   const maxRetries = 3
   const initialDelay = 1000
@@ -73,25 +73,7 @@ export async function enrichQuestionWithAI(
       role: "system",
       content: systemPrompt,
     },
-    ...(
-      await Promise.all(
-        examples.map(async (example) => [
-          {
-            role: "user" as const,
-            content: [
-              { type: "text" as const, text: example.question },
-              ...("imageUrls" in example && !!example.imageUrls
-                ? await renderImageMessageParts(example.imageUrls)
-                : []),
-            ],
-          },
-          {
-            role: "assistant" as const,
-            content: [{ type: "text" as const, text: example.response }],
-          },
-        ])
-      )
-    ).flat(),
+    ...exampleMessages,
     {
       role: "user" as const,
       content: [

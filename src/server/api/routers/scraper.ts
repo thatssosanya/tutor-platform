@@ -29,10 +29,11 @@ export const scraperRouter = createTRPCRouter({
       z.object({
         page: z.number().min(1),
         subjectId: z.string(),
+        topicId: z.string().optional(),
       })
     )
-    .mutation(async ({ ctx, input: { subjectId, page } }) => {
-      return scrapePage(ctx.db, subjectId, page, ctx.session.user)
+    .mutation(async ({ ctx, input: { subjectId, page, topicId } }) => {
+      return scrapePage(ctx.db, subjectId, page, topicId, ctx.session.user)
     }),
 
   parseQBlock: createProtectedProcedure([PermissionBit.ADMIN])

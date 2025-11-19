@@ -2,7 +2,7 @@ import { QuestionSource, SolutionType } from "@prisma/client"
 import { Check, X } from "lucide-react"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 
 import { SearchFilter } from "@/components/filters/SearchFilter"
 import { TopicFilter } from "@/components/filters/TopicFilter"
@@ -107,6 +107,7 @@ const ScrapeSubjectPage: NextPage = () => {
   const [isAutoEnriching, setIsAutoEnriching] = useState(false)
   const [showExamPositionCategories, setShowExamPositionCategories] =
     useState(false)
+  const [scrapeByTopic, setScrapeByTopic] = useState(false)
 
   const [localChanges, setLocalChanges] = useState<{
     [id: string]: Partial<Pick<Question, "body" | "solution" | "work" | "hint">>
@@ -154,6 +155,25 @@ const ScrapeSubjectPage: NextPage = () => {
       { subjectId: fipiSubjectId },
       { enabled: !!fipiSubjectId }
     )
+
+  // facilitate scraping by single topic
+  const singleTopicId = useMemo(() => {
+    if (selectedTopicIds.length !== 1 || !topics) return undefined
+
+    const selectedId = selectedTopicIds[0]!
+    const selectedTopic = topics.find((t) => t.id === selectedId)
+
+    // root topics are non-searchable
+    if (selectedTopic && selectedTopic.parentId) {
+      return selectedId
+    }
+
+    return undefined
+  }, [selectedTopicIds, topics])
+  const effectiveSingleTopicId = useMemo(
+    () => (scrapeByTopic ? singleTopicId : undefined),
+    [scrapeByTopic, singleTopicId]
+  )
 
   const queryKey: RouterInputs["question"]["getPaginated"] = {
     subjectId: fipiSubjectId,
@@ -217,7 +237,11 @@ const ScrapeSubjectPage: NextPage = () => {
       if (isAutoScraping && targetPage && finishedPage < targetPage) {
         const nextPage = finishedPage + 1
         setPage(nextPage)
-        scrapePageMutation.mutate({ subjectId: fipiSubjectId, page: nextPage })
+        scrapePageMutation.mutate({
+          subjectId: fipiSubjectId,
+          page: nextPage,
+          topicId: effectiveSingleTopicId,
+        })
       } else {
         setIsAutoScraping(false)
       }
@@ -376,7 +400,11 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const handleScrapeSinglePage = () => {
     if (!fipiSubjectId) return
-    scrapePageMutation.mutate({ subjectId: fipiSubjectId, page })
+    scrapePageMutation.mutate({
+      subjectId: fipiSubjectId,
+      page,
+      topicId: effectiveSingleTopicId,
+    })
   }
 
   const handleAutoScrape = () => {
@@ -385,7 +413,11 @@ const ScrapeSubjectPage: NextPage = () => {
       return
     }
     setIsAutoScraping(true)
-    scrapePageMutation.mutate({ subjectId: fipiSubjectId, page })
+    scrapePageMutation.mutate({
+      subjectId: fipiSubjectId,
+      page,
+      topicId: effectiveSingleTopicId,
+    })
   }
 
   const handleEnrichPage = useCallback(() => {
@@ -767,6 +799,12 @@ const ScrapeSubjectPage: NextPage = () => {
           </p>
         )}
         <div className="flex flex-wrap items-center gap-4 rounded-lg border border-primary bg-paper p-4">
+          <Checkbox
+            label="По теме"
+            checked={scrapeByTopic}
+            onChange={setScrapeByTopic}
+            disabled={!singleTopicId || isAnyAutomationRunning}
+          />
           <Button
             onClick={handleScrapeSinglePage}
             disabled={isAnyAutomationRunning}

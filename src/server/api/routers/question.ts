@@ -209,7 +209,7 @@ export const questionRouter = createTRPCRouter({
             },
           },
           orderBy: {
-            createdAt: "asc",
+            sourcePosition: "asc",
           },
         }),
         ctx.db.question.count({
