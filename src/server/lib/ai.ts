@@ -4,7 +4,7 @@ import type OpenAI from "openai"
 
 import type { RouterOutputs } from "@/utils/api"
 
-import { fetchFipi } from "./fipi"
+import { fetchFipiRaw } from "./fipi"
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
 export const SOLUTION_TYPE_INSTRUCTION_MARKER = "%SOLUTION_TYPE_INSTRUCTION%"
@@ -16,7 +16,7 @@ export const SYSTEM_PROMPT = `Ты — экспертный русскоязыч
 
 Придерживайся следующих стилистических правил:
 - Формальный тон: Твои ответы это не часть диалога, а образовательный материал. Стиль решения должен быть строгим и академическим, как в учебнике. Избегай разговорных выражений ("давайте посмотрим", "не забудьте") и прямых обращений к ученику.
-- Структура "Действие -> Результат": Решение должно быть представлено как четкая последовательность логических шагов. Перед выполнением математического преобразования, кратко укажи на само действие. Например: "Представим 64 в виде степени 2:", "Возведём обе части уравнения в квадрат:", "Применим свойство степеней:".
+- Структура: Решение должно быть представлено как четкая последовательность логических шагов. Перед выполнением математического преобразования, кратко укажи на само действие. Например: "Представим 64 в виде степени 2:", "Возведём обе части уравнения в квадрат:", "Применим свойство степеней:".
 - Полнота вычислений: Показывай все ключевые этапы вычислений. Не пропускай шаги, которые важны для понимания логики решения.
 - Решение квадратных уравнений: При решении полных квадратных уравнений вида $ax^2 + bx + c = 0$, обязательно используй метод через дискриминант. Сначала вычисли значение дискриминанта по формуле $D = b^2 - 4ac$. Затем найди корни по формуле $x_{1,2} = \\frac{-b \\pm \\sqrt{D}}{2a}$.
 
@@ -108,7 +108,7 @@ export function extractInlineImageUrls(strings: string[]) {
 export async function renderImageMessageParts(urls: string[]) {
   const attachmentPromises = urls.map(async (url) => {
     try {
-      const response = await fetchFipi(url)
+      const { response } = await fetchFipiRaw(url)
       return responseToBase64DataURL(response)
     } catch (e) {
       console.warn(`Error fetching attachment URL ${url}. Skipping.`, e)

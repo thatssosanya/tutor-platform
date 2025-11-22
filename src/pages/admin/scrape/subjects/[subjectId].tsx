@@ -103,8 +103,19 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const [page, setPage] = useState(1)
   const [targetPage, setTargetPage] = useState<number | "">("")
+
+  // Automation State
   const [isAutoScraping, setIsAutoScraping] = useState(false)
   const [isAutoEnriching, setIsAutoEnriching] = useState(false)
+
+  // Topic Iteration Automation State
+  const [isAutoTopicScraping, setIsAutoTopicScraping] = useState(false)
+  const [isAutoTopicEnriching, setIsAutoTopicEnriching] = useState(false)
+  const [topicQueue, setTopicQueue] = useState<string[]>([])
+  const [activeAutomationTopicId, setActiveAutomationTopicId] = useState<
+    string | undefined
+  >()
+
   const [showExamPositionCategories, setShowExamPositionCategories] =
     useState(false)
   const [scrapeByTopic, setScrapeByTopic] = useState(false)
@@ -156,32 +167,41 @@ const ScrapeSubjectPage: NextPage = () => {
       { enabled: !!fipiSubjectId }
     )
 
-  // facilitate scraping by single topic
+  // Determine active topic for query and scraping
+  const isTopicAutomationRunning = isAutoTopicScraping || isAutoTopicEnriching
+
   const singleTopicId = useMemo(() => {
     if (selectedTopicIds.length !== 1 || !topics) return undefined
-
     const selectedId = selectedTopicIds[0]!
     const selectedTopic = topics.find((t) => t.id === selectedId)
-
-    // root topics are non-searchable
     if (selectedTopic && selectedTopic.parentId) {
       return selectedId
     }
-
     return undefined
   }, [selectedTopicIds, topics])
-  const effectiveSingleTopicId = useMemo(
-    () => (scrapeByTopic ? singleTopicId : undefined),
-    [scrapeByTopic, singleTopicId]
-  )
 
+  const effectiveSingleTopicId = useMemo(() => {
+    if (isTopicAutomationRunning && activeAutomationTopicId)
+      return activeAutomationTopicId
+    return scrapeByTopic ? singleTopicId : undefined
+  }, [
+    scrapeByTopic,
+    singleTopicId,
+    isTopicAutomationRunning,
+    activeAutomationTopicId,
+  ])
+
+  // Query Key Construction
   const queryKey: RouterInputs["question"]["getPaginated"] = {
     subjectId: fipiSubjectId,
     page,
     limit: 10,
     sources: [QuestionSource.FIPI],
     search: debouncedSearch || undefined,
-    topicIds: selectedTopicIds,
+    topicIds:
+      isTopicAutomationRunning && activeAutomationTopicId
+        ? [activeAutomationTopicId]
+        : selectedTopicIds,
     verified: verifiedFilter === "all" ? null : verifiedFilter === "yes",
     solutionType: solutionTypeFilter === "all" ? undefined : solutionTypeFilter,
     examPositions:
@@ -194,17 +214,21 @@ const ScrapeSubjectPage: NextPage = () => {
     hasWork: workFilter === "all" ? null : workFilter === "yes",
     hasHint: hintFilter === "all" ? null : hintFilter === "yes",
   }
+
   const { data: paginatedData, isLoading: isLoadingQuestions } =
     api.question.getPaginated.useQuery(queryKey, {
       enabled: !!fipiSubjectId && !!topics && topics.length > 0,
-      refetchOnWindowFocus: !isAutoScraping && !isAutoEnriching,
+      refetchOnWindowFocus:
+        !isAutoScraping && !isAutoEnriching && !isTopicAutomationRunning,
     })
 
   const questions = paginatedData?.items
   const totalPages = paginatedData?.totalPages
 
   useEffect(() => {
-    setPage(1)
+    if (!isTopicAutomationRunning) {
+      setPage(1)
+    }
   }, [
     solutionTypeFilter,
     fipiSubjectId,
@@ -215,11 +239,56 @@ const ScrapeSubjectPage: NextPage = () => {
     hintFilter,
     debouncedSearch,
     selectedTopicIds,
+    isTopicAutomationRunning,
   ])
 
   useEffect(() => {
     setLocalChanges({})
   }, [page])
+
+  // --- Shared Navigation Logic for Automation ---
+  const advanceAutomation = useCallback(() => {
+    if (!targetPage) return
+
+    // Case 1: More pages in current view/topic
+    if (page < targetPage) {
+      setPage((prev) => prev + 1)
+
+      // Special case for scraping: we need to trigger mutation manually after page update
+      // but scraping handles its own recursion in onSuccess usually.
+      // This is mostly used for Enrichment or triggering the *next* scrape step logic
+      return { action: "NEXT_PAGE", nextPage: page + 1 }
+    }
+
+    // Case 2: Pages done, check for next topic
+    if (isAutoTopicScraping || isAutoTopicEnriching) {
+      setTopicQueue((prevQueue) => {
+        if (prevQueue.length === 0) {
+          // Done
+          setIsAutoTopicScraping(false)
+          setIsAutoTopicEnriching(false)
+          setActiveAutomationTopicId(undefined)
+          alert("Topic automation complete.")
+          return []
+        }
+
+        const [nextTopic, ...rest] = prevQueue
+        setActiveAutomationTopicId(nextTopic)
+        setPage(1)
+
+        // For scraping, we need to fire the mutation immediately with new params
+        // This is handled in the mutation callback mostly, but good to know state updated
+        return rest
+      })
+      return { action: "NEXT_TOPIC" }
+    }
+
+    // Case 3: Pages done, no topics queue
+    setIsAutoScraping(false)
+    setIsAutoEnriching(false)
+    alert("Automation complete.")
+    return { action: "DONE" }
+  }, [targetPage, page, isAutoTopicScraping, isAutoTopicEnriching])
 
   const scrapeTopicsMutation = api.scraper.scrapeTopics.useMutation({
     onSuccess: () => {
@@ -234,20 +303,52 @@ const ScrapeSubjectPage: NextPage = () => {
         subjectId: fipiSubjectId,
         page: finishedPage,
       })
-      if (isAutoScraping && targetPage && finishedPage < targetPage) {
+
+      const effectiveTarget = targetPage || 999 // fail-safe
+
+      // Standard Page Automation OR Topic Page Loop
+      if (
+        (isAutoScraping || isAutoTopicScraping) &&
+        finishedPage < effectiveTarget
+      ) {
         const nextPage = finishedPage + 1
         setPage(nextPage)
         scrapePageMutation.mutate({
           subjectId: fipiSubjectId,
           page: nextPage,
-          topicId: effectiveSingleTopicId,
+          topicId: effectiveSingleTopicId, // uses activeAutomationTopicId if set
         })
+      }
+      // Topic Switching Logic
+      else if (isAutoTopicScraping) {
+        // Need to access the CURRENT queue state, so we use setTopicQueue callback pattern
+        // but we also need to trigger the mutation.
+        // Note: This relies on queue state being accurate.
+        if (topicQueue.length > 0) {
+          const nextTopic = topicQueue[0]!
+          const newQueue = topicQueue.slice(1)
+
+          setTopicQueue(newQueue)
+          setActiveAutomationTopicId(nextTopic)
+          setPage(1)
+
+          scrapePageMutation.mutate({
+            subjectId: fipiSubjectId,
+            page: 1,
+            topicId: nextTopic,
+          })
+        } else {
+          setIsAutoTopicScraping(false)
+          setActiveAutomationTopicId(undefined)
+          alert("All topics scraped!")
+        }
       } else {
         setIsAutoScraping(false)
       }
     },
     onError: (error) => {
       setIsAutoScraping(false)
+      setIsAutoTopicScraping(false)
       alert(`Error scraping page ${error.message}. Stopping automation.`)
     },
   })
@@ -262,17 +363,15 @@ const ScrapeSubjectPage: NextPage = () => {
     onSuccess: (data) => {
       void apiUtils.question.getPaginated.invalidate(queryKey)
 
-      if (isAutoEnriching && targetPage && page < targetPage) {
-        setPage((prevPage) => prevPage + 1)
-      } else if (isAutoEnriching) {
-        setIsAutoEnriching(false)
-        alert("Auto-enrichment complete.")
+      if (isAutoEnriching || isAutoTopicEnriching) {
+        advanceAutomation()
       } else {
         alert(`Successfully enriched ${data.enrichedCount} questions.`)
       }
     },
     onError: (error) => {
       setIsAutoEnriching(false)
+      setIsAutoTopicEnriching(false)
       alert(`Error enriching page: ${error.message}. Stopping automation.`)
     },
   })
@@ -420,20 +519,77 @@ const ScrapeSubjectPage: NextPage = () => {
     })
   }
 
+  const handleAutoTopicScrape = () => {
+    if (selectedTopicIds.length === 0) {
+      alert("Please select topics to scrape.")
+      return
+    }
+    if (!targetPage) {
+      alert("Target page required.")
+      return
+    }
+
+    const queue = [...selectedTopicIds]
+    const first = queue.shift()
+    if (!first) return
+
+    setTopicQueue(queue)
+    setActiveAutomationTopicId(first)
+    setPage(1)
+    setIsAutoTopicScraping(true)
+
+    scrapePageMutation.mutate({
+      subjectId: fipiSubjectId,
+      page: 1,
+      topicId: first,
+    })
+  }
+
+  const handleAutoTopicEnrich = () => {
+    if (selectedTopicIds.length === 0) {
+      alert("Please select topics to enrich.")
+      return
+    }
+    if (!targetPage) {
+      alert("Target page required.")
+      return
+    }
+
+    const queue = [...selectedTopicIds]
+    const first = queue.shift()
+    if (!first) return
+
+    setTopicQueue(queue)
+    setActiveAutomationTopicId(first)
+    setPage(1)
+    setIsAutoTopicEnriching(true)
+    // Data fetching will trigger in useEffect
+  }
+
   const handleEnrichPage = useCallback(() => {
-    if (!questions || questions.length === 0) return
+    // If loading, we can't make decisions about empty pages yet
+    if (isLoadingQuestions) return
+
+    if (!questions || questions.length === 0) {
+      if (isAutoEnriching || isAutoTopicEnriching) {
+        // Empty page encountered during automation -> skip to next
+        advanceAutomation()
+        return
+      }
+      return
+    }
+
     const idsToEnrich = questions
-      .filter((q) => q.solutionType !== SolutionType.LONG && !q.work)
+      .filter(
+        (q) =>
+          q.solutionType !== SolutionType.LONG &&
+          (!q.work || !q.solution || !q.hint)
+      )
       .map((q) => q.id)
 
     if (idsToEnrich.length === 0) {
-      if (isAutoEnriching) {
-        if (targetPage && page < targetPage) {
-          setPage((prevPage) => prevPage + 1)
-        } else {
-          setIsAutoEnriching(false)
-          alert("Auto-enrichment complete.")
-        }
+      if (isAutoEnriching || isAutoTopicEnriching) {
+        advanceAutomation()
       } else {
         alert(
           "All non-LONG answer questions on this page are already enriched."
@@ -442,7 +598,14 @@ const ScrapeSubjectPage: NextPage = () => {
       return
     }
     enrichManyMutation.mutate({ ids: idsToEnrich })
-  }, [questions, isAutoEnriching, page, targetPage, enrichManyMutation])
+  }, [
+    questions,
+    isAutoEnriching,
+    isAutoTopicEnriching,
+    advanceAutomation,
+    enrichManyMutation,
+    isLoadingQuestions,
+  ])
 
   const handleAutoEnrich = () => {
     if (!fipiSubjectId || !targetPage || targetPage <= page) {
@@ -453,15 +616,24 @@ const ScrapeSubjectPage: NextPage = () => {
     handleEnrichPage()
   }
 
+  // Automation Effect for Enrichment
   useEffect(() => {
-    if (isAutoEnriching && questions && !enrichManyMutation.isPending) {
+    const isAutomating = isAutoEnriching || isAutoTopicEnriching
+    if (
+      isAutomating &&
+      questions &&
+      !enrichManyMutation.isPending &&
+      !isLoadingQuestions
+    ) {
       handleEnrichPage()
     }
   }, [
     isAutoEnriching,
+    isAutoTopicEnriching,
     questions,
     handleEnrichPage,
     enrichManyMutation.isPending,
+    isLoadingQuestions,
   ])
 
   const handleFieldChange = (
@@ -626,7 +798,6 @@ const ScrapeSubjectPage: NextPage = () => {
       </Stack>
     )
 
-    // TODO rewrite to use localChanges
     const handleExamPositionClick = (examPositionId: string) => {
       const isDeselecting = question.topics.some(
         (t) => t.topic.id === examPositionId
@@ -648,32 +819,10 @@ const ScrapeSubjectPage: NextPage = () => {
       )
       if (!clickedTopic) return
 
-      // if (clickedTopic.parentId === null) {
-      //   apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
-      //     if (!oldData) return
-
-      //     return {
-      //       ...oldData,
-      //       items: oldData.items.map((q) => {
-      //         if (q.id !== question.id) {
-      //           return q
-      //         }
-
-      //         const topicsToKeep = q.topics.filter(
-      //           (qt) => qt.topic.examPosition === null
-      //         )
-      //         const updatedTopics = [...topicsToKeep, { topic: clickedTopic }]
-
-      //         return { ...q, topics: updatedTopics }
-      //       }),
-      //     }
-      //   })
-      // } else {
       updateExamPositionMutation.mutate({
         id: question.id,
         examPositionId: examPositionId,
       })
-      // }
     }
 
     const selectedExamPositions = question.topics.filter(
@@ -757,8 +906,10 @@ const ScrapeSubjectPage: NextPage = () => {
   const paginationButtons = totalPages
     ? Array.from({ length: totalPages }, (_, i) => i + 1)
     : []
-  const isScrapingInProgress = scrapePageMutation.isPending || isAutoScraping
-  const isEnrichingInProgress = enrichManyMutation.isPending || isAutoEnriching
+  const isScrapingInProgress =
+    scrapePageMutation.isPending || isAutoScraping || isAutoTopicScraping
+  const isEnrichingInProgress =
+    enrichManyMutation.isPending || isAutoEnriching || isAutoTopicEnriching
   const isAnyAutomationRunning = isScrapingInProgress || isEnrichingInProgress
 
   return (
@@ -792,56 +943,119 @@ const ScrapeSubjectPage: NextPage = () => {
             вкладку.
           </p>
         )}
+        {isAutoTopicScraping && (
+          <p className="font-bold text-purple-500">
+            Авто-скрейпинг ТЕМ. Текущая тема: {activeAutomationTopicId}.
+            Страница {page} из {targetPage}. В очереди: {topicQueue.length}.
+          </p>
+        )}
         {isAutoEnriching && (
           <p className="font-bold text-green-500">
             Авто-решение страницы {page} из {targetPage}... Не закрывайте
             вкладку.
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-primary bg-paper p-4">
-          <Checkbox
-            label="По теме"
-            checked={scrapeByTopic}
-            onChange={setScrapeByTopic}
-            disabled={!singleTopicId || isAnyAutomationRunning}
-          />
-          <Button
-            onClick={handleScrapeSinglePage}
-            disabled={isAnyAutomationRunning}
-          >
-            {scrapePageMutation.isPending && !isAutoScraping
-              ? `Страница ${page} скрейпится...`
-              : `Скрейпить страницу ${page}`}
-          </Button>
-          <Button onClick={handleEnrichPage} disabled={isAnyAutomationRunning}>
-            {enrichManyMutation.isPending && !isAutoEnriching
-              ? `Страница ${page} решается...`
-              : "Решить страницу " + page}
-          </Button>
-          <span>/</span>
-          <input
-            type="number"
-            value={targetPage}
-            onChange={(e) =>
-              setTargetPage(e.target.value === "" ? "" : Number(e.target.value))
-            }
-            placeholder="до страницы..."
-            min={page + 1}
-            disabled={isAnyAutomationRunning}
-            className="w-48 rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-          <Button
-            onClick={handleAutoScrape}
-            disabled={isAnyAutomationRunning || !targetPage}
-          >
-            {isAutoScraping ? "Авто-скрейпится..." : "Начать авто-скрейпинг"}
-          </Button>
-          <Button
-            onClick={handleAutoEnrich}
-            disabled={isAnyAutomationRunning || !targetPage}
-          >
-            {isAutoEnriching ? "Авто-решается..." : "Начать авто-решение"}
-          </Button>
+        {isAutoTopicEnriching && (
+          <p className="font-bold text-emerald-500">
+            Авто-решение ТЕМ. Текущая тема: {activeAutomationTopicId}. Страница{" "}
+            {page} из {targetPage}. В очереди: {topicQueue.length}.
+          </p>
+        )}
+
+        <div className="flex flex-col gap-4 rounded-lg border border-primary bg-paper p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <Checkbox
+              label="По теме"
+              checked={scrapeByTopic}
+              onChange={setScrapeByTopic}
+              disabled={!singleTopicId || isAnyAutomationRunning}
+            />
+            <Button
+              onClick={handleScrapeSinglePage}
+              disabled={isAnyAutomationRunning}
+            >
+              {scrapePageMutation.isPending &&
+              !isAutoScraping &&
+              !isAutoTopicScraping
+                ? `Страница ${page} скрейпится...`
+                : `Скрейпить страницу ${page}`}
+            </Button>
+            <Button
+              onClick={handleEnrichPage}
+              disabled={isAnyAutomationRunning}
+            >
+              {enrichManyMutation.isPending &&
+              !isAutoEnriching &&
+              !isAutoTopicEnriching
+                ? `Страница ${page} решается...`
+                : "Решить страницу " + page}
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 border-t pt-4 border-border/50">
+            <span className="font-bold text-sm uppercase text-secondary">
+              Автоматизация
+            </span>
+            <input
+              type="number"
+              value={targetPage}
+              onChange={(e) =>
+                setTargetPage(
+                  e.target.value === "" ? "" : Number(e.target.value)
+                )
+              }
+              placeholder="до страницы..."
+              min={page + 1}
+              disabled={isAnyAutomationRunning}
+              className="w-48 rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleAutoScrape}
+                disabled={isAnyAutomationRunning || !targetPage}
+              >
+                {isAutoScraping ? "Авто-скрейпинг..." : "Авто-скрейп"}
+              </Button>
+              <Button
+                onClick={handleAutoEnrich}
+                disabled={isAnyAutomationRunning || !targetPage}
+              >
+                {isAutoEnriching ? "Авто-решение..." : "Авто-решение"}
+              </Button>
+            </div>
+
+            <div className="h-6 w-[1px] bg-border mx-2"></div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={handleAutoTopicScrape}
+                disabled={
+                  isAnyAutomationRunning ||
+                  !targetPage ||
+                  selectedTopicIds.length === 0
+                }
+              >
+                {isAutoTopicScraping
+                  ? "Темы скрейпятся..."
+                  : "Скрейпить выбранные темы"}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleAutoTopicEnrich}
+                disabled={
+                  isAnyAutomationRunning ||
+                  !targetPage ||
+                  selectedTopicIds.length === 0
+                }
+              >
+                {isAutoTopicEnriching
+                  ? "Темы решаются..."
+                  : "Решить выбранные темы"}
+              </Button>
+            </div>
+          </div>
         </div>
 
         {topics && topics.length > 0 && (

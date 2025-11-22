@@ -436,7 +436,7 @@ function inlineImage(src: string, i?: number) {
 }
 
 export async function scrapeSubjects(db: PrismaClient, grade: string) {
-  const html = await fetchFipiPage("/bank/index.php", grade)
+  const html = await fetchFipiPage("/bank/index.php", { grade })
   const $ = cheerio.load(html)
 
   const subjects = $(".projects.active li")
@@ -464,7 +464,9 @@ export async function scrapeTopics(db: PrismaClient, subjectId: string) {
   })
   const grade = subject?.grade ?? undefined
 
-  const html = await fetchFipiPage(`/bank/index.php?proj=${subjectId}`, grade)
+  const html = await fetchFipiPage(`/bank/index.php?proj=${subjectId}`, {
+    grade,
+  })
   const $ = cheerio.load(html)
 
   const scrapedRootTopics: { id: string; name: string }[] = []
@@ -565,7 +567,12 @@ export async function scrapePage(
     new Date().toString()
   )}`
 
-  const rawHtml = await fetchFipiPage(path, grade)
+  console.log("Requesting " + path)
+
+  const rawHtml = await fetchFipiPage(path, {
+    grade,
+    topicFilter: topicId ? { subjectId, topicId } : undefined,
+  })
 
   // TODO reevaluate global replaces
   const cleanHtml = rawHtml
