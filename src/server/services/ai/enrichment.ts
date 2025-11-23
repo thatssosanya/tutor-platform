@@ -15,6 +15,7 @@ import {
   SYSTEM_PROMPT,
 } from "@/server/lib/ai"
 import type { RouterOutputs } from "@/utils/api"
+import { fixHangingDollarSignDelimiters } from "@/utils/latex"
 
 const openai = new OpenAI({
   apiKey: env.ENRICHMENT_AI_API_KEY,
@@ -88,23 +89,20 @@ export async function enrichQuestionWithAI(
     },
   ]
 
-  console.dir(messages, { depth: null })
-
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5-nano",
         messages: messages,
+        response_format: zodResponseFormat(
+          enrichQuestionResponseSchema,
+          "json_schema"
+        ),
+        model: "grok-4.1-fast",
         temperature: 0.2,
         // @ts-expect-error TODO add openai.d.ts
         reasoning: {
           effort: "medium",
         },
-        max_completion_tokens: 8192,
-        response_format: zodResponseFormat(
-          enrichQuestionResponseSchema,
-          "json_schema"
-        ),
       })
 
       const content = response.choices[0]?.message?.content
@@ -114,22 +112,24 @@ export async function enrichQuestionWithAI(
       const parsed = JSON.parse(content) as EnrichQuestionResponse
 
       const result = {
-        work:
+        work: fixHangingDollarSignDelimiters(
           parsed.work
             ?.replaceAll("\\\\", "\\")
             ?.replaceAll("\\n", "\n")
             ?.replaceAll("LATEXSTART", "$")
             ?.replaceAll("LATEXEND", "$")
             ?.replaceAll("\\frac", "\\dfrac")
-            ?.replace(/^Ответ:.*$/m, "") ?? null,
+            ?.replace(/^Ответ:.*$/m, "") ?? null
+        ),
         solution: parsed.solution ?? null,
-        hint:
+        hint: fixHangingDollarSignDelimiters(
           parsed.hint
             ?.replaceAll("\\\\", "\\")
             ?.replaceAll("\\n", "\n")
             ?.replaceAll("LATEXSTART", "$")
             ?.replaceAll("LATEXEND", "$")
-            ?.replaceAll("\\frac", "\\dfrac") ?? null,
+            ?.replaceAll("\\frac", "\\dfrac") ?? null
+        ),
       }
       return result
     } catch (error) {

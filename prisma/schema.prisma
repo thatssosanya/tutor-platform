@@ -25,6 +25,20 @@ enum SolutionType {
     MULTICHOICEGROUP
 }
 
+enum QuestionMetaType {
+    SOURCE_VERIFIED
+    SYNTAX_VERIFIED
+    BODY_REPORT
+    WORK_REPORT
+    HINT_REPORT
+}
+
+enum QuestionMetaSource {
+    FIPI
+    AI
+    USER
+}
+
 model User {
     id String @id @unique @default(cuid())
 
@@ -44,8 +58,9 @@ model User {
     assignmentsGiven    Assignment[] @relation("AssignedBy")
     assignmentsReceived Assignment[] @relation("AssignedTo")
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+    QuestionMeta QuestionMeta[]
 }
 
 model Subject {
@@ -115,7 +130,7 @@ model Question {
     testEntries    QuestionToTest[]
     studentAnswers StudentAnswer[]
 
-    verified Boolean @default(false)
+    metas QuestionMeta[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -135,6 +150,22 @@ model Option {
 
     order String?
     body  String
+
+    questionId String
+    question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model QuestionMeta {
+    id String @id @default(cuid())
+
+    type   QuestionMetaType
+    source QuestionMetaSource
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    userId String?
+    user   User?   @relation(fields: [userId], references: [id])
 
     questionId String
     question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)

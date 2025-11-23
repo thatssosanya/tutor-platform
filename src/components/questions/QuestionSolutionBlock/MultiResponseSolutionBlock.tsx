@@ -12,12 +12,14 @@ type MultiResponseSolutionBlockProps = {
   isCorrect?: boolean
   onChange?: (newValue: string) => void
   onBlur?: () => void
+  highlightImages?: boolean
 }
 
 export function MultiResponseSolutionBlock({
   question,
   value,
   onChange,
+  highlightImages,
 }: MultiResponseSolutionBlockProps) {
   const isEditable = !!onChange
 
@@ -45,7 +47,9 @@ export function MultiResponseSolutionBlock({
             </>
           )} */}
           <span className="flex-1">
-            <Markdown>{option.order + ") " + option.body}</Markdown>
+            <Markdown highlightImages={highlightImages}>
+              {option.order + ") " + option.body}
+            </Markdown>
           </span>
         </div>
       )

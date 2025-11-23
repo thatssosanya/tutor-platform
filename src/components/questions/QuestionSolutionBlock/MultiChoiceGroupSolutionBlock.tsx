@@ -13,12 +13,14 @@ type MultiChoiceGroupSolutionBlockProps = {
   isCorrect?: boolean
   onChange?: (newValue: string) => void
   onBlur?: () => void
+  highlightImages?: boolean
 }
 
 export function MultiChoiceGroupSolutionBlock({
   question,
   value,
   onChange,
+  highlightImages,
 }: MultiChoiceGroupSolutionBlockProps) {
   const isEditable = !!onChange
 
@@ -52,7 +54,7 @@ export function MultiChoiceGroupSolutionBlock({
 
         return (
           <Stack className="items-center" key={group.order ?? i}>
-            <Markdown>{group.order}</Markdown>
+            <Markdown highlightImages={highlightImages}>{group.order}</Markdown>
             {isEditable ? (
               <Listbox
                 options={groupOptions}

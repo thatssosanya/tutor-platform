@@ -18,6 +18,7 @@ type QuestionCardProps = {
   hideSolutionBlock?: boolean
   controls?: (question: Question) => React.ReactNode
   footer?: (question: Question) => React.ReactNode
+  highlightImages?: boolean
 }
 
 const TYPES_WITH_SOLUTIONS = [
@@ -30,10 +31,11 @@ const TYPES_WITH_SOLUTIONS = [
 export function QuestionCard({
   question,
   size = "default",
-  hidePrompt,
-  hideSolutionBlock,
   controls,
   footer,
+  hidePrompt,
+  hideSolutionBlock,
+  highlightImages,
 }: QuestionCardProps) {
   return (
     <Paper
@@ -64,7 +66,7 @@ export function QuestionCard({
       </Row>
       <Stack className="items-start md:flex-row md:items-center md:min-h-40">
         <Stack className={cn("text-lg")}>
-          <Markdown>{question.body}</Markdown>
+          <Markdown highlightImages={highlightImages}>{question.body}</Markdown>
         </Stack>
         <Stack className="ml-auto shrink-0">
           {question.attachments.map((a) => (
@@ -79,7 +81,10 @@ export function QuestionCard({
           )}
           {!hideSolutionBlock &&
             TYPES_WITH_SOLUTIONS.includes(question.solutionType) && (
-              <QuestionSolutionBlock question={question} />
+              <QuestionSolutionBlock
+                question={question}
+                highlightImages={highlightImages}
+              />
             )}
           {footer && footer(question)}
         </Stack>

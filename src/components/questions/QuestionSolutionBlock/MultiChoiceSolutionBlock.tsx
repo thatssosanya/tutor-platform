@@ -12,12 +12,14 @@ type MultiChoiceSolutionBlockProps = {
   isCorrect?: boolean
   onChange?: (newValue: string) => void
   onBlur?: () => void
+  highlightImages?: boolean
 }
 
 export function MultiChoiceSolutionBlock({
   question,
   value,
   onChange,
+  highlightImages,
 }: MultiChoiceSolutionBlockProps) {
   const isEditable = !!onChange
   const solution = question.solution ?? ""
@@ -39,7 +41,9 @@ export function MultiChoiceSolutionBlock({
           </>
         )} */}
         <span className="flex-1">
-          <Markdown>{option.order + ") " + option.body}</Markdown>
+          <Markdown highlightImages={highlightImages}>
+            {option.order + ") " + option.body}
+          </Markdown>
         </span>
       </div>
     )

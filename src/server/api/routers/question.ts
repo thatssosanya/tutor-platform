@@ -1,4 +1,10 @@
-import { Prisma, QuestionSource, SolutionType } from "@prisma/client"
+import {
+  Prisma,
+  QuestionMetaSource,
+  QuestionMetaType,
+  QuestionSource,
+  SolutionType,
+} from "@prisma/client"
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 
@@ -7,8 +13,9 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "@/server/api/trpc"
-import { verifyQuestion } from "@/server/lib/fipi"
+import { verifySolution } from "@/server/lib/fipi"
 import { enrichQuestionWithAI } from "@/server/services/ai/enrichment"
+import { verifyContentWithAI } from "@/server/services/ai/verification"
 import { UNENRICHABLE_SOLUTION_TYPES } from "@/utils/consts"
 import { PermissionBit } from "@/utils/permissions"
 
@@ -46,7 +53,6 @@ export const questionRouter = createTRPCRouter({
       return ctx.db.question.create({
         data: {
           ...cleanInput,
-          verified: true,
           creatorId: ctx.session.user.id,
           topics: {
             create: topicIds.map((id) => ({
@@ -56,6 +62,20 @@ export const questionRouter = createTRPCRouter({
                 },
               },
             })),
+          },
+          metas: {
+            create: [
+              {
+                type: QuestionMetaType.SOURCE_VERIFIED,
+                source: QuestionMetaSource.USER,
+                userId: ctx.session.user.id,
+              },
+              {
+                type: QuestionMetaType.SYNTAX_VERIFIED,
+                source: QuestionMetaSource.USER,
+                userId: ctx.session.user.id,
+              },
+            ],
           },
         },
       })
@@ -80,6 +100,8 @@ export const questionRouter = createTRPCRouter({
           .optional()
           .default(null),
         verified: z.boolean().nullable().optional().default(null),
+        sourceVerified: z.boolean().nullable().optional().default(null),
+        syntaxVerified: z.boolean().nullable().optional().default(null),
         solutionType: z.nativeEnum(SolutionType).optional(),
         hasSolution: z.boolean().nullable().optional(),
         hasWork: z.boolean().nullable().optional(),
@@ -97,6 +119,8 @@ export const questionRouter = createTRPCRouter({
         search,
         examPositions,
         verified,
+        sourceVerified,
+        syntaxVerified,
         solutionType,
         hasSolution,
         hasWork,
@@ -114,8 +138,6 @@ export const questionRouter = createTRPCRouter({
         subjectId: subjectId,
         source: sources && sources.length > 0 ? { in: sources } : undefined,
         solutionType: solutionType,
-        verified:
-          verified === null || verified === undefined ? undefined : verified,
         solution:
           hasSolution === null || hasSolution === undefined
             ? undefined
@@ -143,8 +165,6 @@ export const questionRouter = createTRPCRouter({
               ],
             }
           : undefined),
-
-        // relational fields
         AND: [
           ...(topicIds && topicIds.length > 0
             ? [{ topics: { some: { topicId: { in: topicIds } } } }]
@@ -184,6 +204,50 @@ export const questionRouter = createTRPCRouter({
                       ]
                     : []
                 : []),
+
+          ...(verified === true
+            ? [
+                { metas: { some: { type: QuestionMetaType.SOURCE_VERIFIED } } },
+                { metas: { some: { type: QuestionMetaType.SYNTAX_VERIFIED } } },
+              ]
+            : verified === false
+              ? [
+                  {
+                    OR: [
+                      {
+                        metas: {
+                          none: { type: QuestionMetaType.SOURCE_VERIFIED },
+                        },
+                      },
+                      {
+                        metas: {
+                          none: { type: QuestionMetaType.SYNTAX_VERIFIED },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : []),
+
+          ...(sourceVerified === true
+            ? [{ metas: { some: { type: QuestionMetaType.SOURCE_VERIFIED } } }]
+            : sourceVerified === false
+              ? [
+                  {
+                    metas: { none: { type: QuestionMetaType.SOURCE_VERIFIED } },
+                  },
+                ]
+              : []),
+
+          ...(syntaxVerified === true
+            ? [{ metas: { some: { type: QuestionMetaType.SYNTAX_VERIFIED } } }]
+            : syntaxVerified === false
+              ? [
+                  {
+                    metas: { none: { type: QuestionMetaType.SYNTAX_VERIFIED } },
+                  },
+                ]
+              : []),
         ],
       }
 
@@ -205,6 +269,12 @@ export const questionRouter = createTRPCRouter({
                 topic: {
                   select: { id: true, parentId: true, examPosition: true },
                 },
+              },
+            },
+            metas: {
+              select: {
+                type: true,
+                source: true,
               },
             },
           },
@@ -366,9 +436,28 @@ export const questionRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
-      return ctx.db.question.update({
-        where: { id },
-        data: data,
+
+      return ctx.db.$transaction(async (tx) => {
+        if (data.solution !== undefined) {
+          const currentQuestion = await tx.question.findUnique({
+            where: { id },
+            select: { solution: true },
+          })
+
+          if (currentQuestion && currentQuestion.solution !== data.solution) {
+            await tx.questionMeta.deleteMany({
+              where: {
+                questionId: id,
+                type: QuestionMetaType.SOURCE_VERIFIED,
+              },
+            })
+          }
+        }
+
+        return tx.question.update({
+          where: { id },
+          data: data,
+        })
       })
     }),
 
@@ -378,11 +467,7 @@ export const questionRouter = createTRPCRouter({
       const question = await ctx.db.question.findUnique({
         where: { id: input.id },
         include: {
-          subject: {
-            select: {
-              grade: true,
-            },
-          },
+          subject: { select: { grade: true } },
           attachments: true,
           options: true,
         },
@@ -404,20 +489,69 @@ export const questionRouter = createTRPCRouter({
 
       const aiEnrichment = await enrichQuestionWithAI(question)
 
-      const verified = await verifyQuestion(
+      const fipiVerified = await verifySolution(
         question.id,
         question.subjectId,
-        aiEnrichment.solution
+        question.subject.grade,
+        aiEnrichment.solution,
+        question.solutionType,
+        question.options.length
       )
 
-      return ctx.db.question.update({
-        where: { id: input.id },
-        data: {
-          hint: aiEnrichment.hint,
-          work: aiEnrichment.work,
-          solution: aiEnrichment.solution,
-          verified,
-        },
+      let aiSyntaxVerified = false
+      if (fipiVerified && aiEnrichment.work) {
+        aiSyntaxVerified = await verifyContentWithAI(
+          question,
+          aiEnrichment.work,
+          aiEnrichment.hint
+        )
+      }
+
+      return ctx.db.$transaction(async (tx) => {
+        await tx.question.update({
+          where: { id: input.id },
+          data: {
+            hint: aiEnrichment.hint,
+            work: aiEnrichment.work,
+            solution: aiEnrichment.solution,
+          },
+        })
+
+        await tx.questionMeta.deleteMany({
+          where: {
+            questionId: input.id,
+            OR: [
+              {
+                type: QuestionMetaType.SOURCE_VERIFIED,
+                source: QuestionMetaSource.FIPI,
+              },
+              {
+                type: QuestionMetaType.SYNTAX_VERIFIED,
+                source: QuestionMetaSource.AI,
+              },
+            ],
+          },
+        })
+
+        if (fipiVerified) {
+          await tx.questionMeta.create({
+            data: {
+              questionId: input.id,
+              type: QuestionMetaType.SOURCE_VERIFIED,
+              source: QuestionMetaSource.FIPI,
+            },
+          })
+        }
+
+        if (aiSyntaxVerified) {
+          await tx.questionMeta.create({
+            data: {
+              questionId: input.id,
+              type: QuestionMetaType.SYNTAX_VERIFIED,
+              source: QuestionMetaSource.AI,
+            },
+          })
+        }
       })
     }),
 
@@ -427,17 +561,11 @@ export const questionRouter = createTRPCRouter({
       const questionsToEnrich = await ctx.db.question.findMany({
         where: {
           id: { in: input.ids },
-          solutionType: {
-            notIn: UNENRICHABLE_SOLUTION_TYPES,
-          },
-          OR: [{ solution: null }, { work: null }, { hint: null }],
+          solutionType: { notIn: UNENRICHABLE_SOLUTION_TYPES },
+          OR: [{ solution: null }, { work: null }],
         },
         include: {
-          subject: {
-            select: {
-              grade: true,
-            },
-          },
+          subject: { select: { grade: true } },
           attachments: true,
           options: true,
         },
@@ -448,22 +576,79 @@ export const questionRouter = createTRPCRouter({
       }
 
       const enrichmentPromises = questionsToEnrich.map(async (question) => {
+        // 1. Generate
         const aiEnrichment = await enrichQuestionWithAI(question)
 
-        const verified = await verifyQuestion(
+        if (!aiEnrichment.solution || !aiEnrichment.work) {
+          return ctx.db.question.update({
+            where: { id: question.id },
+            data: { ...aiEnrichment },
+          })
+        }
+
+        const fipiVerified = await verifySolution(
           question.id,
           question.subjectId,
-          aiEnrichment.solution
+          question.subject.grade,
+          aiEnrichment.solution,
+          question.solutionType,
+          question.options.length
         )
 
-        return ctx.db.question.update({
-          where: { id: question.id },
-          data: {
-            solution: aiEnrichment.solution,
-            work: aiEnrichment.work,
-            hint: aiEnrichment.hint,
-            verified,
-          },
+        let aiSyntaxVerified = false
+        if (fipiVerified) {
+          aiSyntaxVerified = await verifyContentWithAI(
+            question,
+            aiEnrichment.work,
+            aiEnrichment.hint
+          )
+        }
+
+        return ctx.db.$transaction(async (tx) => {
+          await tx.question.update({
+            where: { id: question.id },
+            data: {
+              solution: aiEnrichment.solution,
+              work: aiEnrichment.work,
+              hint: aiEnrichment.hint,
+            },
+          })
+
+          await tx.questionMeta.deleteMany({
+            where: {
+              questionId: question.id,
+              OR: [
+                {
+                  type: QuestionMetaType.SOURCE_VERIFIED,
+                  source: QuestionMetaSource.FIPI,
+                },
+                {
+                  type: QuestionMetaType.SYNTAX_VERIFIED,
+                  source: QuestionMetaSource.AI,
+                },
+              ],
+            },
+          })
+
+          if (fipiVerified) {
+            await tx.questionMeta.create({
+              data: {
+                questionId: question.id,
+                type: QuestionMetaType.SOURCE_VERIFIED,
+                source: QuestionMetaSource.FIPI,
+              },
+            })
+          }
+
+          if (aiSyntaxVerified) {
+            await tx.questionMeta.create({
+              data: {
+                questionId: question.id,
+                type: QuestionMetaType.SYNTAX_VERIFIED,
+                source: QuestionMetaSource.AI,
+              },
+            })
+          }
         })
       })
 
@@ -472,18 +657,155 @@ export const questionRouter = createTRPCRouter({
       return { enrichedCount: questionsToEnrich.length }
     }),
 
-  updateVerifications: createProtectedProcedure([PermissionBit.ADMIN])
-    .input(z.object({ updates: z.record(z.string(), z.boolean()) }))
+  sourceVerifyMany: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(z.object({ ids: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
-      const { updates } = input
-      const updatePromises = Object.entries(updates).map(([id, verified]) =>
-        ctx.db.question.update({
-          where: { id },
-          data: { verified },
+      const questionsToVerify = await ctx.db.question.findMany({
+        where: {
+          id: { in: input.ids },
+          solutionType: { notIn: UNENRICHABLE_SOLUTION_TYPES },
+          solution: { not: null },
+        },
+        include: {
+          subject: { select: { grade: true } },
+          options: true,
+        },
+      })
+
+      if (questionsToVerify.length === 0) {
+        return { verifiedCount: 0 }
+      }
+
+      const verificationPromises = questionsToVerify.map(async (question) => {
+        const fipiVerified = await verifySolution(
+          question.id,
+          question.subjectId,
+          question.subject.grade,
+          question.solution,
+          question.solutionType,
+          question.options.length
+        )
+
+        return ctx.db.$transaction(async (tx) => {
+          await tx.questionMeta.deleteMany({
+            where: {
+              questionId: question.id,
+              type: QuestionMetaType.SOURCE_VERIFIED,
+              source: QuestionMetaSource.FIPI,
+            },
+          })
+
+          if (fipiVerified) {
+            await tx.questionMeta.create({
+              data: {
+                questionId: question.id,
+                type: QuestionMetaType.SOURCE_VERIFIED,
+                source: QuestionMetaSource.FIPI,
+              },
+            })
+          }
         })
+      })
+
+      await Promise.all(verificationPromises)
+
+      return { processedCount: questionsToVerify.length }
+    }),
+
+  verifyOne: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const question = await ctx.db.question.findUnique({
+        where: { id: input.id },
+        include: {
+          attachments: true,
+          options: true,
+        },
+      })
+
+      if (!question) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Question not found",
+        })
+      }
+
+      if (!question.work || !question.solution) {
+        return { isValid: false }
+      }
+
+      const isValid = await verifyContentWithAI(
+        question,
+        question.work,
+        question.hint
       )
 
-      await ctx.db.$transaction(updatePromises)
-      return { updatedCount: updatePromises.length }
+      return { isValid }
+    }),
+
+  updateMeta: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(
+      z.object({
+        type: z.nativeEnum(QuestionMetaType),
+        updates: z.record(z.string(), z.boolean()),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { type, updates } = input
+      const idsToAdd: string[] = []
+      const idsToRemove: string[] = []
+
+      Object.entries(updates).forEach(([id, shouldHaveMeta]) => {
+        if (shouldHaveMeta) {
+          idsToAdd.push(id)
+        } else {
+          idsToRemove.push(id)
+        }
+      })
+
+      return ctx.db.$transaction(async (tx) => {
+        const results = {
+          removed: 0,
+          added: 0,
+        }
+
+        if (idsToRemove.length > 0) {
+          const deleteResult = await tx.questionMeta.deleteMany({
+            where: {
+              questionId: { in: idsToRemove },
+              type: type,
+            },
+          })
+          results.removed = deleteResult.count
+        }
+
+        if (idsToAdd.length > 0) {
+          const existingMetas = await tx.questionMeta.findMany({
+            where: {
+              questionId: { in: idsToAdd },
+              type: type,
+            },
+            select: { questionId: true },
+          })
+
+          const existingIds = new Set(existingMetas.map((m) => m.questionId))
+
+          const newIdsToAdd = idsToAdd.filter((id) => !existingIds.has(id))
+
+          if (newIdsToAdd.length > 0) {
+            const createResult = await tx.questionMeta.createMany({
+              data: newIdsToAdd.map((qid) => ({
+                questionId: qid,
+                type: type,
+                source: QuestionMetaSource.USER,
+                userId: ctx.session.user.id,
+              })),
+            })
+            results.added = createResult.count
+          }
+        }
+
+        return results
+      })
     }),
 })

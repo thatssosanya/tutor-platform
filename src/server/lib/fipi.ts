@@ -1,5 +1,8 @@
 import tls from "node:tls"
+
+import { SolutionType } from "@prisma/client"
 import { Agent, fetch, FormData, type RequestInit, type Response } from "undici"
+
 import { env } from "@/env"
 import { FIPI_EGE_URL, FIPI_OGE_URL } from "@/utils/consts"
 
@@ -139,24 +142,56 @@ export const fetchFipiPage = async (
   return decoder.decode(buffer)
 }
 
-export const verifyQuestion = async (
+export const verifySolution = async (
   questionId: string,
   subjectId: string,
-  grade?: string | null,
-  solution?: string | null
+  grade: string | null | undefined,
+  solution: string | null | undefined,
+  solutionType: SolutionType,
+  optionsCount: number = 0
 ) => {
   if (!solution) return false
 
   try {
     const { nextCookies } = await fetchFipiRaw(
-      `/bank/questions.php?proj=${subjectId}`
+      `/bank/questions.php?proj=${subjectId}`,
+      {},
+      grade ?? "11"
     )
 
     const body = new FormData()
     body.append("guid", questionId)
     body.append("proj", subjectId)
-    body.append("answer", solution)
     body.append("ajax", "1")
+
+    if (solutionType === SolutionType.MULTICHOICEGROUP) {
+      // Input: "3|2|1" -> Answer: "321", ans0="3", ans1="2"...
+      const parts = solution.split("|")
+      body.append("answer", parts.join(""))
+      parts.forEach((val, idx) => {
+        body.append(`ans${idx}`, val)
+      })
+    } else if (solutionType === SolutionType.MULTIRESPONSE) {
+      // Input: "1|3" -> Answer: "1010" (if 4 options), test0="1", test2="3"
+      const selectedOrders = solution.split("|").map(Number)
+
+      const limit =
+        optionsCount > 0 ? optionsCount : Math.max(...selectedOrders)
+
+      let binaryString = ""
+      for (let i = 1; i <= limit; i++) {
+        if (selectedOrders.includes(i)) {
+          binaryString += "1"
+          // FIPI uses 0-based index for field name, but value is 1-based order
+          body.append(`test${i - 1}`, i.toString())
+        } else {
+          binaryString += "0"
+        }
+      }
+      body.append("answer", binaryString)
+    } else {
+      body.append("answer", solution)
+    }
 
     const { response } = await fetchFipiRaw(
       "/bank/solve.php",

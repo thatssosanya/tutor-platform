@@ -1,7 +1,13 @@
-import { QuestionSource, SolutionType } from "@prisma/client"
+import {
+  QuestionMetaSource,
+  QuestionMetaType,
+  QuestionSource,
+  SolutionType,
+} from "@prisma/client"
 import { Check, X } from "lucide-react"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
+import { useSession } from "next-auth/react"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 
 import { SearchFilter } from "@/components/filters/SearchFilter"
@@ -13,6 +19,7 @@ import { SpinnerScreen } from "@/components/SpinnerScreen"
 import { useSearchFilter } from "@/hooks/filters/useSearchFilter"
 import { useTopicFilter } from "@/hooks/filters/useTopicFilter"
 import DefaultLayout from "@/layouts/DefaultLayout"
+import { cn } from "@/styles"
 import {
   Box,
   Button,
@@ -38,10 +45,11 @@ const BooleanFilterGroup: React.FC<{
   label: string
   value: BooleanFilterState
   onChange: (value: BooleanFilterState) => void
-}> = ({ label, value, onChange }) => {
+  yesLabel?: string
+}> = ({ label, value, onChange, yesLabel }) => {
   const options: RadioOption<BooleanFilterState>[] = [
     { value: "all", label: "Все" },
-    { value: "yes", label: "Есть" },
+    { value: "yes", label: yesLabel ?? "Есть" },
     { value: "no", label: "Нет" },
   ]
   return (
@@ -74,26 +82,6 @@ const SolutionTypeFilterGroup: React.FC<{
   )
 }
 
-const VerifiedFilterGroup: React.FC<{
-  value: BooleanFilterState
-  onChange: (value: BooleanFilterState) => void
-}> = ({ value, onChange }) => {
-  const options: RadioOption<BooleanFilterState>[] = [
-    { value: "all", label: "Все" },
-    { value: "yes", label: "Да" },
-    { value: "no", label: "Нет" },
-  ]
-  return (
-    <RadioGroup
-      label="Подтвержден"
-      options={options}
-      value={value}
-      onChange={onChange}
-      variant="button"
-    />
-  )
-}
-
 // --- Main Page Component ---
 
 const ScrapeSubjectPage: NextPage = () => {
@@ -101,16 +89,18 @@ const ScrapeSubjectPage: NextPage = () => {
   const { subjectId } = router.query
   const fipiSubjectId = subjectId as string
 
+  const { data: session } = useSession()
+
   const [page, setPage] = useState(1)
   const [targetPage, setTargetPage] = useState<number | "">("")
 
   // Automation State
   const [isAutoScraping, setIsAutoScraping] = useState(false)
   const [isAutoEnriching, setIsAutoEnriching] = useState(false)
+  const [isAutoSourceVerifying, setIsAutoSourceVerifying] = useState(false)
 
   // Topic Iteration Automation State
   const [isAutoTopicScraping, setIsAutoTopicScraping] = useState(false)
-  const [isAutoTopicEnriching, setIsAutoTopicEnriching] = useState(false)
   const [topicQueue, setTopicQueue] = useState<string[]>([])
   const [activeAutomationTopicId, setActiveAutomationTopicId] = useState<
     string | undefined
@@ -118,7 +108,6 @@ const ScrapeSubjectPage: NextPage = () => {
 
   const [showExamPositionCategories, setShowExamPositionCategories] =
     useState(false)
-  const [scrapeByTopic, setScrapeByTopic] = useState(false)
 
   const [localChanges, setLocalChanges] = useState<{
     [id: string]: Partial<Pick<Question, "body" | "solution" | "work" | "hint">>
@@ -137,7 +126,9 @@ const ScrapeSubjectPage: NextPage = () => {
   })
 
   // Filter states
-  const [verifiedFilter, setVerifiedFilter] =
+  const [sourceVerifiedFilter, setSourceVerifiedFilter] =
+    useState<BooleanFilterState>("all")
+  const [syntaxVerifiedFilter, setSyntaxVerifiedFilter] =
     useState<BooleanFilterState>("all")
   const [solutionTypeFilter, setSolutionTypeFilter] = useState<
     SolutionType | "all"
@@ -167,29 +158,13 @@ const ScrapeSubjectPage: NextPage = () => {
       { enabled: !!fipiSubjectId }
     )
 
-  // Determine active topic for query and scraping
-  const isTopicAutomationRunning = isAutoTopicScraping || isAutoTopicEnriching
-
-  const singleTopicId = useMemo(() => {
-    if (selectedTopicIds.length !== 1 || !topics) return undefined
-    const selectedId = selectedTopicIds[0]!
-    const selectedTopic = topics.find((t) => t.id === selectedId)
-    if (selectedTopic && selectedTopic.parentId) {
-      return selectedId
-    }
-    return undefined
-  }, [selectedTopicIds, topics])
+  const isTopicAutomationRunning = isAutoTopicScraping
 
   const effectiveSingleTopicId = useMemo(() => {
     if (isTopicAutomationRunning && activeAutomationTopicId)
       return activeAutomationTopicId
-    return scrapeByTopic ? singleTopicId : undefined
-  }, [
-    scrapeByTopic,
-    singleTopicId,
-    isTopicAutomationRunning,
-    activeAutomationTopicId,
-  ])
+    return undefined
+  }, [isTopicAutomationRunning, activeAutomationTopicId])
 
   // Query Key Construction
   const queryKey: RouterInputs["question"]["getPaginated"] = {
@@ -202,7 +177,11 @@ const ScrapeSubjectPage: NextPage = () => {
       isTopicAutomationRunning && activeAutomationTopicId
         ? [activeAutomationTopicId]
         : selectedTopicIds,
-    verified: verifiedFilter === "all" ? null : verifiedFilter === "yes",
+    verified: null,
+    sourceVerified:
+      sourceVerifiedFilter === "all" ? null : sourceVerifiedFilter === "yes",
+    syntaxVerified:
+      syntaxVerifiedFilter === "all" ? null : syntaxVerifiedFilter === "yes",
     solutionType: solutionTypeFilter === "all" ? undefined : solutionTypeFilter,
     examPositions:
       selectedExamPositionIds.length > 0
@@ -232,7 +211,8 @@ const ScrapeSubjectPage: NextPage = () => {
   }, [
     solutionTypeFilter,
     fipiSubjectId,
-    verifiedFilter,
+    sourceVerifiedFilter,
+    syntaxVerifiedFilter,
     examPositionSetFilter,
     solutionFilter,
     workFilter,
@@ -246,27 +226,19 @@ const ScrapeSubjectPage: NextPage = () => {
     setLocalChanges({})
   }, [page])
 
-  // --- Shared Navigation Logic for Automation ---
   const advanceAutomation = useCallback(() => {
     if (!targetPage) return
 
-    // Case 1: More pages in current view/topic
     if (page < targetPage) {
       setPage((prev) => prev + 1)
 
-      // Special case for scraping: we need to trigger mutation manually after page update
-      // but scraping handles its own recursion in onSuccess usually.
-      // This is mostly used for Enrichment or triggering the *next* scrape step logic
       return { action: "NEXT_PAGE", nextPage: page + 1 }
     }
 
-    // Case 2: Pages done, check for next topic
-    if (isAutoTopicScraping || isAutoTopicEnriching) {
+    if (isAutoTopicScraping) {
       setTopicQueue((prevQueue) => {
         if (prevQueue.length === 0) {
-          // Done
           setIsAutoTopicScraping(false)
-          setIsAutoTopicEnriching(false)
           setActiveAutomationTopicId(undefined)
           alert("Topic automation complete.")
           return []
@@ -276,19 +248,17 @@ const ScrapeSubjectPage: NextPage = () => {
         setActiveAutomationTopicId(nextTopic)
         setPage(1)
 
-        // For scraping, we need to fire the mutation immediately with new params
-        // This is handled in the mutation callback mostly, but good to know state updated
         return rest
       })
       return { action: "NEXT_TOPIC" }
     }
 
-    // Case 3: Pages done, no topics queue
     setIsAutoScraping(false)
     setIsAutoEnriching(false)
+    setIsAutoSourceVerifying(false)
     alert("Automation complete.")
     return { action: "DONE" }
-  }, [targetPage, page, isAutoTopicScraping, isAutoTopicEnriching])
+  }, [targetPage, page, isAutoTopicScraping])
 
   const scrapeTopicsMutation = api.scraper.scrapeTopics.useMutation({
     onSuccess: () => {
@@ -304,9 +274,8 @@ const ScrapeSubjectPage: NextPage = () => {
         page: finishedPage,
       })
 
-      const effectiveTarget = targetPage || 999 // fail-safe
+      const effectiveTarget = targetPage || 999
 
-      // Standard Page Automation OR Topic Page Loop
       if (
         (isAutoScraping || isAutoTopicScraping) &&
         finishedPage < effectiveTarget
@@ -316,14 +285,9 @@ const ScrapeSubjectPage: NextPage = () => {
         scrapePageMutation.mutate({
           subjectId: fipiSubjectId,
           page: nextPage,
-          topicId: effectiveSingleTopicId, // uses activeAutomationTopicId if set
+          topicId: effectiveSingleTopicId,
         })
-      }
-      // Topic Switching Logic
-      else if (isAutoTopicScraping) {
-        // Need to access the CURRENT queue state, so we use setTopicQueue callback pattern
-        // but we also need to trigger the mutation.
-        // Note: This relies on queue state being accurate.
+      } else if (isAutoTopicScraping) {
         if (topicQueue.length > 0) {
           const nextTopic = topicQueue[0]!
           const newQueue = topicQueue.slice(1)
@@ -363,7 +327,7 @@ const ScrapeSubjectPage: NextPage = () => {
     onSuccess: (data) => {
       void apiUtils.question.getPaginated.invalidate(queryKey)
 
-      if (isAutoEnriching || isAutoTopicEnriching) {
+      if (isAutoEnriching) {
         advanceAutomation()
       } else {
         alert(`Successfully enriched ${data.enrichedCount} questions.`)
@@ -371,8 +335,23 @@ const ScrapeSubjectPage: NextPage = () => {
     },
     onError: (error) => {
       setIsAutoEnriching(false)
-      setIsAutoTopicEnriching(false)
       alert(`Error enriching page: ${error.message}. Stopping automation.`)
+    },
+  })
+
+  const sourceVerifyManyMutation = api.question.sourceVerifyMany.useMutation({
+    onSuccess: (data) => {
+      void apiUtils.question.getPaginated.invalidate(queryKey)
+
+      if (isAutoSourceVerifying) {
+        advanceAutomation()
+      } else {
+        alert(`Successfully processed ${data.processedCount} questions.`)
+      }
+    },
+    onError: (error) => {
+      setIsAutoSourceVerifying(false)
+      alert(`Error verifying page: ${error.message}. Stopping automation.`)
     },
   })
 
@@ -397,33 +376,69 @@ const ScrapeSubjectPage: NextPage = () => {
     },
   })
 
-  const updateVerificationsMutation =
-    api.question.updateVerifications.useMutation({
-      onMutate: async ({ updates }) => {
-        await apiUtils.question.getPaginated.cancel(queryKey)
-        const previousData = apiUtils.question.getPaginated.getData(queryKey)
-        const questionId = Object.keys(updates)[0]
-        const newStatus = updates[questionId!]
-        if (!questionId) return { previousData }
-        apiUtils.question.getPaginated.setData(queryKey, (oldData) => {
-          if (!oldData) return
+  const getMetaStatus = (question: Question) => {
+    const isSyntaxVerified = question.metas.some(
+      (m) => m.type === QuestionMetaType.SYNTAX_VERIFIED
+    )
+    const isSourceVerified = question.metas.some(
+      (m) => m.type === QuestionMetaType.SOURCE_VERIFIED
+    )
+    return { isSyntaxVerified, isSourceVerified }
+  }
+
+  const updateMetaMutation = api.question.updateMeta.useMutation({
+    onMutate: async ({ type, updates }) => {
+      await apiUtils.question.getPaginated.cancel(queryKey)
+
+      const previousData = apiUtils.question.getPaginated.getData(queryKey)
+
+      // Optimistically update to the new value
+      if (previousData) {
+        apiUtils.question.getPaginated.setData(queryKey, (old) => {
+          if (!old) return old
+
           return {
-            ...oldData,
-            items: oldData.items.map((q) =>
-              q.id === questionId ? { ...q, verified: newStatus ?? false } : q
-            ),
+            ...old,
+            items: old.items.map((q) => {
+              if (updates[q.id] !== undefined) {
+                const newValue = updates[q.id]!
+                const otherMetas = q.metas.filter((m) => m.type !== type)
+
+                const newMetas = newValue
+                  ? [
+                      ...otherMetas,
+                      {
+                        id: "optimistic",
+                        type: type,
+                        source: QuestionMetaSource.USER,
+                        questionId: q.id,
+                        userId: session?.user.id,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                      },
+                    ]
+                  : otherMetas
+
+                return { ...q, metas: newMetas }
+              }
+              return q
+            }),
           }
         })
-        return { previousData }
-      },
-      onError: (err, newTodo, context) => {
-        apiUtils.question.getPaginated.setData(queryKey, context?.previousData)
-        alert(`Failed to update status: ${err.message}`)
-      },
-      onSettled: () => {
-        void apiUtils.question.getPaginated.invalidate(queryKey)
-      },
-    })
+      }
+
+      return { previousData }
+    },
+    onError: (err, newTodo, context) => {
+      if (context?.previousData) {
+        apiUtils.question.getPaginated.setData(queryKey, context.previousData)
+      }
+      alert(`Failed to update status: ${err.message}`)
+    },
+    onSettled: () => {
+      void apiUtils.question.getPaginated.invalidate(queryKey)
+    },
+  })
 
   const updateExamPositionMutation =
     api.question.updateExamPosition.useMutation({
@@ -497,15 +512,6 @@ const ScrapeSubjectPage: NextPage = () => {
     scrapeTopicsMutation.mutate({ subjectId: fipiSubjectId })
   }
 
-  const handleScrapeSinglePage = () => {
-    if (!fipiSubjectId) return
-    scrapePageMutation.mutate({
-      subjectId: fipiSubjectId,
-      page,
-      topicId: effectiveSingleTopicId,
-    })
-  }
-
   const handleAutoScrape = () => {
     if (!fipiSubjectId || !targetPage || targetPage <= page) {
       alert("Please enter a target page number greater than the current page.")
@@ -545,34 +551,11 @@ const ScrapeSubjectPage: NextPage = () => {
     })
   }
 
-  const handleAutoTopicEnrich = () => {
-    if (selectedTopicIds.length === 0) {
-      alert("Please select topics to enrich.")
-      return
-    }
-    if (!targetPage) {
-      alert("Target page required.")
-      return
-    }
-
-    const queue = [...selectedTopicIds]
-    const first = queue.shift()
-    if (!first) return
-
-    setTopicQueue(queue)
-    setActiveAutomationTopicId(first)
-    setPage(1)
-    setIsAutoTopicEnriching(true)
-    // Data fetching will trigger in useEffect
-  }
-
   const handleEnrichPage = useCallback(() => {
-    // If loading, we can't make decisions about empty pages yet
     if (isLoadingQuestions) return
 
     if (!questions || questions.length === 0) {
-      if (isAutoEnriching || isAutoTopicEnriching) {
-        // Empty page encountered during automation -> skip to next
+      if (isAutoEnriching) {
         advanceAutomation()
         return
       }
@@ -588,7 +571,7 @@ const ScrapeSubjectPage: NextPage = () => {
       .map((q) => q.id)
 
     if (idsToEnrich.length === 0) {
-      if (isAutoEnriching || isAutoTopicEnriching) {
+      if (isAutoEnriching) {
         advanceAutomation()
       } else {
         alert(
@@ -601,7 +584,6 @@ const ScrapeSubjectPage: NextPage = () => {
   }, [
     questions,
     isAutoEnriching,
-    isAutoTopicEnriching,
     advanceAutomation,
     enrichManyMutation,
     isLoadingQuestions,
@@ -616,24 +598,82 @@ const ScrapeSubjectPage: NextPage = () => {
     handleEnrichPage()
   }
 
-  // Automation Effect for Enrichment
+  const handleSourceVerifyPage = useCallback(() => {
+    if (isLoadingQuestions) return
+
+    if (!questions || questions.length === 0) {
+      if (isAutoSourceVerifying) {
+        advanceAutomation()
+        return
+      }
+      return
+    }
+
+    const idsToVerify = questions
+      .filter(
+        (q) => q.solutionType !== SolutionType.LONG && q.solution !== null
+      )
+      .map((q) => q.id)
+
+    if (idsToVerify.length === 0) {
+      if (isAutoSourceVerifying) {
+        advanceAutomation()
+      } else {
+        alert(
+          "No verifiable questions on this page (missing solutions or LONG type)."
+        )
+      }
+      return
+    }
+
+    sourceVerifyManyMutation.mutate({ ids: idsToVerify })
+  }, [
+    questions,
+    isAutoSourceVerifying,
+    advanceAutomation,
+    sourceVerifyManyMutation,
+    isLoadingQuestions,
+  ])
+
+  const handleAutoSourceVerify = () => {
+    if (!fipiSubjectId || !targetPage || targetPage <= page) {
+      alert("Please enter a target page number greater than the current page.")
+      return
+    }
+    setIsAutoSourceVerifying(true)
+    handleSourceVerifyPage()
+  }
+
   useEffect(() => {
-    const isAutomating = isAutoEnriching || isAutoTopicEnriching
+    const isAutomatingEnrichment = isAutoEnriching
+    const isAutomatingVerification = isAutoSourceVerifying
+
     if (
-      isAutomating &&
+      isAutomatingEnrichment &&
       questions &&
       !enrichManyMutation.isPending &&
       !isLoadingQuestions
     ) {
       handleEnrichPage()
     }
+
+    if (
+      isAutomatingVerification &&
+      questions &&
+      !sourceVerifyManyMutation.isPending &&
+      !isLoadingQuestions
+    ) {
+      handleSourceVerifyPage()
+    }
   }, [
-    isAutoEnriching,
-    isAutoTopicEnriching,
+    isLoadingQuestions,
     questions,
+    isAutoEnriching,
+    isAutoSourceVerifying,
     handleEnrichPage,
     enrichManyMutation.isPending,
-    isLoadingQuestions,
+    handleSourceVerifyPage,
+    sourceVerifyManyMutation.isPending,
   ])
 
   const handleFieldChange = (
@@ -665,34 +705,56 @@ const ScrapeSubjectPage: NextPage = () => {
   }
 
   const cardControls = (question: Question) => {
+    const { isSyntaxVerified, isSourceVerified } = getMetaStatus(question)
+
     const isUpdatingThis =
-      updateVerificationsMutation.isPending &&
-      updateVerificationsMutation.variables?.updates[question.id] !== undefined
+      updateMetaMutation.isPending &&
+      updateMetaMutation.variables?.updates[question.id] !== undefined
 
     return (
       <Stack className="gap-4 p-2">
-        <Button
-          size="lg"
-          variant="primary-paper"
-          onClick={() =>
-            updateVerificationsMutation.mutate({
-              updates: { [question.id]: !question.verified },
-            })
-          }
-          disabled={isUpdatingThis}
-        >
-          {question.verified ? (
-            <>
-              <Check className="mr-4 h-6 w-6 text-success" />
-              Подтвержден
-            </>
-          ) : (
-            <>
-              <X className="mr-4 h-6 w-6 text-danger" />
-              Неподтвержден
-            </>
+        <Row className="gap-4">
+          {!UNENRICHABLE_SOLUTION_TYPES.includes(question.solutionType) && (
+            <div className={cn("flex items-center justify-start gap-2")}>
+              {isSourceVerified ? (
+                <>
+                  <Check className="h-6 w-6 text-success" />
+                  <span>Ответ сходится</span>
+                </>
+              ) : (
+                <>
+                  <X className="h-6 w-6 text-danger" />
+                  <span>Ответ не сходится</span>
+                </>
+              )}
+            </div>
           )}
-        </Button>
+
+          <Button
+            size="lg"
+            variant="primary-paper"
+            className="flex-1 justify-start"
+            onClick={() =>
+              updateMetaMutation.mutate({
+                type: QuestionMetaType.SYNTAX_VERIFIED,
+                updates: { [question.id]: !isSyntaxVerified },
+              })
+            }
+            disabled={isUpdatingThis}
+          >
+            {isSyntaxVerified ? (
+              <>
+                <Check className="mr-2 h-6 w-6 text-success" />
+                Текст проверен
+              </>
+            ) : (
+              <>
+                <X className="mr-2 h-6 w-6 text-danger" />
+                Текст не проверен
+              </>
+            )}
+          </Button>
+        </Row>
       </Stack>
     )
   }
@@ -746,13 +808,18 @@ const ScrapeSubjectPage: NextPage = () => {
                   }
                 }}
                 onBlur={() => handleFieldSave(question, "solution")}
+                highlightImages
               />
             </Stack>
 
             <Stack className="gap-1">
               <h4 className="font-semibold text-primary">Решение:</h4>
               <Box className="text-lg">
-                {workValue ? <Markdown>{workValue}</Markdown> : "Нет решения"}
+                {workValue ? (
+                  <Markdown highlightImages>{workValue}</Markdown>
+                ) : (
+                  "Нет решения"
+                )}
               </Box>
               <textarea
                 value={workValue ?? ""}
@@ -768,7 +835,11 @@ const ScrapeSubjectPage: NextPage = () => {
             <Stack className="gap-1">
               <h4 className="font-semibold text-primary">Подсказка:</h4>
               <Box className="text-lg">
-                {hintValue ? <Markdown>{hintValue}</Markdown> : "Нет подсказки"}
+                {hintValue ? (
+                  <Markdown highlightImages>{hintValue}</Markdown>
+                ) : (
+                  "Нет подсказки"
+                )}
               </Box>
               <textarea
                 value={hintValue ?? ""}
@@ -908,9 +979,13 @@ const ScrapeSubjectPage: NextPage = () => {
     : []
   const isScrapingInProgress =
     scrapePageMutation.isPending || isAutoScraping || isAutoTopicScraping
-  const isEnrichingInProgress =
-    enrichManyMutation.isPending || isAutoEnriching || isAutoTopicEnriching
-  const isAnyAutomationRunning = isScrapingInProgress || isEnrichingInProgress
+  const isEnrichingInProgress = enrichManyMutation.isPending || isAutoEnriching
+  const isSourceVerificationInProgress =
+    sourceVerifyManyMutation.isPending || isAutoSourceVerifying
+  const isAnyAutomationRunning =
+    isScrapingInProgress ||
+    isEnrichingInProgress ||
+    isSourceVerificationInProgress
 
   return (
     <DefaultLayout>
@@ -945,8 +1020,9 @@ const ScrapeSubjectPage: NextPage = () => {
         )}
         {isAutoTopicScraping && (
           <p className="font-bold text-purple-500">
-            Авто-скрейпинг ТЕМ. Текущая тема: {activeAutomationTopicId}.
-            Страница {page} из {targetPage}. В очереди: {topicQueue.length}.
+            Авто-скрейпинг по темам. Текущая тема: {activeAutomationTopicId}.
+            Страница {page} из {targetPage}. В очереди еще {topicQueue.length}{" "}
+            тем.
           </p>
         )}
         {isAutoEnriching && (
@@ -955,40 +1031,24 @@ const ScrapeSubjectPage: NextPage = () => {
             вкладку.
           </p>
         )}
-        {isAutoTopicEnriching && (
-          <p className="font-bold text-emerald-500">
-            Авто-решение ТЕМ. Текущая тема: {activeAutomationTopicId}. Страница{" "}
-            {page} из {targetPage}. В очереди: {topicQueue.length}.
-          </p>
-        )}
 
         <div className="flex flex-col gap-4 rounded-lg border border-primary bg-paper p-4">
           <div className="flex flex-wrap items-center gap-4">
-            <Checkbox
-              label="По теме"
-              checked={scrapeByTopic}
-              onChange={setScrapeByTopic}
-              disabled={!singleTopicId || isAnyAutomationRunning}
-            />
-            <Button
-              onClick={handleScrapeSinglePage}
-              disabled={isAnyAutomationRunning}
-            >
-              {scrapePageMutation.isPending &&
-              !isAutoScraping &&
-              !isAutoTopicScraping
-                ? `Страница ${page} скрейпится...`
-                : `Скрейпить страницу ${page}`}
-            </Button>
             <Button
               onClick={handleEnrichPage}
               disabled={isAnyAutomationRunning}
             >
-              {enrichManyMutation.isPending &&
-              !isAutoEnriching &&
-              !isAutoTopicEnriching
+              {enrichManyMutation.isPending && !isAutoEnriching
                 ? `Страница ${page} решается...`
                 : "Решить страницу " + page}
+            </Button>
+            <Button
+              onClick={handleSourceVerifyPage}
+              disabled={isAnyAutomationRunning}
+            >
+              {sourceVerifyManyMutation.isPending && !isAutoSourceVerifying
+                ? `Страница ${page} проверяется...`
+                : "Проверить страницу " + page}
             </Button>
           </div>
 
@@ -1023,6 +1083,12 @@ const ScrapeSubjectPage: NextPage = () => {
               >
                 {isAutoEnriching ? "Авто-решение..." : "Авто-решение"}
               </Button>
+              <Button
+                onClick={handleAutoSourceVerify}
+                disabled={isAnyAutomationRunning || !targetPage}
+              >
+                {isAutoSourceVerifying ? "Авто-проверка..." : "Авто-проверка"}
+              </Button>
             </div>
 
             <div className="h-6 w-[1px] bg-border mx-2"></div>
@@ -1041,19 +1107,6 @@ const ScrapeSubjectPage: NextPage = () => {
                   ? "Темы скрейпятся..."
                   : "Скрейпить выбранные темы"}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={handleAutoTopicEnrich}
-                disabled={
-                  isAnyAutomationRunning ||
-                  !targetPage ||
-                  selectedTopicIds.length === 0
-                }
-              >
-                {isAutoTopicEnriching
-                  ? "Темы решаются..."
-                  : "Решить выбранные темы"}
-              </Button>
             </div>
           </div>
         </div>
@@ -1070,9 +1123,17 @@ const ScrapeSubjectPage: NextPage = () => {
                   onSelectedTopicIdsChange={onSelectedTopicIdsChange}
                 />
               )}
-              <VerifiedFilterGroup
-                value={verifiedFilter}
-                onChange={setVerifiedFilter}
+              <BooleanFilterGroup
+                label="Ответ сходится"
+                value={sourceVerifiedFilter}
+                onChange={setSourceVerifiedFilter}
+                yesLabel="Да"
+              />
+              <BooleanFilterGroup
+                label="Текст проверен"
+                value={syntaxVerifiedFilter}
+                onChange={setSyntaxVerifiedFilter}
+                yesLabel="Да"
               />
               <SolutionTypeFilterGroup
                 value={solutionTypeFilter}
@@ -1139,6 +1200,7 @@ const ScrapeSubjectPage: NextPage = () => {
                       hideSolutionBlock
                       footer={cardFooter}
                       controls={cardControls}
+                      highlightImages
                     />
                   ))}
                 </Stack>

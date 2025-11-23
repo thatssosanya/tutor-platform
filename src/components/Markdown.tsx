@@ -6,9 +6,16 @@ import rehypeKatex from "rehype-katex"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 
+import { cn } from "@/styles"
 import { fixMarkdown } from "@/utils/markdown"
 
-function MarkdownComponent({ children }: { children: string | null }) {
+function MarkdownComponent({
+  children,
+  highlightImages,
+}: {
+  children: string | null
+  highlightImages?: boolean
+}) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkMath, remarkGfm]}
@@ -27,7 +34,15 @@ function MarkdownComponent({ children }: { children: string | null }) {
           return <p className="my-1 first:mt-0 last:mb-0" {...rest} />
         },
         img: ({ node: _, ...rest }) => {
-          return <img className="inline-block" {...rest} />
+          return (
+            <img
+              className={cn(
+                "inline-block",
+                highlightImages && "rounded border-2 border-accent"
+              )}
+              {...rest}
+            />
+          )
         },
       }}
     >

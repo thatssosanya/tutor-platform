@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client"
 import { QuestionSource, SolutionType } from "@prisma/client"
-import * as cheerio from "cheerio"
 import type { CheerioAPI } from "cheerio"
+import * as cheerio from "cheerio"
 import type { AnyNode, Element } from "domhandler"
 
 import {

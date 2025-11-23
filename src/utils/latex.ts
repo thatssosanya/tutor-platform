@@ -64,14 +64,56 @@ function fixCases(input: string): string {
 }
 
 // prefer dfrac
-export function fixFrac(input: string) {
+export function fixFrac(input: string): string {
   const output = input.replaceAll("\\frac", "\\dfrac")
   return output
 }
 
-export function fixEmptySubsAndSupers(input: string) {
+export function fixEmptySubsAndSupers(input: string): string {
   const output = input.replaceAll(/[\_\^]\{\}/g, "")
   return output
+}
+
+export function fixHangingDollarSignDelimiters(input: string | null) {
+  if (!input) {
+    return input
+  }
+  const lines = input.split("\n")
+  const output: string[] = []
+
+  let latexBuffer: string[] = []
+  let inLatexBlock = false
+
+  const countDollars = (str: string) => str.split("$").length - 1
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const dollarCount = countDollars(line)
+
+    if (inLatexBlock) {
+      latexBuffer.push(trimmed)
+
+      if (dollarCount > 0 && dollarCount % 2 !== 0) {
+        output.push(latexBuffer.join(""))
+
+        latexBuffer = []
+        inLatexBlock = false
+      }
+    } else {
+      if (dollarCount === 1) {
+        inLatexBlock = true
+        latexBuffer.push(trimmed)
+      } else {
+        output.push(line)
+      }
+    }
+  }
+
+  if (inLatexBlock && latexBuffer.length > 0) {
+    output.push(latexBuffer.join(""))
+  }
+
+  return output.join("\n")
 }
 
 export function fixMalformedLatex(input?: string | null) {

@@ -17,6 +17,7 @@ export type QuestionSolutionBlockProps = {
   isCorrect?: boolean
   onChange?: (newValue: string) => void
   onBlur?: () => void
+  highlightImages?: boolean
 }
 
 export function QuestionSolutionBlock(props: QuestionSolutionBlockProps) {

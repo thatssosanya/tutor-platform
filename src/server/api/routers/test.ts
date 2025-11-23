@@ -38,6 +38,7 @@ export const testRouter = createTRPCRouter({
                       topic: { select: { id: true, examPosition: true } },
                     },
                   },
+                  metas: { select: { type: true, source: true } },
                 },
               },
             },

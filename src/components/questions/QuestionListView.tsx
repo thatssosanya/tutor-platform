@@ -1,4 +1,5 @@
 import { Transition } from "@headlessui/react"
+import { QuestionMetaType } from "@prisma/client"
 import { ExternalLink, ThumbsDown, Trash2 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import React, { useEffect, useState } from "react"
@@ -78,41 +79,40 @@ export function QuestionListView({
     }
   )
 
-  const updateVerificationMutation =
-    api.question.updateVerifications.useMutation({
-      onMutate: async (input) => {
-        await utils.question.getPaginated.cancel(questionsQueryParams)
+  const updateMetaMutation = api.question.updateMeta.useMutation({
+    onMutate: async (input) => {
+      await utils.question.getPaginated.cancel(questionsQueryParams)
 
-        const previousData =
-          utils.question.getPaginated.getData(questionsQueryParams)
+      const previousData =
+        utils.question.getPaginated.getData(questionsQueryParams)
 
-        if (previousData) {
-          const questionIdsToUnverify = Object.keys(input.updates)
+      if (previousData) {
+        const questionIdsToUnverify = Object.keys(input.updates)
 
-          const newData = {
-            ...previousData,
-            items: previousData.items.filter(
-              (question) => !questionIdsToUnverify.includes(question.id)
-            ),
-          }
-
-          utils.question.getPaginated.setData(questionsQueryParams, newData)
+        const newData = {
+          ...previousData,
+          items: previousData.items.filter(
+            (question) => !questionIdsToUnverify.includes(question.id)
+          ),
         }
 
-        return { previousData }
-      },
-      onError: (err, input, context) => {
-        if (context?.previousData) {
-          utils.question.getPaginated.setData(
-            questionsQueryParams,
-            context.previousData
-          )
-        }
-      },
-      onSettled: () => {
-        utils.question.getPaginated.invalidate(questionsQueryParams)
-      },
-    })
+        utils.question.getPaginated.setData(questionsQueryParams, newData)
+      }
+
+      return { previousData }
+    },
+    onError: (err, input, context) => {
+      if (context?.previousData) {
+        utils.question.getPaginated.setData(
+          questionsQueryParams,
+          context.previousData
+        )
+      }
+    },
+    onSettled: () => {
+      utils.question.getPaginated.invalidate(questionsQueryParams)
+    },
+  })
 
   const deleteMutation = api.question.delete.useMutation({
     onMutate: async ({ id: questionIdToDelete }) => {
@@ -173,7 +173,8 @@ export function QuestionListView({
           size="sm"
           variant="primary-paper"
           onClick={() =>
-            updateVerificationMutation.mutate({
+            updateMetaMutation.mutate({
+              type: QuestionMetaType.SYNTAX_VERIFIED,
               updates: { [question.id]: false },
             })
           }

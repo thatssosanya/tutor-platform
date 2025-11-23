@@ -1,12 +1,11 @@
 import Head from "next/head"
-import { signOut, useSession } from "next-auth/react"
-
-import ProtectedLayout from "@/layouts/ProtectedLayout"
-import { Button, Container, Paper, Stack } from "@/ui"
-import { useEffect } from "react"
-import { isStudent, isTutor } from "@/utils/permissions"
 import { useRouter } from "next/router"
+import { useSession } from "next-auth/react"
+import { useEffect } from "react"
+
 import { SpinnerScreen } from "@/components/SpinnerScreen"
+import ProtectedLayout from "@/layouts/ProtectedLayout"
+import { isStudent, isTutor } from "@/utils/permissions"
 
 export default function Home() {
   const { data: session, status } = useSession()
