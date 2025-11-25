@@ -48,6 +48,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
     search: debouncedSearch,
     sources: selectedSources,
     page: currentPage,
+    verified: true,
     limit: 10,
   }
   const availableQuestionsQuery = api.question.getPaginated.useQuery(

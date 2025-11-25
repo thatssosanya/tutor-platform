@@ -102,6 +102,7 @@ export const questionRouter = createTRPCRouter({
         verified: z.boolean().nullable().optional().default(null),
         sourceVerified: z.boolean().nullable().optional().default(null),
         syntaxVerified: z.boolean().nullable().optional().default(null),
+        reports: z.array(z.nativeEnum(QuestionMetaType)).optional(),
         solutionType: z.nativeEnum(SolutionType).optional(),
         hasSolution: z.boolean().nullable().optional(),
         hasWork: z.boolean().nullable().optional(),
@@ -121,6 +122,7 @@ export const questionRouter = createTRPCRouter({
         verified,
         sourceVerified,
         syntaxVerified,
+        reports,
         solutionType,
         hasSolution,
         hasWork,
@@ -209,6 +211,12 @@ export const questionRouter = createTRPCRouter({
             ? [
                 { metas: { some: { type: QuestionMetaType.SOURCE_VERIFIED } } },
                 { metas: { some: { type: QuestionMetaType.SYNTAX_VERIFIED } } },
+                { metas: { none: { type: QuestionMetaType.BODY_REPORT } } },
+                { metas: { none: { type: QuestionMetaType.WORK_REPORT } } },
+                { metas: { none: { type: QuestionMetaType.HINT_REPORT } } },
+                {
+                  topics: { some: { topic: { examPosition: { not: null } } } },
+                },
               ]
             : verified === false
               ? [
@@ -222,6 +230,21 @@ export const questionRouter = createTRPCRouter({
                       {
                         metas: {
                           none: { type: QuestionMetaType.SYNTAX_VERIFIED },
+                        },
+                      },
+                      {
+                        metas: {
+                          some: { type: QuestionMetaType.BODY_REPORT },
+                        },
+                      },
+                      {
+                        metas: {
+                          some: { type: QuestionMetaType.WORK_REPORT },
+                        },
+                      },
+                      {
+                        metas: {
+                          some: { type: QuestionMetaType.HINT_REPORT },
                         },
                       },
                     ],
@@ -248,6 +271,10 @@ export const questionRouter = createTRPCRouter({
                   },
                 ]
               : []),
+
+          ...(reports && reports.length > 0
+            ? [{ metas: { some: { type: { in: reports } } } }]
+            : []),
         ],
       }
 

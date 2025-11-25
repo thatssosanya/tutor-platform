@@ -97,6 +97,7 @@ export async function enrichQuestionWithAI(
           enrichQuestionResponseSchema,
           "json_schema"
         ),
+        max_completion_tokens: 4096,
         model: "grok-4.1-fast",
         temperature: 0.2,
         // @ts-expect-error TODO add openai.d.ts
@@ -115,7 +116,6 @@ export async function enrichQuestionWithAI(
         work: fixHangingDollarSignDelimiters(
           parsed.work
             ?.replaceAll("\\\\", "\\")
-            ?.replaceAll("\\n", "\n")
             ?.replaceAll("LATEXSTART", "$")
             ?.replaceAll("LATEXEND", "$")
             ?.replaceAll("\\frac", "\\dfrac")
@@ -125,7 +125,6 @@ export async function enrichQuestionWithAI(
         hint: fixHangingDollarSignDelimiters(
           parsed.hint
             ?.replaceAll("\\\\", "\\")
-            ?.replaceAll("\\n", "\n")
             ?.replaceAll("LATEXSTART", "$")
             ?.replaceAll("LATEXEND", "$")
             ?.replaceAll("\\frac", "\\dfrac") ?? null

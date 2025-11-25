@@ -4,7 +4,14 @@ import {
   QuestionSource,
   SolutionType,
 } from "@prisma/client"
-import { Check, X } from "lucide-react"
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  X,
+} from "lucide-react"
 import type { NextPage } from "next"
 import { useRouter } from "next/router"
 import { useSession } from "next-auth/react"
@@ -25,6 +32,8 @@ import {
   Button,
   Checkbox,
   Container,
+  Listbox,
+  type ListboxOptionType,
   RadioGroup,
   type RadioOption,
   Row,
@@ -39,7 +48,118 @@ import {
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 type BooleanFilterState = "all" | "yes" | "no"
 
+function PaginationControl({
+  page,
+  setPage,
+  totalPages,
+  disabled,
+}: {
+  page: number
+  setPage: React.Dispatch<React.SetStateAction<number>>
+  totalPages: number | undefined
+  disabled: boolean
+}) {
+  const [internalPage, setInternalPage] = useState(page.toString())
+
+  useEffect(() => {
+    setInternalPage(page.toString())
+  }, [page])
+
+  const commitChange = () => {
+    const val = parseInt(internalPage)
+
+    if (isNaN(val)) {
+      setInternalPage(page.toString())
+      return
+    }
+
+    const clampedVal = Math.min(Math.max(1, val), totalPages ?? 1)
+
+    setInternalPage(clampedVal.toString())
+
+    if (clampedVal !== page) {
+      setPage(clampedVal)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.currentTarget.blur()
+    }
+  }
+
+  if (!totalPages || totalPages <= 1) return null
+
+  return (
+    <Row className="justify-center gap-2">
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => setPage(1)}
+        disabled={page <= 1 || disabled}
+      >
+        <ChevronsLeft className="h-4 w-4" />
+      </Button>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => setPage((p) => Math.max(1, p - 1))}
+        disabled={page <= 1 || disabled}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      <Row className="gap-2">
+        <span className="text-sm font-medium">Страница:</span>
+        <input
+          type="number"
+          min={1}
+          max={totalPages}
+          value={internalPage}
+          onChange={(e) => setInternalPage(e.target.value)}
+          onBlur={commitChange}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          className="w-16 rounded-md border border-input bg-input px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+        <span className="text-sm font-medium text-secondary">
+          из {totalPages}
+        </span>
+      </Row>
+
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        disabled={page >= totalPages || disabled}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => setPage(totalPages)}
+        disabled={page >= totalPages || disabled}
+      >
+        <ChevronsRight className="h-4 w-4" />
+      </Button>
+    </Row>
+  )
+}
+const MemoizedPaginationControl = React.memo(PaginationControl)
+
 // --- Helper Filter Components ---
+
+const REPORT_OPTIONS: ListboxOptionType<QuestionMetaType>[] = [
+  { value: QuestionMetaType.BODY_REPORT, label: "Ошибка в условии" },
+  { value: QuestionMetaType.WORK_REPORT, label: "Ошибка в решении" },
+  { value: QuestionMetaType.HINT_REPORT, label: "Ошибка в подсказке" },
+]
+const REPORT_BUTTON_DATA: ListboxOptionType<QuestionMetaType>[] = [
+  { value: QuestionMetaType.BODY_REPORT, label: "Условие" },
+  { value: QuestionMetaType.WORK_REPORT, label: "Решение" },
+  { value: QuestionMetaType.HINT_REPORT, label: "Подсказка" },
+]
 
 const BooleanFilterGroup: React.FC<{
   label: string
@@ -130,6 +250,7 @@ const ScrapeSubjectPage: NextPage = () => {
     useState<BooleanFilterState>("all")
   const [syntaxVerifiedFilter, setSyntaxVerifiedFilter] =
     useState<BooleanFilterState>("all")
+  const [selectedReports, setSelectedReports] = useState<QuestionMetaType[]>([])
   const [solutionTypeFilter, setSolutionTypeFilter] = useState<
     SolutionType | "all"
   >("all")
@@ -182,6 +303,7 @@ const ScrapeSubjectPage: NextPage = () => {
       sourceVerifiedFilter === "all" ? null : sourceVerifiedFilter === "yes",
     syntaxVerified:
       syntaxVerifiedFilter === "all" ? null : syntaxVerifiedFilter === "yes",
+    reports: selectedReports.length > 0 ? selectedReports : undefined,
     solutionType: solutionTypeFilter === "all" ? undefined : solutionTypeFilter,
     examPositions:
       selectedExamPositionIds.length > 0
@@ -213,6 +335,7 @@ const ScrapeSubjectPage: NextPage = () => {
     fipiSubjectId,
     sourceVerifiedFilter,
     syntaxVerifiedFilter,
+    selectedReports,
     examPositionSetFilter,
     solutionFilter,
     workFilter,
@@ -676,6 +799,20 @@ const ScrapeSubjectPage: NextPage = () => {
     sourceVerifyManyMutation.isPending,
   ])
 
+  const handleReportsChange = (
+    newOptions: ListboxOptionType<QuestionMetaType>[]
+  ) => {
+    setSelectedReports(
+      newOptions
+        .map((o) => o.value)
+        .filter((v): v is QuestionMetaType => v !== null)
+    )
+  }
+
+  const selectedReportOptions = REPORT_OPTIONS.filter(
+    (o) => o.value && selectedReports.includes(o.value)
+  )
+
   const handleFieldChange = (
     questionId: string,
     field: "body" | "solution" | "work" | "hint",
@@ -703,12 +840,22 @@ const ScrapeSubjectPage: NextPage = () => {
       })
     }
   }
+  const isScrapingInProgress =
+    scrapePageMutation.isPending || isAutoScraping || isAutoTopicScraping
+  const isEnrichingInProgress = enrichManyMutation.isPending || isAutoEnriching
+  const isSourceVerificationInProgress =
+    sourceVerifyManyMutation.isPending || isAutoSourceVerifying
+  const isAnyAutomationRunning =
+    isScrapingInProgress ||
+    isEnrichingInProgress ||
+    isSourceVerificationInProgress
 
   const cardControls = (question: Question) => {
     const { isSyntaxVerified, isSourceVerified } = getMetaStatus(question)
 
-    const isUpdatingThis =
+    const isUpdatingThisVerification =
       updateMetaMutation.isPending &&
+      updateMetaMutation.variables?.type === QuestionMetaType.SYNTAX_VERIFIED &&
       updateMetaMutation.variables?.updates[question.id] !== undefined
 
     return (
@@ -740,7 +887,7 @@ const ScrapeSubjectPage: NextPage = () => {
                 updates: { [question.id]: !isSyntaxVerified },
               })
             }
-            disabled={isUpdatingThis}
+            disabled={isUpdatingThisVerification}
           >
             {isSyntaxVerified ? (
               <>
@@ -754,6 +901,47 @@ const ScrapeSubjectPage: NextPage = () => {
               </>
             )}
           </Button>
+        </Row>
+
+        <Row className="gap-4">
+          {REPORT_BUTTON_DATA.map(({ value, label }) => {
+            if (!value) {
+              return
+            }
+            const hasReport = question.metas.some((m) => m.type === value)
+            const isUpdatingThisReport =
+              updateMetaMutation.isPending &&
+              updateMetaMutation.variables?.type === value &&
+              updateMetaMutation.variables?.updates[question.id] !== undefined
+
+            return (
+              <Button
+                key={value}
+                size="sm"
+                variant="primary-paper"
+                className="flex-1 justify-start"
+                onClick={() =>
+                  updateMetaMutation.mutate({
+                    type: value,
+                    updates: { [question.id]: !hasReport },
+                  })
+                }
+                disabled={isUpdatingThisReport}
+              >
+                {!hasReport ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4 text-success" />
+                    {label}
+                  </>
+                ) : (
+                  <>
+                    <X className="mr-2 h-4 w-4 text-danger" />
+                    {label}
+                  </>
+                )}
+              </Button>
+            )
+          })}
         </Row>
       </Stack>
     )
@@ -964,6 +1152,18 @@ const ScrapeSubjectPage: NextPage = () => {
     )
   }
 
+  const paginationControl = useMemo(
+    () => (
+      <MemoizedPaginationControl
+        page={page}
+        setPage={setPage}
+        totalPages={totalPages}
+        disabled={isAnyAutomationRunning}
+      />
+    ),
+    [page, setPage, totalPages, isAnyAutomationRunning]
+  )
+
   if (!subject) {
     return (
       <DefaultLayout>
@@ -973,19 +1173,6 @@ const ScrapeSubjectPage: NextPage = () => {
       </DefaultLayout>
     )
   }
-
-  const paginationButtons = totalPages
-    ? Array.from({ length: totalPages }, (_, i) => i + 1)
-    : []
-  const isScrapingInProgress =
-    scrapePageMutation.isPending || isAutoScraping || isAutoTopicScraping
-  const isEnrichingInProgress = enrichManyMutation.isPending || isAutoEnriching
-  const isSourceVerificationInProgress =
-    sourceVerifyManyMutation.isPending || isAutoSourceVerifying
-  const isAnyAutomationRunning =
-    isScrapingInProgress ||
-    isEnrichingInProgress ||
-    isSourceVerificationInProgress
 
   return (
     <DefaultLayout>
@@ -1135,6 +1322,15 @@ const ScrapeSubjectPage: NextPage = () => {
                 onChange={setSyntaxVerifiedFilter}
                 yesLabel="Да"
               />
+              <Listbox
+                label="Репорты"
+                multiple
+                options={REPORT_OPTIONS}
+                value={selectedReportOptions}
+                onChange={handleReportsChange}
+                placeholder="Все репорты"
+                getButtonText={(vals) => `Выбрано: ${vals.length}`}
+              />
               <SolutionTypeFilterGroup
                 value={solutionTypeFilter}
                 onChange={setSolutionTypeFilter}
@@ -1173,21 +1369,7 @@ const ScrapeSubjectPage: NextPage = () => {
             </Stack>
 
             <Stack className="gap-6">
-              {paginationButtons.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {paginationButtons.map((p) => (
-                    <Button
-                      key={p}
-                      size="sm"
-                      variant={p === page ? "primary" : "secondary"}
-                      onClick={() => setPage(p)}
-                      disabled={isAnyAutomationRunning}
-                    >
-                      {p}
-                    </Button>
-                  ))}
-                </div>
-              )}
+              {paginationControl}
 
               {isLoadingQuestions && <SpinnerScreen />}
 
@@ -1207,6 +1389,8 @@ const ScrapeSubjectPage: NextPage = () => {
               ) : (
                 !isLoadingQuestions && <p>Вопросы не найдены.</p>
               )}
+
+              {paginationControl}
             </Stack>
           </div>
         )}

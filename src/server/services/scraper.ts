@@ -610,7 +610,7 @@ export async function scrapePage(
   const parsedGuids = parsedQuestions.map((q) => q.id)
   const existingQuestions = await db.question.findMany({
     where: { id: { in: parsedGuids } },
-    select: { id: true },
+    select: { id: true, sourcePosition: true },
   })
   const existingIds = new Set(existingQuestions.map((q) => q.id))
 
@@ -625,8 +625,24 @@ export async function scrapePage(
   })
   const validExamTopicIds = new Set(validExamPositions.map((t) => t.id))
 
-  await Promise.all(
-    newQuestions.map(async (question) => {
+  await Promise.all([
+    ...existingQuestions.map(async (question) => {
+      const parsedQuestion = parsedQuestions.find((pq) => pq.id === question.id)
+      if (!parsedQuestion) {
+        return
+      }
+      if (
+        !question.sourcePosition ||
+        (!!parsedQuestion.sourcePosition &&
+          question.sourcePosition !== parsedQuestion.sourcePosition)
+      ) {
+        await db.question.update({
+          where: { id: question.id },
+          data: { sourcePosition: parsedQuestion.sourcePosition },
+        })
+      }
+    }),
+    ...newQuestions.map(async (question) => {
       const { topicIds, attachments, options, examPosition, ...data } = question
 
       const topicsToConnect = topicIds.map((id) => ({
@@ -669,8 +685,8 @@ export async function scrapePage(
           sourcePosition: data.sourcePosition,
         },
       })
-    })
-  )
+    }),
+  ])
 
   return { createdCount: newQuestions.length }
 }

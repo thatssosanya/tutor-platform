@@ -167,11 +167,12 @@ export async function verifyContentWithAI(
 
     const response = await openai.chat.completions.create({
       messages,
-      model: "grok-4.1-fast",
       response_format: zodResponseFormat(
         verificationResponseSchema,
         "json_schema"
       ),
+      max_completion_tokens: 1024,
+      model: "grok-4.1-fast",
       temperature: 0.2,
       // @ts-expect-error TODO add openai.d.ts
       reasoning: {
