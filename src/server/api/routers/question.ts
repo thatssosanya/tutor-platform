@@ -17,6 +17,7 @@ import { verifySolution } from "@/server/lib/fipi"
 import { enrichQuestionWithAI } from "@/server/services/ai/enrichment"
 import { verifyContentWithAI } from "@/server/services/ai/verification"
 import { UNENRICHABLE_SOLUTION_TYPES } from "@/utils/consts"
+import { removeNonSemanticTables } from "@/utils/markdown"
 import { PermissionBit } from "@/utils/permissions"
 
 const questionInputSchema = z.object({
@@ -834,5 +835,35 @@ export const questionRouter = createTRPCRouter({
 
         return results
       })
+    }),
+
+  fixTableFormatting: createProtectedProcedure([PermissionBit.ADMIN])
+    .input(z.object({ ids: z.array(z.string()) }))
+    .mutation(async ({ ctx, input }) => {
+      const questions = await ctx.db.question.findMany({
+        where: {
+          id: { in: input.ids },
+          body: { contains: "|" },
+        },
+        select: { id: true, body: true },
+      })
+
+      let updatedCount = 0
+
+      for (const q of questions) {
+        if (!q.body) continue
+
+        const cleanBody = removeNonSemanticTables(q.body)
+
+        if (cleanBody && cleanBody !== q.body) {
+          await ctx.db.question.update({
+            where: { id: q.id },
+            data: { body: cleanBody },
+          })
+          updatedCount++
+        }
+      }
+
+      return { processed: questions.length, updated: updatedCount }
     }),
 })

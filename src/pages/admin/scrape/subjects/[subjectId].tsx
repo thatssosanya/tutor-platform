@@ -630,6 +630,20 @@ const ScrapeSubjectPage: NextPage = () => {
       },
     })
 
+  const fixTableFormattingMutation =
+    api.question.fixTableFormatting.useMutation({
+      onSuccess: (data) => {
+        alert(`Fixed tables for ${data.updated} questions.`)
+        void apiUtils.question.getPaginated.invalidate(queryKey)
+      },
+    })
+
+  const handleFixTablesOnPage = () => {
+    if (!questions || questions.length === 0) return
+    const ids = questions.map((q) => q.id)
+    fixTableFormattingMutation.mutate({ ids })
+  }
+
   const handleScrapeTopics = () => {
     if (!fipiSubjectId) return
     scrapeTopicsMutation.mutate({ subjectId: fipiSubjectId })
@@ -970,7 +984,7 @@ const ScrapeSubjectPage: NextPage = () => {
               handleFieldChange(question.id, "body", e.target.value)
             }
             onBlur={() => handleFieldSave(question, "body")}
-            className="min-h-[100px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+            className="min-h-[300px] w-full rounded-md border border-input bg-input px-3 py-2 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
             disabled={isUpdatingContent}
           />
         </Stack>
@@ -1221,13 +1235,16 @@ const ScrapeSubjectPage: NextPage = () => {
 
         <div className="flex flex-col gap-4 rounded-lg border border-primary bg-paper p-4">
           <div className="flex flex-wrap items-center gap-4">
+            <span className="font-bold text-sm uppercase text-secondary">
+              Страница
+            </span>
             <Button
               onClick={handleEnrichPage}
               disabled={isAnyAutomationRunning}
             >
               {enrichManyMutation.isPending && !isAutoEnriching
                 ? `Страница ${page} решается...`
-                : "Решить страницу " + page}
+                : "Решить"}
             </Button>
             <Button
               onClick={handleSourceVerifyPage}
@@ -1235,7 +1252,15 @@ const ScrapeSubjectPage: NextPage = () => {
             >
               {sourceVerifyManyMutation.isPending && !isAutoSourceVerifying
                 ? `Страница ${page} проверяется...`
-                : "Проверить страницу " + page}
+                : "Проверить"}
+            </Button>
+            <Button
+              onClick={handleFixTablesOnPage}
+              disabled={
+                isAnyAutomationRunning || fixTableFormattingMutation.isPending
+              }
+            >
+              Починить таблицы
             </Button>
           </div>
 

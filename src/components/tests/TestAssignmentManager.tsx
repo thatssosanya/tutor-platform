@@ -65,21 +65,18 @@ export function TestAssignmentManager({
             >
               {assignment.assignedTo.displayName}
               {assignment.dueAt ? (
-                <>
-                  {" "}
-                  {formatDateToString(assignment.dueAt)}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      handleDelete(assignment.id)
-                    }}
-                    className="-mr-1.5 rounded-full p-0.5 hover:bg-black/10 cursor-pointer"
-                    aria-label="Удалить"
-                  >
-                    <X className="h-[1em] w-[1em]" />
-                  </button>
-                </>
+                <> {formatDateToString(assignment.dueAt)}</>
               ) : undefined}
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleDelete(assignment.id)
+                }}
+                className="-mr-1.5 rounded-full p-0.5 hover:bg-black/10 cursor-pointer"
+                aria-label="Удалить"
+              >
+                <X className="h-[1em] w-[1em]" />
+              </button>
             </Chip>
           ))}
           <Chip

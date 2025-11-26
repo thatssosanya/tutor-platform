@@ -10,13 +10,12 @@ import { QuestionSolutionBlock } from "@/components/questions/QuestionSolutionBl
 import { SpinnerScreen } from "@/components/SpinnerScreen"
 import ProtectedLayout from "@/layouts/ProtectedLayout"
 import { cn } from "@/styles"
-import { Accordion, Box, Button, Container, Paper, Row, Stack } from "@/ui"
+import { Box, Button, Container, Paper, Row, Stack } from "@/ui"
 import { api, type RouterOutputs } from "@/utils/api"
 import { PermissionBit } from "@/utils/permissions"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
 
-// --- New Component for Answer/Solution Block ---
 interface AnswerSolutionBlockProps {
   question: Question
   studentAnswer?: StudentAnswer
@@ -35,6 +34,7 @@ function AnswerSolutionBlock({
   isSubmitting,
 }: AnswerSolutionBlockProps) {
   const [isOpen, setIsOpen] = useState(false)
+  useEffect(() => setIsOpen(false), [question])
 
   const isAnswered = !!studentAnswer
   const canShowHint = !!question.hint && !isAnswered
@@ -42,22 +42,11 @@ function AnswerSolutionBlock({
 
   return (
     <Stack className="w-full gap-4 md:min-h-0">
+      {(canShowHint || canShowWork) && !isAnswered
+        ? isOpen && <Markdown>{question.hint ?? ""}</Markdown>
+        : isOpen && <Markdown>{question.work ?? ""}</Markdown>}
+
       <p className="font-semibold">{question.prompt}</p>
-      {(canShowHint || canShowWork) && (
-        <Accordion
-          title={isAnswered ? "Решение" : "Подсказка"}
-          className="md:min-h-0"
-          panelClassName="md:min-h-0 overflow-y-auto px-0 py-4 text-lg"
-          isOpen={isOpen}
-          onToggle={() => setIsOpen((prev) => !prev)}
-        >
-          {!isAnswered ? (
-            <Markdown>{question.hint ?? ""}</Markdown>
-          ) : (
-            <Markdown>{question.work ?? ""}</Markdown>
-          )}
-        </Accordion>
-      )}
 
       <QuestionSolutionBlock
         question={question}
@@ -99,7 +88,6 @@ function AnswerSolutionBlock({
   )
 }
 
-// --- New Custom Pagination Component ---
 interface CustomPaginationNavProps {
   questions: Question[]
   studentAnswersMap: Map<string, StudentAnswer>
@@ -153,8 +141,10 @@ function CustomPaginationNav({
             </span>
             <Box className="col-start-2 row-start-1 truncate text-secondary">
               <Markdown>
-                {q.body?.split("\n")[0]?.replaceAll("\\dfrac", "\\frac") ??
-                  null}
+                {q.body
+                  ?.split("\n")
+                  ?.find((l) => !l.startsWith("|"))
+                  ?.replaceAll("\\dfrac", "\\frac") ?? null}
               </Markdown>
             </Box>
             {studentAnswer ? (
@@ -181,7 +171,6 @@ function CustomPaginationNav({
   )
 }
 
-// --- Main Page Component ---
 export default function AssignmentPage() {
   const router = useRouter()
   const assignmentId = router.query.assignmentId as string
