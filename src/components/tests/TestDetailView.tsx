@@ -45,6 +45,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
   const availableQuestionsQueryParams = {
     subjectId: test?.subjectId ?? "",
     topicIds: selectedTopicIds,
+    examPositions: selectedExamPositionIds,
     search: debouncedSearch,
     sources: selectedSources,
     page: currentPage,
