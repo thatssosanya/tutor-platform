@@ -1,12 +1,13 @@
 import type { QuestionSource } from "@prisma/client"
 import { Plus, X } from "lucide-react"
-import React from "react"
+import React, { useState } from "react"
 
 import { SearchFilter } from "@/components/filters/SearchFilter"
 import { SourceFilter } from "@/components/filters/SourceFilter"
 import { TopicFilter } from "@/components/filters/TopicFilter"
+import { Markdown } from "@/components/Markdown"
 import { QuestionList } from "@/components/questions/QuestionList"
-import { Button, Pagination, Stack } from "@/ui"
+import { Accordion, Button, Pagination, Stack } from "@/ui"
 import { type RouterOutputs } from "@/utils/api"
 
 type Question = RouterOutputs["question"]["getPaginated"]["items"][number]
@@ -34,6 +35,36 @@ type QuestionPickerProps = {
   currentPage: number
   totalPages: number | undefined | null
   onPageChange: (page: number) => void
+}
+
+function QuestionInfoFooter({ question }: { question: Question }) {
+  const [isHintOpen, setIsHintOpen] = useState(false)
+  const [isWorkOpen, setIsWorkOpen] = useState(false)
+
+  if (!question.hint && !question.work) return null
+
+  return (
+    <Stack className="gap-2">
+      {question.hint && (
+        <Accordion
+          title="Подсказка"
+          isOpen={isHintOpen}
+          onToggle={() => setIsHintOpen(!isHintOpen)}
+        >
+          <Markdown>{question.hint}</Markdown>
+        </Accordion>
+      )}
+      {question.work && (
+        <Accordion
+          title="Решение"
+          isOpen={isWorkOpen}
+          onToggle={() => setIsWorkOpen(!isWorkOpen)}
+        >
+          <Markdown>{question.work}</Markdown>
+        </Accordion>
+      )}
+    </Stack>
+  )
 }
 
 export function QuestionPicker({
@@ -120,6 +151,7 @@ export function QuestionPicker({
             questions={availableQuestions}
             isLoading={isLoadingAvailable}
             cardControls={addQuestionControl}
+            cardFooter={(q) => <QuestionInfoFooter question={q} />}
           />
           {!isLoadingAvailable && pagination}
         </Stack>
@@ -133,6 +165,7 @@ export function QuestionPicker({
           questions={selectedQuestions}
           isLoading={isLoadingSelected}
           cardControls={removeQuestionControl}
+          cardFooter={(q) => <QuestionInfoFooter question={q} />}
         />
       </Stack>
     </div>
