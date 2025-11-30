@@ -428,8 +428,11 @@ export const assignmentRouter = createTRPCRouter({
 
       let isCorrect = false
       if (question.solution) {
+        const cleanSolution = question.solution.trim().toLowerCase()
+        const cleanAnswer = answer.trim().toLowerCase()
         isCorrect =
-          answer.trim().toLowerCase() === question.solution.trim().toLowerCase()
+          cleanSolution === cleanAnswer ||
+          cleanSolution.replaceAll(".", ",") === cleanAnswer
       }
 
       const studentAnswerData = {
