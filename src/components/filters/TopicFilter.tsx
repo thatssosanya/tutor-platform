@@ -2,6 +2,7 @@ import React, { useMemo } from "react"
 
 import { Listbox, type ListboxOptionType } from "@/ui"
 import { api } from "@/utils/api"
+import { EXAM_POSITION_ID_PREFIX } from "@/utils/consts"
 
 type TopicFilterProps = {
   subjectId: string
@@ -9,6 +10,51 @@ type TopicFilterProps = {
   onSelectedTopicIdsChange: (ids: string[]) => void
   allowedTopicIds?: string[]
   variant?: "examPosition" | "default"
+}
+
+const getSortableParts = (id: string) => {
+  const isExp = id.startsWith(EXAM_POSITION_ID_PREFIX)
+  let parts: number[]
+
+  if (isExp) {
+    parts = id.slice(4).split("-").map(Number)
+  } else {
+    parts = id.split(".").map(Number)
+  }
+
+  return { isExp, parts }
+}
+
+const compareTopics = (
+  a: { id: string; name: string },
+  b: { id: string; name: string }
+) => {
+  const aData = getSortableParts(a.id)
+  const bData = getSortableParts(b.id)
+
+  if (aData.parts.some(isNaN) || bData.parts.some(isNaN)) {
+    return a.name.localeCompare(b.name)
+  }
+
+  if (aData.isExp !== bData.isExp) {
+    return aData.isExp ? 1 : -1
+  }
+
+  const maxLen = Math.max(aData.parts.length, bData.parts.length)
+
+  for (let i = 0; i < maxLen; i++) {
+    const valA = aData.parts[i]
+    const valB = bData.parts[i]
+
+    if (valA === undefined) return -1
+    if (valB === undefined) return 1
+
+    if (valA !== valB) {
+      return valA - valB
+    }
+  }
+
+  return 0
 }
 
 export function TopicFilter({
@@ -46,17 +92,8 @@ export function TopicFilter({
     }
 
     const rootTopics = topics.filter((t) => !t.parentId)
-    // TODO sorting
-    rootTopics.sort((a, b) => {
-      if ((+a.id).toString() === a.id && (+b.id).toString() === b.id) {
-        if (+a.id < +b.id) {
-          return -1
-        } else if (+a.id > +b.id) {
-          return 1
-        }
-      }
-      return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
-    })
+
+    rootTopics.sort(compareTopics)
 
     const options: ListboxOptionType<string>[] = []
     rootTopics.forEach((root) => {
@@ -68,16 +105,9 @@ export function TopicFilter({
       })
 
       const children = topics.filter((t) => t.parentId === root.id)
-      children.sort((a, b) => {
-        if ((+a.id).toString() === a.id && (+b.id).toString() === b.id) {
-          if (+a.id < +b.id) {
-            return -1
-          } else if (+a.id > +b.id) {
-            return 1
-          }
-        }
-        return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
-      })
+
+      children.sort(compareTopics)
+
       if (children) {
         children.forEach((child) => {
           options.push({
