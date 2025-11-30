@@ -1,6 +1,6 @@
-import { QuestionSource, SolutionType } from "@prisma/client"
+import { QuestionMetaType, QuestionSource, SolutionType } from "@prisma/client"
 
-import type { RadioOption } from "@/ui"
+import type { CheckboxOption } from "@/ui"
 
 export const LOCAL_STORAGE_PREFIX = "TutorPlatform."
 
@@ -12,12 +12,18 @@ export const ALL_QUESTION_SOURCES = [
 
 export const UNENRICHABLE_SOLUTION_TYPES: SolutionType[] = [SolutionType.LONG]
 
-export const SOLUTION_TYPE_OPTIONS: RadioOption<SolutionType>[] = [
+export const SOLUTION_TYPE_OPTIONS: CheckboxOption<SolutionType>[] = [
   { value: SolutionType.SHORT, label: "Краткий" },
   { value: SolutionType.LONG, label: "Развернутый" },
   { value: SolutionType.MULTICHOICE, label: "Выбор" },
   { value: SolutionType.MULTIRESPONSE, label: "Множественный выбор" },
   { value: SolutionType.MULTICHOICEGROUP, label: "Соответствие" },
+]
+
+export const REPORT_OPTIONS: CheckboxOption<QuestionMetaType>[] = [
+  { value: QuestionMetaType.BODY_REPORT, label: "Ошибка в условии" },
+  { value: QuestionMetaType.WORK_REPORT, label: "Ошибка в решении" },
+  { value: QuestionMetaType.HINT_REPORT, label: "Ошибка в подсказке" },
 ]
 
 export const FIPI_EGE_URL = "https://ege.fipi.ru"
