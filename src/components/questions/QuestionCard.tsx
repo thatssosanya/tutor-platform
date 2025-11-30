@@ -50,11 +50,11 @@ export function QuestionCard({
       <Paper
         data-id={question.id}
         className={cn(
-          "relative w-full h-full gap-4",
-          size === "lg" && "flex-grow"
+          "w-full h-full gap-4",
+          size === "lg" && "flex-grow grid grid-rows-[auto_1fr_auto]"
         )}
       >
-        <Row className="items-center gap-2">
+        <Row className="items-center gap-2 shrink-0">
           <Chip
             variant="primary"
             {...(question.source === QuestionSource.FIPI
@@ -91,7 +91,7 @@ export function QuestionCard({
 
           {controls && <Row className="ml-auto">{controls(question)}</Row>}
         </Row>
-        <Stack className="items-start md:flex-row md:items-center md:min-h-40">
+        <Stack className="items-start md:flex-row md:items-center md:min-h-40 md:overflow-y-auto">
           <Stack className={cn("text-lg")}>
             <Markdown highlightImages={highlightImages}>
               {question.body}
@@ -103,8 +103,11 @@ export function QuestionCard({
             ))}
           </Stack>
         </Stack>
+
         {(!hidePrompt || !hideSolutionBlock || footer) && (
-          <Stack className={cn("gap-4", size === "lg" && "mt-auto min-h-0")}>
+          <Stack
+            className={cn("gap-4 shrink-0", size === "lg" && "mt-auto min-h-0")}
+          >
             {!hidePrompt && (
               <p className="font-semibold text-primary">{question.prompt}</p>
             )}

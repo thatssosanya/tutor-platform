@@ -42,9 +42,18 @@ function AnswerSolutionBlock({
 
   return (
     <Stack className="w-full gap-4 md:min-h-0">
-      {(canShowHint || canShowWork) && !isAnswered
-        ? isOpen && <Markdown>{question.hint ?? ""}</Markdown>
-        : isOpen && <Markdown>{question.work ?? ""}</Markdown>}
+      {(canShowHint || canShowWork) && isOpen && (
+        <Stack className="text-lg">
+          <Box className="font-semibold">
+            {!isAnswered ? "Подсказка:" : "Решение:"}
+          </Box>
+          {!isAnswered ? (
+            <Markdown>{question.hint ?? ""}</Markdown>
+          ) : (
+            <Markdown>{question.work ?? ""}</Markdown>
+          )}
+        </Stack>
+      )}
 
       <p className="font-semibold">{question.prompt}</p>
 
