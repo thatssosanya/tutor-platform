@@ -91,16 +91,28 @@ export function QuestionPicker({
   totalPages,
   onPageChange,
 }: QuestionPickerProps) {
-  const addQuestionControl = (question: Question) => (
-    <Button
-      size="sm"
-      variant="primary-paper"
-      onClick={() => onAdd(question.id)}
-      aria-label="Добавить вопрос"
-    >
-      <Plus className="h-4 w-4" />
-    </Button>
-  )
+  const addQuestionControl = (question: Question) =>
+    selectedQuestions.some(
+      (selectedQuestion) => selectedQuestion.id === question.id
+    ) ? (
+      <Button
+        size="sm"
+        variant="primary-paper"
+        onClick={() => onRemove(question.id)}
+        aria-label="Удалить вопрос"
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    ) : (
+      <Button
+        size="sm"
+        variant="primary-paper"
+        onClick={() => onAdd(question.id)}
+        aria-label="Добавить вопрос"
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
+    )
 
   const removeQuestionControl = (question: Question) => (
     <Button

@@ -67,25 +67,20 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
   const toggleQuestionMutation = api.test.toggleQuestion.useMutation({
     onMutate: async ({ questionId }) => {
       await utils.test.getById.cancel({ id: testId })
-      await utils.question.getPaginated.cancel(availableQuestionsQueryParams)
 
       const previousTestData = utils.test.getById.getData({ id: testId })
-      const previousAvailableData = utils.question.getPaginated.getData(
+
+      const availableData = utils.question.getPaginated.getData(
         availableQuestionsQueryParams
       )
 
-      if (!previousTestData || !previousAvailableData) return
+      if (!previousTestData) return
 
       const isRemoving = previousTestData.questions.some(
         (tq) => tq.question.id === questionId
       )
 
       if (isRemoving) {
-        const questionToMove = previousTestData.questions.find(
-          (tq) => tq.question.id === questionId
-        )?.question
-        if (!questionToMove) return
-
         utils.test.getById.setData({ id: testId }, (oldTest) =>
           !oldTest
             ? undefined
@@ -96,45 +91,29 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
                 ),
               }
         )
-        utils.question.getPaginated.setData(
-          availableQuestionsQueryParams,
-          (oldData) =>
-            !oldData
-              ? undefined
-              : {
-                  ...oldData,
-                  items: [...oldData.items, questionToMove],
-                }
-        )
       } else {
-        const questionToMove = previousAvailableData.items.find(
+        const questionToAdd = availableData?.items.find(
           (q) => q.id === questionId
         )
-        if (!questionToMove) return
 
-        utils.question.getPaginated.setData(
-          availableQuestionsQueryParams,
-          (oldData) =>
-            !oldData
-              ? undefined
-              : {
-                  ...oldData,
-                  items: oldData.items.filter((q) => q.id !== questionId),
-                }
-        )
+        if (!questionToAdd) return
+
         utils.test.getById.setData({ id: testId }, (oldTest) => {
           if (!oldTest) return undefined
+
           const maxOrder = oldTest.questions.reduce(
             (max, q) => Math.max(max, q.order),
             -1
           )
+
           const newTestQuestion: TestQuestion = {
             id: `optimistic-${questionId}`,
             order: maxOrder + 1,
             testId: testId,
             questionId: questionId,
-            question: questionToMove,
+            question: questionToAdd,
           }
+
           return {
             ...oldTest,
             questions: [...oldTest.questions, newTestQuestion],
@@ -142,17 +121,11 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
         })
       }
 
-      return { previousTestData, previousAvailableData }
+      return { previousTestData }
     },
     onError: (err, variables, context) => {
       if (context?.previousTestData) {
         utils.test.getById.setData({ id: testId }, context.previousTestData)
-      }
-      if (context?.previousAvailableData) {
-        utils.question.getPaginated.setData(
-          availableQuestionsQueryParams,
-          context.previousAvailableData
-        )
       }
     },
   })
@@ -183,10 +156,7 @@ export function TestDetailView({ testId, onBack }: TestDetailViewProps) {
   )
 
   const availableQuestions = useMemo(
-    () =>
-      availableQuestionsQuery.data?.items.filter(
-        (q) => !selectedQuestionIds.has(q.id)
-      ) ?? [],
+    () => availableQuestionsQuery.data?.items ?? [],
     [availableQuestionsQuery.data?.items, selectedQuestionIds]
   )
 
