@@ -51,7 +51,7 @@ export function QuestionCard({
         data-id={question.id}
         className={cn(
           "w-full h-full gap-4",
-          size === "lg" && "flex-grow grid grid-rows-[auto_1fr_auto]"
+          size === "lg" && "flex-grow shrink-0 overflow-y-auto"
         )}
       >
         <Row className="items-center gap-2 shrink-0">
@@ -91,7 +91,7 @@ export function QuestionCard({
 
           {controls && <Row className="ml-auto">{controls(question)}</Row>}
         </Row>
-        <Stack className="items-start md:flex-row md:items-center md:min-h-40 md:overflow-y-auto">
+        <Stack className="items-start md:flex-row md:items-center md:min-h-40 shrink-0">
           <Stack className={cn("text-lg")}>
             <Markdown highlightImages={highlightImages}>
               {question.body}
