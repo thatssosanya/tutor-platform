@@ -100,6 +100,45 @@ export function TopicFilter({
     return { rootTopics: roots, allTopicsMap: map }
   }, [topicsQuery.data, allowedTopicIds])
 
+  const flattenedOptions = useMemo(() => {
+    const options: ListboxOptionType<string>[] = []
+
+    rootTopics.forEach((root) => {
+      options.push({
+        value: root.id,
+        label:
+          variant === "examPosition" ? root.name : `${root.id} - ${root.name}`,
+        disabled: variant === "examPosition" ? undefined : true,
+      })
+
+      const children = Array.from(allTopicsMap.values()).filter(
+        (t) => t.parentId === root.id
+      )
+      children.sort(compareTopics)
+
+      children.forEach((child) => {
+        options.push({
+          value: child.id,
+          label:
+            variant === "examPosition"
+              ? `  ${child.name}`
+              : `  ${child.id} - ${child.name}`,
+        })
+      })
+    })
+
+    return options
+  }, [rootTopics, allTopicsMap, variant])
+
+  const selectedOptions = useMemo(
+    () =>
+      flattenedOptions.filter(
+        (option) =>
+          option.value !== null && selectedTopicIds.includes(option.value)
+      ),
+    [flattenedOptions, selectedTopicIds]
+  )
+
   if (variant === "examPosition" && !multiple) {
     if (topicsQuery.isLoading) {
       return (
@@ -178,45 +217,6 @@ export function TopicFilter({
       </Stack>
     )
   }
-
-  const flattenedOptions = useMemo(() => {
-    const options: ListboxOptionType<string>[] = []
-
-    rootTopics.forEach((root) => {
-      options.push({
-        value: root.id,
-        label:
-          variant === "examPosition" ? root.name : `${root.id} - ${root.name}`,
-        disabled: variant === "examPosition" ? undefined : true,
-      })
-
-      const children = Array.from(allTopicsMap.values()).filter(
-        (t) => t.parentId === root.id
-      )
-      children.sort(compareTopics)
-
-      children.forEach((child) => {
-        options.push({
-          value: child.id,
-          label:
-            variant === "examPosition"
-              ? `  ${child.name}`
-              : `  ${child.id} - ${child.name}`,
-        })
-      })
-    })
-
-    return options
-  }, [rootTopics, allTopicsMap, variant])
-
-  const selectedOptions = useMemo(
-    () =>
-      flattenedOptions.filter(
-        (option) =>
-          option.value !== null && selectedTopicIds.includes(option.value)
-      ),
-    [flattenedOptions, selectedTopicIds]
-  )
 
   const handleOnChange = (
     newSelectedOptions: ListboxOptionType<string>[] | ListboxOptionType<string>
