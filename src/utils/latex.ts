@@ -81,36 +81,40 @@ export function fixHangingDollarSignDelimiters(input: string | null) {
   const lines = input.split("\n")
   const output: string[] = []
 
-  let latexBuffer: string[] = []
-  let inLatexBlock = false
+  const endsWithOpRegex = /([=\+\-\*\/ \^ \(\[\{,]|\\[a-zA-Z]+)\s*$/
 
-  const countDollars = (str: string) => str.split("$").length - 1
+  const startsWithOpRegex = /^\s*([=\+\-\*\/ \^ \)\,\].\}])/
 
-  for (const line of lines) {
-    const trimmed = line.trim()
-    const dollarCount = countDollars(line)
+  for (let i = 0; i < lines.length; i++) {
+    let currentLine = lines[i] ?? ""
 
-    if (inLatexBlock) {
-      latexBuffer.push(trimmed)
+    const countDollars = (str: string) => (str.match(/\$/g) || []).length
+    let dollarCount = countDollars(currentLine)
 
-      if (dollarCount > 0 && dollarCount % 2 !== 0) {
-        output.push(latexBuffer.join(""))
+    if (dollarCount % 2 !== 0 && i < lines.length - 1) {
+      const nextLine = lines[i + 1] ?? ""
 
-        latexBuffer = []
-        inLatexBlock = false
-      }
-    } else {
-      if (dollarCount === 1) {
-        inLatexBlock = true
-        latexBuffer.push(trimmed)
-      } else {
-        output.push(line)
+      const endsWithOp = endsWithOpRegex.test(currentLine)
+      const startsWithOp = startsWithOpRegex.test(nextLine)
+
+      if (endsWithOp || startsWithOp) {
+        currentLine = currentLine.trimEnd() + " " + nextLine.trimStart()
+        i++
+        dollarCount = countDollars(currentLine)
       }
     }
-  }
 
-  if (inLatexBlock && latexBuffer.length > 0) {
-    output.push(latexBuffer.join(""))
+    if (dollarCount % 2 !== 0) {
+      const trimmed = currentLine.trim()
+
+      if (trimmed.startsWith("$")) {
+        currentLine += "$"
+      } else if (trimmed.endsWith("$")) {
+        currentLine = "$" + currentLine
+      }
+    }
+
+    output.push(currentLine)
   }
 
   return output.join("\n")
