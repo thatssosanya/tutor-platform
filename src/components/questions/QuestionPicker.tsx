@@ -111,6 +111,7 @@ export function QuestionPicker({
             subjectId={subjectId}
             selectedTopicIds={selectedExamPositionIds}
             onSelectedTopicIdsChange={onSelectedExamPositionIdsChange}
+            multiple={false}
           />
         </Stack>
         <Stack className="gap-4">

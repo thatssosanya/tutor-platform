@@ -75,6 +75,8 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
   } = props
   const rootRef = useRef<HTMLDivElement>(null)
 
+  const justSelected = useRef(false)
+
   useEffect(() => {
     const node = rootRef.current
     if (!node || !onClose) return
@@ -98,6 +100,15 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
 
     return () => observer.disconnect()
   }, [onClose])
+
+  const handleChange = (val: ListboxOptionType<T> | ListboxOptionType<T>[]) => {
+    if (!multiple) {
+      onChange(val as ListboxOptionType<T>)
+      justSelected.current = true
+    } else {
+      onChange(val as ListboxOptionType<T>[])
+    }
+  }
 
   const getButtonDisplay = () => {
     if (multiple) {
@@ -131,42 +142,58 @@ function ListboxComponent<T extends string | number>(props: ListboxProps<T>) {
       as="div"
       ref={rootRef}
       value={value}
-      onChange={onChange}
+      onChange={handleChange}
       multiple={multiple}
       className={cn("relative", className)}
     >
-      <ListboxButton className={listboxButtonVariants({ variant, className })}>
-        <span className="block truncate h-5">{getButtonDisplay()}</span>
-        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-          <ChevronsUpDown className="h-5 w-5 text-secondary" />
-        </span>
-      </ListboxButton>
-      <ListboxOptions
-        // @ts-expect-error headless doesn't export this type https://headlessui.com/react/listbox#positioning-the-dropdown
-        anchor={anchor}
-        className="[--anchor-gap:calc(var(--spacing)*2)] w-(--button-width) max-h-80! absolute z-10 overflow-auto rounded-md bg-paper py-1 text-base shadow-primary shadow-lg inset-shadow-xs focus:outline-none sm:text-sm"
-      >
-        {options.map((option) => (
-          <ListboxOption
-            key={String(option.value)}
-            value={option}
-            disabled={option.disabled}
-            className="group relative select-none py-2 pl-10 pr-4 text-primary data-disabled:text-secondary data-focus:bg-muted-highlight cursor-pointer"
+      {({ open }) => (
+        <>
+          <ListboxButton
+            className={listboxButtonVariants({ variant, className })}
+            onFocus={(e) => {
+              if (justSelected.current) {
+                justSelected.current = false
+                return
+              }
+
+              if (!open) {
+                e.currentTarget.click()
+              }
+            }}
           >
-            <span
-              className={cn(
-                "block truncate font-normal group-data-selected:font-semibold",
-                option.label.startsWith("  ") && "pl-4"
-              )}
-            >
-              {option.label}
+            <span className="block truncate h-5">{getButtonDisplay()}</span>
+            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+              <ChevronsUpDown className="h-5 w-5 text-secondary" />
             </span>
-            <span className="absolute inset-y-0 left-0 hidden items-center pl-3 text-accent group-data-selected:flex">
-              <Check className="h-5 w-5" />
-            </span>
-          </ListboxOption>
-        ))}
-      </ListboxOptions>
+          </ListboxButton>
+          <ListboxOptions
+            // @ts-expect-error headless doesn't export this type https://headlessui.com/react/listbox#positioning-the-dropdown
+            anchor={anchor}
+            className="[--anchor-gap:calc(var(--spacing)*2)] w-(--button-width) max-h-80! absolute z-10 overflow-auto rounded-md bg-paper py-1 text-base shadow-primary shadow-lg inset-shadow-xs focus:outline-none sm:text-sm"
+          >
+            {options.map((option) => (
+              <ListboxOption
+                key={String(option.value)}
+                value={option}
+                disabled={option.disabled}
+                className="group relative select-none py-2 pl-10 pr-4 text-primary data-disabled:text-secondary data-focus:bg-muted-highlight cursor-pointer"
+              >
+                <span
+                  className={cn(
+                    "block truncate font-normal group-data-selected:font-semibold",
+                    option.label.startsWith("  ") && "pl-4"
+                  )}
+                >
+                  {option.label}
+                </span>
+                <span className="absolute inset-y-0 left-0 hidden items-center pl-3 text-accent group-data-selected:flex">
+                  <Check className="h-5 w-5" />
+                </span>
+              </ListboxOption>
+            ))}
+          </ListboxOptions>
+        </>
+      )}
     </HeadlessListbox>
   )
 }
